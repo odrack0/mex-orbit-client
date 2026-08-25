@@ -1,6 +1,13 @@
 # El mundo del slice: fondo generado, entidades del server, vuelo con
 # prediccion local + reconciliacion contra el eco autoritativo.
+# La mecanica de vuelo es la del prototipo: mantener presionado el click
+# persigue al cursor (la camara sigue a la nave, asi que el punto bajo un
+# cursor quieto tambien avanza), con reenvio por umbral de distancia.
 extends Node2D
+
+const CLICK_RADIUS := 34.0        # radio de click sobre entidades (escalado por zoom)
+const HOLD_RESEND_SEC := 0.25     # cadencia del reenvio con el boton sostenido
+const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para reenviar
 
 var _conn: GameConnection
 var _entidades := {}          # entity_id -> EntityNode
@@ -8,6 +15,12 @@ var _hero: EntityNode
 var _camara: Camera2D
 var _seq := 0
 var _limites := Vector2(20800, 12800)
+
+# vuelo sostenido (herencia del prototipo)
+var _hold_move := false
+var _hold_timer := 0.0
+var _last_sent_target := Vector2.INF
+var _seleccionada := 0        # entity_id con seleccion local
 
 # HUD (sistema N minimo de la iteracion: panel de nave + estado del enlace)
 var _hud_estado: Label
@@ -132,17 +145,87 @@ func _on_hero_stats(hs) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
-		var destino := get_global_mouse_position()
-		_volar_a(destino)
+	# soltar el boton termina la persecucion del cursor
+	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_hold_move = false
+		return
+	if event is InputEventMouseButton and event.pressed:
+		match event.button_index:
+			MOUSE_BUTTON_LEFT:
+				_handle_click(get_global_mouse_position())
+			MOUSE_BUTTON_WHEEL_UP:
+				_camara.zoom = (_camara.zoom * 1.1).clamp(Vector2(0.1, 0.1), Vector2(3, 3))
+			MOUSE_BUTTON_WHEEL_DOWN:
+				_camara.zoom = (_camara.zoom / 1.1).clamp(Vector2(0.1, 0.1), Vector2(3, 3))
+
+
+func _handle_click(world_pos: Vector2) -> void:
+	# ¿click sobre una entidad? seleccionar, no volar (como el prototipo)
+	var bajo := _entity_at(world_pos)
+	if bajo != null:
+		_seleccionar(bajo)
+		return
+	# click en vacio: volar; mientras siga presionado, _process persigue al cursor
+	_volar_a(world_pos)
+	_hold_move = true
+	_hold_timer = 0.0
+
+
+## Entidad interactuable bajo el punto, con radio de click escalado por zoom
+## (el minimo del prototipo: sin esto, con zoom lejano nada era clickable).
+func _entity_at(world_pos: Vector2) -> EntityNode:
+	var best: EntityNode = null
+	var best_dist := INF
+	var min_radius := CLICK_RADIUS / _camara.zoom.x
+	for id in _entidades:
+		var e: EntityNode = _entidades[id]
+		if e == _hero:
+			continue
+		var d := e.position.distance_to(world_pos)
+		if d < min_radius and d < best_dist:
+			best = e
+			best_dist = d
+	return best
+
+
+func _seleccionar(e: EntityNode) -> void:
+	if _entidades.has(_seleccionada):
+		_entidades[_seleccionada].set_selected(false)
+	_seleccionada = e.entity_id
+	e.set_selected(true)
+	# el server es quien fija el objetivo real (I5 le da uso en combate)
+	var sel := MexProtocol.SelectTarget.new()
+	sel.entity_id = e.entity_id
+	_conn.send(sel.encode())
+
+
+## Reenvio periodico del destino mientras el boton siga presionado. La camara
+## sigue a la nave, asi que el punto bajo un cursor quieto tambien avanza y la
+## nave "persigue" al cursor de forma continua, como en el prototipo.
+func _process_hold_move(delta: float) -> void:
+	if not _hold_move:
+		return
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		_hold_move = false
+		return
+	_hold_timer += delta
+	if _hold_timer < HOLD_RESEND_SEC:
+		return
+	_hold_timer = 0.0
+	var target := get_global_mouse_position()
+	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA:
+		_volar_a(target)
 
 
 func _volar_a(destino: Vector2) -> void:
 	if _hero == null:
 		return
+	# a diferencia del prototipo (mapa "infinito" + radiacion), v1 clampea igual
+	# que el server: cliente y autoridad siempre coinciden en el destino
 	destino = destino.clamp(Vector2.ZERO, _limites)
 	# prediccion optimista: el heroe parte YA; el eco del server lo reconcilia
 	_hero.objetivo = destino
+	_last_sent_target = destino
 	_seq += 1
 	var intent := MexProtocol.MoveIntent.new()
 	intent.seq = _seq
@@ -152,6 +235,7 @@ func _volar_a(destino: Vector2) -> void:
 
 
 func _process(delta: float) -> void:
+	_process_hold_move(delta)
 	if _hero != null:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]

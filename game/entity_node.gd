@@ -18,6 +18,7 @@ var _sprite: Sprite2D
 var _nombre: Label
 var _hp: ColorRect
 var _hp_pct := 1.0
+var _seleccionada := false
 
 
 func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
@@ -75,3 +76,22 @@ func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, telep
 func set_hp_pct(pct: float) -> void:
 	_hp_pct = clampf(pct, 0.0, 1.0)
 	_hp.size.x = 60 * _hp_pct
+
+
+## Seleccion local: esquinas de mira alrededor de la entidad (estilo N).
+func set_selected(sel: bool) -> void:
+	_seleccionada = sel
+	queue_redraw()
+
+
+func _draw() -> void:
+	if not _seleccionada:
+		return
+	var r := 58.0
+	var l := 16.0
+	var c := NTheme.HOSTILE if not es_heroe else NTheme.CYAN
+	for esquina in [Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)]:
+		var dx := -l if esquina.x > 0 else l
+		var dy := -l if esquina.y > 0 else l
+		draw_line(esquina, esquina + Vector2(dx, 0), c, 2.0)
+		draw_line(esquina, esquina + Vector2(0, dy), c, 2.0)
