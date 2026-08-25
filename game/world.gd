@@ -343,6 +343,8 @@ func _on_destroyed(msg) -> void:
 		_seleccionada = 0
 		_laser_on = false
 		_beam.visible = false
+		if _hero != null:
+			_hero.set_attack_target(null)   # sin presa, el rumbo vuelve al vuelo
 
 
 func _explotar(pos: Vector2) -> void:
@@ -425,6 +427,9 @@ func _toggle_laser() -> void:
 	if _seleccionada == 0 or not _entidades.has(_seleccionada):
 		return
 	_laser_on = not _laser_on
+	# disparando, el rumbo del heroe lo gobierna el objetivo (como el prototipo)
+	if _hero != null:
+		_hero.set_attack_target(_entidades[_seleccionada] if _laser_on else null)
 	var msg := MexProtocol.LaserToggle.new()
 	msg.active = _laser_on
 	_conn.send(msg.encode())
@@ -607,6 +612,8 @@ func _autotest(delta: float) -> void:
 		2:
 			# perseguir al objetivo si se aleja del rango del laser
 			var objetivo_npc: EntityNode = _entidades.get(_at_target)
+			if objetivo_npc != null and _hero.attack_target == null:
+				_hero.set_attack_target(objetivo_npc)
 			if objetivo_npc != null and _hero.position.distance_to(objetivo_npc.position) > 450.0 \
 					and _autotest_t - _at_ultimo_vuelo > 2.0:
 				_at_ultimo_vuelo = _autotest_t

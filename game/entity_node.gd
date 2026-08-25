@@ -18,6 +18,9 @@ var objetivo := Vector2.ZERO
 var es_heroe := false
 var es_npc := false
 var click_radius := 42.0
+## Objetivo de ataque: mientras exista GOBIERNA el rumbo (prioridad del
+## prototipo: objetivo de ataque > destino de vuelo), incluso con la nave quieta.
+var attack_target: EntityNode = null
 
 var _sprite: Sprite2D
 var _nombre: Label
@@ -207,12 +210,33 @@ func _process(delta: float) -> void:
 
 	if en_vuelo:
 		position = position.move_toward(objetivo, speed * delta)
-	elif es_npc:
+
+	# atacando: el rumbo sigue al objetivo aunque se muevan los dos (o ninguno)
+	if attack_target != null:
+		if is_instance_valid(attack_target):
+			_encarar(attack_target.position)
+		else:
+			attack_target = null
+	elif not en_vuelo and es_npc:
 		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
 		_idle_timer -= delta
 		if _idle_timer <= 0.0:
 			_idle_timer = 2.0 + randf() * 5.0
 			_girar_a(_visual_angle + (randf() - 0.5) * 360.0)
+
+
+## Fija (o limpia con null) el objetivo que gobierna el rumbo.
+func set_attack_target(objetivo_ataque: EntityNode) -> void:
+	attack_target = objetivo_ataque
+	if attack_target != null and is_instance_valid(attack_target):
+		_encarar(attack_target.position)
+
+
+## Orienta la proa hacia un punto del mundo (sin tocar el destino de vuelo).
+func _encarar(punto: Vector2) -> void:
+	var rumbo := punto - position
+	if rumbo.length() > 1.0:
+		_girar_a(rad_to_deg(rumbo.angle()) + 90.0)
 
 
 ## Fija el destino y orienta la proa UNA vez (no cada frame, como el prototipo).
@@ -225,10 +249,11 @@ func set_objetivo(destino: Vector2) -> void:
 		objetivo = destino
 		return
 	objetivo = destino
-	var rumbo := destino - position
-	if rumbo.length() > 1.0:
-		# proa hacia arriba en el arte -> +90 grados de pantalla
-		_girar_a(rad_to_deg(rumbo.angle()) + 90.0)
+	# atacando, el objetivo manda sobre el destino de vuelo (prioridad del prototipo)
+	if attack_target != null and is_instance_valid(attack_target):
+		return
+	# proa hacia arriba en el arte -> +90 grados de pantalla
+	_encarar(destino)
 
 
 ## Giro del prototipo: cuantizado a TURN_STEPS y tweenado por el camino corto.
