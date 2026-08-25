@@ -56,6 +56,7 @@ var _frames_explosion: SpriteFrames
 # HUD (sistema N minimo de la iteracion: panel de nave + estado del enlace)
 var _hud_estado: Label
 var _hud_hp: Label
+var _hud_shield: Label
 var _hud_pos: Label
 var _hud_credits: Label
 var _hud_cargo: Label
@@ -132,8 +133,10 @@ func _construir_hud() -> void:
 	col.add_theme_constant_override("separation", 4)
 	panel.add_child(col)
 	col.add_child(NTheme.label("NAVE", NTheme.michroma(), 8, NTheme.CYAN))
-	_hud_hp = NTheme.label("--", NTheme.mono(), 12, NTheme.WARN)
+	_hud_hp = NTheme.label("--", NTheme.mono(), 12, NTheme.HP)
 	col.add_child(_hud_hp)
+	_hud_shield = NTheme.label("--", NTheme.mono(), 12, NTheme.SHIELD)
+	col.add_child(_hud_shield)
 	_hud_credits = NTheme.label("--", NTheme.mono(), 12, NTheme.WARN)
 	col.add_child(_hud_credits)
 	_hud_cargo = NTheme.label("--", NTheme.mono(), 12, NTheme.WARN)
@@ -412,16 +415,24 @@ func _on_move(mv) -> void:
 
 func _on_hero_stats(hs) -> void:
 	_hud_hp.text = "HP %s / %s" % [_miles(hs.hp), _miles(hs.max_hp)]
+	_hud_shield.text = "ESC %s / %s" % [_miles(hs.shield), _miles(hs.max_shield)]
 	_hud_credits.text = "%s C" % _miles(hs.credits)
 	_hud_cargo.text = "Bodega %s / %s" % [_miles(hs.cargo), _miles(hs.max_cargo)]
+	# tus propias barras salen de aquí: HeroStats es la única fuente de tus máximos
+	if _hero != null:
+		_hero.max_hp_abs = hs.max_hp
+		_hero.max_shield_abs = hs.max_shield
+		_hero.set_estado_abs(hs.hp, hs.shield)
 
 
 func _on_target_info(ti) -> void:
 	var nodo: EntityNode = _entidades.get(ti.entity_id)
 	if nodo == null:
 		return
-	nodo.max_hp_abs = ti.max_hp + ti.max_shield
-	nodo.set_hp_abs(ti.hp + ti.shield)
+	# casco y escudo cada uno contra su máximo: son dos barras, no una suma
+	nodo.max_hp_abs = ti.max_hp
+	nodo.max_shield_abs = ti.max_shield
+	nodo.set_estado_abs(ti.hp, ti.shield)
 
 
 ## Colores de daño del original (su tabla hitpointColors).
@@ -445,7 +456,7 @@ func _on_attack(ev) -> void:
 		_numero_flotante(blanco, "MISS", HIT_RECIBES if blanco == _hero else HIT_HACES)
 		return
 
-	blanco.set_hp_abs(ev.target_hp + ev.target_shield)
+	blanco.set_estado_abs(ev.target_hp, ev.target_shield)
 	# impacto: en el escudo si aún queda, en el casco si no
 	if ev.target_shield > 0 and tirador != null:
 		blanco.impacto_escudo(tirador.position)

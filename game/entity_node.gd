@@ -12,6 +12,11 @@ const TURN_TIME := 0.1
 const TURN_STEPS := 32
 const DEAD_ZONE := 2.0
 
+# barras de estado (dos: casco y escudo)
+const BARRA_ANCHO := 60.0
+const BARRA_ALTO := 3.0
+const BARRA_SEPARACION := 5.0
+
 var entity_id := 0
 var speed := 0.0
 var objetivo := Vector2.ZERO
@@ -24,8 +29,12 @@ var attack_target: EntityNode = null
 
 var _sprite: Sprite2D
 var _nombre: Label
+# dos barras y solo dos: casco y escudo. v1 NO tiene nano-casco (la tercera
+# barra amarilla del prototipo): se decidió dejarlo fuera del juego.
 var _hp: ColorRect
+var _escudo: ColorRect
 var _hp_pct := 1.0
+var _shield_pct := 0.0
 var _seleccionada := false
 var max_hp_abs := 0
 var max_shield_abs := 0
@@ -109,18 +118,27 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_nombre.add_theme_constant_override("outline_size", 4)
 	add_child(_nombre)
 
-	# las barras van ENCIMA de la nave (el nombre abajo)
+	# las barras van ENCIMA de la nave (el nombre abajo): escudo arriba, casco
+	# abajo. Son DOS: el nano-casco del prototipo no existe en v1.
+	_shield_pct = clampf(spawn.shield_pct, 0.0, 1.0)
 	var barra_y := -mitad - 14.0
+	_escudo = _crear_barra(barra_y - BARRA_SEPARACION, NTheme.SHIELD, _shield_pct)
+	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
+
+
+## Una barra sobre su pista negra, del ancho del prototipo.
+func _crear_barra(y: float, color: Color, pct: float) -> ColorRect:
 	var pista := ColorRect.new()
 	pista.color = Color(0, 0, 0, 0.55)
-	pista.position = Vector2(-31, barra_y - 1)
-	pista.size = Vector2(62, 5)
+	pista.position = Vector2(-BARRA_ANCHO * 0.5 - 1, y - 1)
+	pista.size = Vector2(BARRA_ANCHO + 2, BARRA_ALTO + 2)
 	add_child(pista)
-	_hp = ColorRect.new()
-	_hp.color = NTheme.HP if not es_npc else NTheme.HOSTILE
-	_hp.position = Vector2(-30, barra_y)
-	_hp.size = Vector2(60 * _hp_pct, 3)
-	add_child(_hp)
+	var barra := ColorRect.new()
+	barra.color = color
+	barra.position = Vector2(-BARRA_ANCHO * 0.5, y)
+	barra.size = Vector2(BARRA_ANCHO * pct, BARRA_ALTO)
+	add_child(barra)
+	return barra
 
 
 ## La llama de una tobera: pluma anclada a la nave que rota con ella y crece
@@ -300,12 +318,22 @@ func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, telep
 
 func set_hp_pct(pct: float) -> void:
 	_hp_pct = clampf(pct, 0.0, 1.0)
-	_hp.size.x = 60 * _hp_pct
+	_hp.size.x = BARRA_ANCHO * _hp_pct
 
 
-func set_hp_abs(hp: int) -> void:
+func set_shield_pct(pct: float) -> void:
+	_shield_pct = clampf(pct, 0.0, 1.0)
+	_escudo.size.x = BARRA_ANCHO * _shield_pct
+
+
+## Casco y escudo absolutos del server; cada uno contra su propio máximo.
+## Sin máximo conocido (entidad que nunca fue objetivo) la barra conserva lo
+## que trajo su spawn: convertir absolutos sin denominador la haría mentir.
+func set_estado_abs(hp: int, escudo: int) -> void:
 	if max_hp_abs > 0:
 		set_hp_pct(float(hp) / max_hp_abs)
+	if max_shield_abs > 0:
+		set_shield_pct(float(escudo) / max_shield_abs)
 
 
 ## Boca de cañón desde la que sale el próximo disparo, en coordenadas de MUNDO

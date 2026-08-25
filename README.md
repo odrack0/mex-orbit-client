@@ -92,6 +92,20 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | Anillo de zona segura | `world.gd::_construir_estacion` | cian 22%, grosor 3 | El radio que manda el server en `EnterMap` |
 | `MAX_REINTENTOS` | `game/world.gd` | 8 | Intentos de reconexión antes de rendirse (espera creciente 1→5 s, dentro de la gracia de 60 s del server) |
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
+| `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
+
+## Dos barras de estado, no tres
+
+**v1 no tiene nano-casco.** El original apilaba tres barras sobre la nave (vida,
+escudo y la amarilla del nano-casco); aquí son **dos y solo dos**: `NTheme.SHIELD`
+arriba y el casco abajo (`NTheme.HP` en los tuyos, `NTheme.HOSTILE` en los NPCs),
+con el nombre debajo. El token `--nano` quedó retirado del sistema de diseño.
+
+Cada stat se lee **contra su propio máximo** (`set_estado_abs`): sumar casco y
+escudo en una sola barra —como se hacía antes— esconde cuál de los dos se está
+gastando. Los máximos llegan de `HeroStats` para tu nave y de `TargetInfo` para el
+objetivo; sin máximo conocido la barra conserva el porcentaje que trajo su
+`EntitySpawn`, porque convertir absolutos sin denominador la haría mentir.
 
 ## Chat y reconexión (I7)
 

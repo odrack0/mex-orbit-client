@@ -679,6 +679,7 @@ class EntitySpawn:
 	var y: int = 0
 	var hp_pct: float = 0.0
 	var speed: int = 0
+	var shield_pct: float = 0.0
 
 	func validate() -> void:
 		assert(type_id.length() <= 64, "EntitySpawn.type_id demasiado largo")
@@ -707,6 +708,8 @@ class EntitySpawn:
 		Wire.write_f32(buf, hp_pct)
 		Wire.write_tag(buf, 9, 0)
 		Wire.write_varint(buf, speed)
+		Wire.write_tag(buf, 10, 5)
+		Wire.write_f32(buf, shield_pct)
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> EntitySpawn:
 		var m := EntitySpawn.new()
@@ -724,6 +727,7 @@ class EntitySpawn:
 				7: m.y = Wire.read_varint(b, pos)
 				8: m.hp_pct = Wire.read_f32(b, pos)
 				9: m.speed = Wire.read_varint(b, pos)
+				10: m.shield_pct = Wire.read_f32(b, pos)
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m
