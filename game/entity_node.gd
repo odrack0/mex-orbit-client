@@ -39,6 +39,7 @@ var _thrust := 0.0
 
 # capa emisiva pulsante (nucleo y venas del Vex)
 var _emissive: Sprite2D
+var _tex_f := 1.0        # factor de resolucion del export respecto a la base de 256
 
 var _sprite: Sprite2D
 var _nombre: Label
@@ -59,7 +60,10 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 
 	_sprite = Sprite2D.new()
 	_sprite.texture = TEXTURAS.get(spawn.type_id, TEXTURAS["vex"])
-	_sprite.scale = Vector2.ONE * 0.55
+	# tamano en pantalla constante (~141 px) sin importar la resolucion del export:
+	# los masters ahora salen a 512 para aguantar el zoom 3x de camara
+	_tex_f = _sprite.texture.get_width() / 256.0
+	_sprite.scale = Vector2.ONE * (0.55 / _tex_f)
 	add_child(_sprite)
 
 	# la capa emisiva late encima del cuerpo, sin tocar un pixel del render
@@ -69,16 +73,17 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 		_emissive.material = _material_add()
 		_sprite.add_child(_emissive)
 
-	# toberas: dos llamas aditivas en la popa (solo naves, no bichos)
+	# toberas: dos llamas aditivas en la popa (solo naves, no bichos);
+	# las coordenadas locales escalan con la resolucion del export
 	if not es_npc:
 		var tex: Texture2D = load("res://assets/fx/engine-flame.png")
 		for lado in [-22.0, 22.0]:
 			var llama := Sprite2D.new()
 			llama.texture = tex
 			llama.rotation_degrees = 90.0
-			llama.position = Vector2(lado, 98.0)
+			llama.position = Vector2(lado * _tex_f, 98.0 * _tex_f)
 			llama.offset = Vector2(118.0, 0.0)   # la llama nace en la tobera y crece hacia atras
-			llama.scale = Vector2(0.0, 0.55)
+			llama.scale = Vector2(0.0, 0.55 * _tex_f)
 			llama.material = _material_add()
 			_sprite.add_child(llama)
 			_flames.append(llama)
@@ -115,7 +120,7 @@ func _process(delta: float) -> void:
 		_thrust = clampf(_thrust + (2.5 if en_vuelo else -3.5) * delta, 0.0, 1.0)
 		var respiro := 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
 		for llama in _flames:
-			llama.scale.x = 0.42 * _thrust * respiro
+			llama.scale.x = 0.42 * _tex_f * _thrust * respiro
 			llama.self_modulate.a = _thrust
 
 	# el latido: seno lento con fase por entidad (no laten todos al unisono)
