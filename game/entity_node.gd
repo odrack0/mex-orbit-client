@@ -84,21 +84,28 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 		_flames.append(_crear_llama(motor, trail))
 		_trails.append(_crear_estela(motor, trail))
 
+	# nombre y barra DEBAJO de la nave, como el prototipo (con contorno negro
+	# para que se lean sobre el fondo estelar). El offset sale del tamaño real.
+	var mitad: float = float(d.get("screen_size", 141)) * 0.5
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
-	_nombre.position = Vector2(-60, -96)
-	_nombre.custom_minimum_size = Vector2(120, 0)
+	_nombre.position = Vector2(-70, mitad + 6)
+	_nombre.custom_minimum_size = Vector2(140, 0)
 	_nombre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_nombre.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	_nombre.add_theme_constant_override("outline_size", 4)
 	add_child(_nombre)
 
+	# las barras van ENCIMA de la nave (el nombre abajo)
+	var barra_y := -mitad - 14.0
 	var pista := ColorRect.new()
 	pista.color = Color(0, 0, 0, 0.55)
-	pista.position = Vector2(-31, -78)
+	pista.position = Vector2(-31, barra_y - 1)
 	pista.size = Vector2(62, 5)
 	add_child(pista)
 	_hp = ColorRect.new()
 	_hp.color = NTheme.HP if not es_npc else NTheme.HOSTILE
-	_hp.position = Vector2(-30, -77)
+	_hp.position = Vector2(-30, barra_y)
 	_hp.size = Vector2(60 * _hp_pct, 3)
 	add_child(_hp)
 

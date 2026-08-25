@@ -319,9 +319,11 @@ func _on_attack(ev) -> void:
 	if blanco == null:
 		return
 	blanco.set_hp_abs(ev.target_hp + ev.target_shield)
-	# numero de daño flotante que sube y se desvanece
+	# numero de daño flotante: sube por encima de las barras y se desvanece
 	var texto := NTheme.label(str(ev.damage), NTheme.mono(), 14, NTheme.WARN)
-	texto.position = blanco.position + Vector2(randf_range(-30, 30), -70)
+	texto.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	texto.add_theme_constant_override("outline_size", 4)
+	texto.position = blanco.position + Vector2(randf_range(-30, 30), -104)
 	texto.z_index = 6
 	add_child(texto)
 	var tw := create_tween()
