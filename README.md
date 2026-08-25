@@ -53,7 +53,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | Haz del láser | `game/world.gd` | ancho 3, cian | El beam héroe→objetivo mientras dispara (Ctrl lo alterna) |
 | Daño flotante | `world.gd::_on_attack` | sube 46 px en 0.8 s | Los números de daño que se desvanecen |
 | Explosión | `world.gd` | 16 fps, escala 1.4 | Los 8 frames del pipeline al morir una entidad |
-
-Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
 | Pasos de zoom del minimapa | `ui/minimap_window.gd` | 180, 238, 300, 380, 460 | Anchos del canvas (los del prototipo); el alto sale del ratio del mapa |
 | `AUTOPILOT_ARRIVE` | `game/world.gd` | 120 px | A esta distancia el autopiloto declara destino alcanzado |
+
+Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
