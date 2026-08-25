@@ -6,7 +6,11 @@ extends Node2D
 
 const TEXTURAS := {
 	"phoenix": preload("res://assets/ships/phoenix.png"),
-	"vex": preload("res://assets/npcs/vex.png"),
+	"vex": preload("res://assets/npcs/vex-base.png"),   # PNG directo del render (prueba de calidad)
+}
+# capas emisivas: lo que late encima del cuerpo, con blend aditivo
+const EMISIVAS := {
+	"vex": preload("res://assets/npcs/vex-emissive.png"),
 }
 
 # Giro heredado del prototipo: tween de 0.1 s por el camino corto, orientacion
@@ -33,6 +37,9 @@ var max_shield_abs := 0
 var _flames: Array[Sprite2D] = []
 var _thrust := 0.0
 
+# capa emisiva pulsante (nucleo y venas del Vex)
+var _emissive: Sprite2D
+
 var _sprite: Sprite2D
 var _nombre: Label
 var _hp: ColorRect
@@ -54,6 +61,13 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_sprite.texture = TEXTURAS.get(spawn.type_id, TEXTURAS["vex"])
 	_sprite.scale = Vector2.ONE * 0.55
 	add_child(_sprite)
+
+	# la capa emisiva late encima del cuerpo, sin tocar un pixel del render
+	if EMISIVAS.has(spawn.type_id):
+		_emissive = Sprite2D.new()
+		_emissive.texture = EMISIVAS[spawn.type_id]
+		_emissive.material = _material_add()
+		_sprite.add_child(_emissive)
 
 	# toberas: dos llamas aditivas en la popa (solo naves, no bichos)
 	if not es_npc:
@@ -103,6 +117,10 @@ func _process(delta: float) -> void:
 		for llama in _flames:
 			llama.scale.x = 0.42 * _thrust * respiro
 			llama.self_modulate.a = _thrust
+
+	# el latido: seno lento con fase por entidad (no laten todos al unisono)
+	if _emissive != null:
+		_emissive.self_modulate.a = 0.35 + 0.65 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.0021 + entity_id * 1.7))
 
 	if en_vuelo:
 		position = position.move_toward(objetivo, speed * delta)
