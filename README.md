@@ -34,6 +34,21 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 
 **E2/I4 en marcha**: login con la secuencia real, vuelo por el 1-1 con predicción + reconciliación, mecánica de vuelo portada fiel del prototipo (click sostenido persigue al cursor) y HUD mínimo del sistema N. Correr: `godot --path .` (requiere api en 5100 y game server en 5200; `dev_login.cfg` local precarga credenciales). Autotest: `godot --path . -- --screenshot=ruta.png`.
 
+## Correr el cliente
+
+```powershell
+.\tools\dev-run.ps1                 # levanta lo que falte y abre el cliente
+.\tools\dev-run.ps1 -SoloServicios  # deja MySQL/api/game server listos, sin cliente
+.\tools\dev-run.ps1 -Autotest       # autotest headless del loop completo, con captura
+.\tools\dev-run.ps1 -Detener        # apaga cliente, api y game server
+```
+
+Es idempotente: comprueba cada puerto (**3307** MySQL de dev, **5100** api, **5200** game server) y solo
+arranca lo caído. En una sesión de Claude Code está también como `/godot [autotest|servicios|detener]`.
+
+Credenciales de dev en `dev_login.cfg` (fuera del repo). **Una sesión por cuenta**: la ventana entra con
+`odrack` y el autotest usa `testbot` — no corras el autotest mientras juegas con esa cuenta.
+
 ## Definiciones en JSON (`data/`)
 
 **Ninguna particularidad de un asset vive en el código.** Cada nave, alien y mapa tiene su JSON, herederos
