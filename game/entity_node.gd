@@ -39,9 +39,10 @@ var _thrust := 0.0
 
 # capa emisiva pulsante (nucleo y venas del Vex)
 var _emissive: Sprite2D
-var _pulse_min := 0.35
-var _pulse_max := 1.0
-var _pulse_speed := 2.1
+var _pulse_min := 0.2          # intensidad del blend aditivo (>1 sobreexpone)
+var _pulse_max := 2.4
+var _pulse_speed := 2.6
+var _pulse_sharp := 2.8        # 1 = seno suave; 3+ = destello marcado con valles largos
 
 
 func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
@@ -72,9 +73,10 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 		_emissive.material = _material_add()
 		_sprite.add_child(_emissive)
 		var p: Dictionary = d.get("pulse", {})
-		_pulse_min = float(p.get("min_alpha", 0.35))
-		_pulse_max = float(p.get("max_alpha", 1.0))
-		_pulse_speed = float(p.get("speed", 2.1))
+		_pulse_min = float(p.get("min_intensity", 0.2))
+		_pulse_max = float(p.get("max_intensity", 2.4))
+		_pulse_speed = float(p.get("speed", 2.6))
+		_pulse_sharp = float(p.get("sharpness", 2.8))
 
 	# motores en los anclajes del JSON (espacio de la textura)
 	var trail: Dictionary = d.get("engine_trail", {})
@@ -187,10 +189,14 @@ func _process(delta: float) -> void:
 			t.emitting = _thrust > 0.15
 			t.self_modulate.a = _thrust
 
-	# el latido de la capa emisiva (fase por entidad: no laten al unisono)
+	# el latido de la capa emisiva (fase por entidad: no laten al unisono).
+	# Se modula la INTENSIDAD del blend aditivo, no solo el alfa: por encima de
+	# 1 sobreexpone y el nucleo se pone blanco, que es lo que hace visible el pulso.
 	if _emissive != null:
 		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed + entity_id * 1.7)
-		_emissive.self_modulate.a = _pulse_min + (_pulse_max - _pulse_min) * onda
+		onda = pow(onda, _pulse_sharp)
+		var k: float = _pulse_min + (_pulse_max - _pulse_min) * onda
+		_emissive.self_modulate = Color(k, k, k, 1.0)
 
 	if en_vuelo:
 		position = position.move_toward(objetivo, speed * delta)
