@@ -32,4 +32,22 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 
 ## Estado
 
-Repo recién creado. Primer paso: documento de diseño de UI y del pipeline de assets, en paralelo con la definición del protocolo.
+**E2/I4 en marcha**: login con la secuencia real, vuelo por el 1-1 con predicción + reconciliación, mecánica de vuelo portada fiel del prototipo (click sostenido persigue al cursor) y HUD mínimo del sistema N. Correr: `godot --path .` (requiere api en 5100 y game server en 5200; `dev_login.cfg` local precarga credenciales). Autotest: `godot --path . -- --screenshot=ruta.png`.
+
+## Diales
+
+Constantes calibrables de sensación y comportamiento — moverlas es cambiar un número. **Regla del repo: todo dial nuevo se documenta aquí en el mismo commit que lo crea.**
+
+| Dial | Dónde | Valor | Qué hace |
+|---|---|---|---|
+| `TURN_STEPS` | `game/entity_node.gd` | 32 | Posiciones de giro (32 = el look de 11.25° del original). 64 = giro más fino; giro continuo = quitar el redondeo en `_set_visual_angle` |
+| `TURN_TIME` | `game/entity_node.gd` | 0.1 s | Duración del tween de giro por el camino corto |
+| `DEAD_ZONE` | `game/entity_node.gd` | 2 px | Destino encima de la nave en vuelo no re-orienta (anti-trompos) |
+| `HOLD_RESEND_SEC` | `game/world.gd` | 0.25 s | Cadencia del reenvío con click sostenido (tope real: rate limit 10/s del contrato) |
+| `HOLD_MIN_DELTA` | `game/world.gd` | 60 px | El destino debe moverse al menos esto para reenviar |
+| `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, escalado por el zoom |
+| Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
+| Zoom de cámara | `game/world.gd` | ×1.1, clamp 0.1–3 | Rueda del mouse, calcado del prototipo |
+| Llamas de motor | `entity_node.gd::_process` | subida 2.5/s, caída 3.5/s, largo 0.42 | El acelerador de las toberas y su respiración |
+
+Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
