@@ -34,6 +34,20 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 
 **E2/I4 en marcha**: login con la secuencia real, vuelo por el 1-1 con predicción + reconciliación, mecánica de vuelo portada fiel del prototipo (click sostenido persigue al cursor) y HUD mínimo del sistema N. Correr: `godot --path .` (requiere api en 5100 y game server en 5200; `dev_login.cfg` local precarga credenciales). Autotest: `godot --path . -- --screenshot=ruta.png`.
 
+## Definiciones en JSON (`data/`)
+
+**Ninguna particularidad de un asset vive en el código.** Cada nave, alien y mapa tiene su JSON, herederos
+directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente original:
+
+| Archivo | Define |
+|---|---|
+| `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y estilo de la estela (color, largo, ancho, vida) |
+| `data/npcs/<code>.json` | textura, capa emisiva y su pulso (rango de alfa y velocidad), radio de click |
+| `data/maps/<code>.json` | el stack de capas: fondo principal, mosaicos con su `p_factor`/escala/alfa, planetas con posición y profundidad, sol con su giro, tinte del polvo estelar |
+
+Agregar una nave nueva = soltar su PNG + escribir su JSON. Cero código.
+Los anclajes se miden con `mex-orbit-art/tools/find-anchors.py <export.png>` en vez de estimarlos a ojo.
+
 ## Diales
 
 Constantes calibrables de sensación y comportamiento — moverlas es cambiar un número. **Regla del repo: todo dial nuevo se documenta aquí en el mismo commit que lo crea.**
@@ -48,7 +62,8 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, escalado por el zoom |
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
 | Zoom de cámara | `game/world.gd` | ×1.1, clamp 0.1–3 | Rueda del mouse, calcado del prototipo |
-| Llamas de motor | `entity_node.gd::_process` | subida 2.5/s, caída 3.5/s, largo 0.42 | El acelerador de las toberas y su respiración |
+| Acelerador de estelas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las estelas al volar/frenar (su forma y color vienen del JSON de la nave) |
+| Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
 | Haz del láser | `game/world.gd` | ancho 3, cian | El beam héroe→objetivo mientras dispara (Ctrl lo alterna) |
 | Daño flotante | `world.gd::_on_attack` | sube 46 px en 0.8 s | Los números de daño que se desvanecen |

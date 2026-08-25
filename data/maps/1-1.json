@@ -1,0 +1,25 @@
+{
+  "_comentario": "Stack de capas del mapa, heredero directo del maps-config.xml del cliente original. p_factor es el divisor de paralaje (10 = el mas lejano); las posiciones de planetas y sol van en el espacio del fondo (2048x1280).",
+  "code": "1-1",
+  "name": "Sector 1-1",
+  "starfield_tint": "66F2FF",
+  "starfield_tint_ratio": 0.35,
+
+  "main": "res://assets/world/map-1-1.png",
+
+  "tiles_far": [
+    { "tex": "res://assets/world/layers/dust-far.png", "p_factor": 10.0, "scale": 2.5, "alpha": 0.9 }
+  ],
+  "tiles_near": [
+    { "tex": "res://assets/world/layers/nebula-mid.png", "p_factor": 6.0, "scale": 1.6, "alpha": 0.85 },
+    { "tex": "res://assets/world/layers/nebula-near.png", "p_factor": 3.0, "scale": 1.8, "alpha": 0.7 }
+  ],
+
+  "planets": [
+    { "tex": "res://assets/world/layers/planet-a.png", "x": 1110, "y": 1100, "p_factor": 9.0, "scale": 1.0 },
+    { "tex": "res://assets/world/layers/planet-b.png", "x": 680, "y": 740, "p_factor": 5.0, "scale": 1.0 },
+    { "tex": "res://assets/world/layers/planet-c.png", "x": 1800, "y": 250, "p_factor": 6.0, "scale": 1.0 }
+  ],
+
+  "sun": { "x": 1740, "y": 1106, "p_factor": 10.0, "scale": 0.9, "spin_deg_per_sec": -9.0 }
+}

@@ -1,0 +1,15 @@
+{
+  "_comentario": "Particularidades del alien. Los bichos no tienen toberas: se propulsan biologicamente, asi que engines va vacio y su vida visual la da la capa emisiva.",
+  "code": "vex",
+  "texture": "res://assets/npcs/vex-base.png",
+  "emissive": "res://assets/npcs/vex-emissive.png",
+  "screen_size": 141,
+  "click_radius": 46,
+
+  "engines": [],
+  "pulse": {
+    "min_alpha": 0.35,
+    "max_alpha": 1.0,
+    "speed": 2.1
+  }
+}

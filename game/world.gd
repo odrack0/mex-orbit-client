@@ -461,8 +461,9 @@ func _box_at(world_pos: Vector2) -> int:
 	return 0
 
 
-## Entidad interactuable bajo el punto, con radio de click escalado por zoom
-## (el minimo del prototipo: sin esto, con zoom lejano nada era clickable).
+## Entidad interactuable bajo el punto. Cada entidad trae su radio de click del
+## JSON, con el minimo del prototipo escalado por zoom (sin esto, con zoom lejano
+## nada era clickable).
 func _entity_at(world_pos: Vector2) -> EntityNode:
 	var best: EntityNode = null
 	var best_dist := INF
@@ -472,7 +473,7 @@ func _entity_at(world_pos: Vector2) -> EntityNode:
 		if e == _hero:
 			continue
 		var d := e.position.distance_to(world_pos)
-		if d < min_radius and d < best_dist:
+		if d < maxf(e.click_radius, min_radius) and d < best_dist:
 			best = e
 			best_dist = d
 	return best

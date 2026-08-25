@@ -11,8 +11,13 @@ config/features=PackedStringArray("4.4")
 Session="*res://net/session.gd"
 
 [display]
+; resolucion logica 1280x720; la ventana arranca MAXIMIZADA y el lienzo se
+; estira conservando el aspecto (la UI se ancla a los bordes reales)
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/mode=2
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [rendering]
 environment/defaults/default_clear_color=Color(0.0275, 0.0275, 0.0588, 1)

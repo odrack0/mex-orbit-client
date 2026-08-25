@@ -1,17 +1,9 @@
 # Una entidad en pantalla: sprite orientado a su rumbo + nombre + barra de vida.
-# Se mueve por interpolacion local (pos -> target a su velocidad) y se
-# reconcilia contra los ecos autoritativos del server.
+# Sus PARTICULARIDADES (textura, tamaño, anclajes de toberas, capa emisiva)
+# salen de su JSON en data/ — nada hardcodeado por asset.
+# Se mueve por interpolacion local y se reconcilia contra los ecos del server.
 class_name EntityNode
 extends Node2D
-
-const TEXTURAS := {
-	"phoenix": preload("res://assets/ships/phoenix.png"),
-	"vex": preload("res://assets/npcs/vex-base.png"),   # PNG directo del render (prueba de calidad)
-}
-# capas emisivas: lo que late encima del cuerpo, con blend aditivo
-const EMISIVAS := {
-	"vex": preload("res://assets/npcs/vex-emissive.png"),
-}
 
 # Giro heredado del prototipo: tween de 0.1 s por el camino corto, orientacion
 # cuantizada a 32 pasos de 11.25 grados (el look de los 32 frames del original)
@@ -25,27 +17,29 @@ var speed := 0.0
 var objetivo := Vector2.ZERO
 var es_heroe := false
 var es_npc := false
-
-var _visual_angle := 0.0          # grados de pantalla de la proa
-var _turn_tween: Tween
-var _idle_timer := 0.0
-var max_hp_abs := 0               # llega con TargetInfo; permite barras absolutas
-var max_shield_abs := 0
-
-# llamas de motor con acelerador (herencia del prototipo: el empuje sube al
-# volar y se apaga al frenar, la llama respira con el)
-var _flames: Array[Sprite2D] = []
-var _thrust := 0.0
-
-# capa emisiva pulsante (nucleo y venas del Vex)
-var _emissive: Sprite2D
-var _tex_f := 1.0        # factor de resolucion del export respecto a la base de 256
+var click_radius := 42.0
 
 var _sprite: Sprite2D
 var _nombre: Label
 var _hp: ColorRect
 var _hp_pct := 1.0
 var _seleccionada := false
+var max_hp_abs := 0
+var max_shield_abs := 0
+
+var _visual_angle := 0.0          # grados de pantalla de la proa
+var _turn_tween: Tween
+var _idle_timer := 0.0
+
+# estelas de motor: una por tobera del JSON, con acelerador
+var _trails: Array[GPUParticles2D] = []
+var _thrust := 0.0
+
+# capa emisiva pulsante (nucleo y venas del Vex)
+var _emissive: Sprite2D
+var _pulse_min := 0.35
+var _pulse_max := 1.0
+var _pulse_speed := 2.1
 
 
 func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
@@ -58,37 +52,34 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_idle_timer = 2.0 + randf() * 5.0
 	_hp_pct = spawn.hp_pct
 
+	var d := AssetDefs.entidad(spawn.type_id)
+	click_radius = float(d.get("click_radius", 42))
+
 	_sprite = Sprite2D.new()
-	_sprite.texture = TEXTURAS.get(spawn.type_id, TEXTURAS["vex"])
-	# tamano en pantalla constante (~141 px) sin importar la resolucion del export:
-	# los masters ahora salen a 512 para aguantar el zoom 3x de camara
-	_tex_f = _sprite.texture.get_width() / 256.0
-	_sprite.scale = Vector2.ONE * (0.55 / _tex_f)
+	_sprite.texture = load(d.get("texture", "res://assets/npcs/vex-base.png"))
+	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del export
+	var alto_tex := float(_sprite.texture.get_height())
+	var factor: float = float(d.get("screen_size", 141)) / alto_tex
+	_sprite.scale = Vector2.ONE * factor
 	add_child(_sprite)
 
-	# la capa emisiva late encima del cuerpo, sin tocar un pixel del render
-	if EMISIVAS.has(spawn.type_id):
+	# capa emisiva (si la define su JSON)
+	if d.has("emissive"):
 		_emissive = Sprite2D.new()
-		_emissive.texture = EMISIVAS[spawn.type_id]
+		_emissive.texture = load(d.emissive)
 		_emissive.material = _material_add()
 		_sprite.add_child(_emissive)
+		var p: Dictionary = d.get("pulse", {})
+		_pulse_min = float(p.get("min_alpha", 0.35))
+		_pulse_max = float(p.get("max_alpha", 1.0))
+		_pulse_speed = float(p.get("speed", 2.1))
 
-	# toberas: dos llamas aditivas en la popa (solo naves, no bichos);
-	# las coordenadas locales escalan con la resolucion del export
-	if not es_npc:
-		var tex: Texture2D = load("res://assets/fx/engine-flame.png")
-		for lado in [-22.0, 22.0]:
-			var llama := Sprite2D.new()
-			llama.texture = tex
-			llama.rotation_degrees = 90.0
-			llama.position = Vector2(lado * _tex_f, 98.0 * _tex_f)
-			llama.offset = Vector2(118.0, 0.0)   # la llama nace en la tobera y crece hacia atras
-			llama.scale = Vector2(0.0, 0.55 * _tex_f)
-			llama.material = _material_add()
-			_sprite.add_child(llama)
-			_flames.append(llama)
+	# estelas de motor en los anclajes del JSON (espacio de la textura)
+	var trail: Dictionary = d.get("engine_trail", {})
+	for motor in d.get("engines", []):
+		_trails.append(_crear_estela(motor, trail))
 
-	var color := NTheme.CYAN if heroe else (NTheme.TXT if spawn.kind == MexProtocol.EntityKind.PLAYER else NTheme.HOSTILE)
+	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
 	_nombre.position = Vector2(-60, -96)
 	_nombre.custom_minimum_size = Vector2(120, 0)
@@ -101,10 +92,53 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	pista.size = Vector2(62, 5)
 	add_child(pista)
 	_hp = ColorRect.new()
-	_hp.color = NTheme.HP if spawn.kind == MexProtocol.EntityKind.PLAYER else NTheme.HOSTILE
+	_hp.color = NTheme.HP if not es_npc else NTheme.HOSTILE
 	_hp.position = Vector2(-30, -77)
 	_hp.size = Vector2(60 * _hp_pct, 3)
 	add_child(_hp)
+
+
+## Estela de una tobera: particulas que salen hacia la popa y se disipan.
+## Vive como hija del sprite, asi hereda su rotacion y escala.
+func _crear_estela(motor: Dictionary, trail: Dictionary) -> GPUParticles2D:
+	var p := GPUParticles2D.new()
+	p.position = Vector2(float(motor.get("x", 0)), float(motor.get("y", 0)))
+	p.amount = 48
+	p.lifetime = float(trail.get("lifetime", 0.42))
+	p.local_coords = false          # la estela se queda en el mundo: se ve el rastro
+	p.texture = load("res://assets/fx/engine-flame.png")
+
+	var mat := ParticleProcessMaterial.new()
+	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	mat.emission_sphere_radius = float(trail.get("width", 9)) * 0.35
+	# la popa es +Y en el espacio de la textura (proa hacia arriba)
+	mat.direction = Vector3(0, 1, 0)
+	mat.spread = 6.0
+	mat.gravity = Vector3.ZERO
+	var largo: float = float(trail.get("length", 96))
+	mat.initial_velocity_min = largo * 1.6
+	mat.initial_velocity_max = largo * 2.2
+	mat.scale_min = 0.10
+	mat.scale_max = 0.16
+	mat.damping_min = largo * 1.2
+	mat.damping_max = largo * 1.8
+
+	# del nucleo claro al color de la estela, apagandose
+	var grad := Gradient.new()
+	var nucleo := AssetDefs.color(trail.get("core_color", "DFFBFF"))
+	var color := AssetDefs.color(trail.get("color", "00E5FF"))
+	grad.set_color(0, nucleo)
+	grad.set_color(1, Color(color, 0.0))
+	grad.add_point(0.35, color)
+	var rampa := GradientTexture1D.new()
+	rampa.gradient = grad
+	mat.color_ramp = rampa
+
+	p.process_material = mat
+	p.material = _material_add()
+	p.emitting = false
+	_sprite.add_child(p)
+	return p
 
 
 static func _material_add() -> CanvasItemMaterial:
@@ -114,18 +148,20 @@ static func _material_add() -> CanvasItemMaterial:
 
 
 func _process(delta: float) -> void:
-	# acelerador: el empuje sube en vuelo y se apaga al frenar; la llama respira
 	var en_vuelo := position.distance_to(objetivo) > 0.5
-	if not _flames.is_empty():
-		_thrust = clampf(_thrust + (2.5 if en_vuelo else -3.5) * delta, 0.0, 1.0)
-		var respiro := 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
-		for llama in _flames:
-			llama.scale.x = 0.42 * _tex_f * _thrust * respiro
-			llama.self_modulate.a = _thrust
 
-	# el latido: seno lento con fase por entidad (no laten todos al unisono)
+	# acelerador: el empuje sube en vuelo y cae al frenar; las estelas responden
+	if not _trails.is_empty():
+		_thrust = clampf(_thrust + (3.0 if en_vuelo else -4.0) * delta, 0.0, 1.0)
+		for t in _trails:
+			t.emitting = _thrust > 0.05
+			t.self_modulate.a = _thrust
+			t.speed_scale = 0.6 + 0.4 * _thrust
+
+	# el latido de la capa emisiva (fase por entidad: no laten al unisono)
 	if _emissive != null:
-		_emissive.self_modulate.a = 0.35 + 0.65 * (0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.0021 + entity_id * 1.7))
+		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed + entity_id * 1.7)
+		_emissive.self_modulate.a = _pulse_min + (_pulse_max - _pulse_min) * onda
 
 	if en_vuelo:
 		position = position.move_toward(objetivo, speed * delta)

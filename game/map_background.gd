@@ -12,6 +12,7 @@ var _starfield: Starfield2D
 var _main: Sprite2D            # el skybox
 var _world := Vector2.ONE
 var _sun: Sprite2D
+var _sun_spin := -9.0
 var _ghosts: Array[Sprite2D] = []
 var _occluders: Array = []     # planetas que pueden tapar el destello
 var _flare_on := true
@@ -67,9 +68,10 @@ func build(config: Dictionary) -> void:
 	if config.has("sun") and _main != null:
 		_sun = Sprite2D.new()
 		_sun.texture = load("res://assets/world/layers/sun.png")
-		_sun.scale = Vector2.ONE * 0.9
+		_sun.scale = Vector2.ONE * float(config.sun.get("scale", 0.9))
 		_sun.position = config.sun.pos
-		_sun.centered = true      # gira sobre su eje (-9 grados/s, como el original)
+		_sun.centered = true      # gira sobre su eje (velocidad del JSON del mapa)
+		_sun_spin = float(config.sun.get("spin", -9.0))
 		_main.add_child(_sun)
 		var ghost_tex: Texture2D = load("res://assets/world/layers/flare-ghost.png")
 		for g: Array in GHOSTS:
@@ -81,8 +83,10 @@ func build(config: Dictionary) -> void:
 			ghost.z_index = 1     # la cadena va sobre las capas de fondo
 			add_child(ghost)
 			_ghosts.append(ghost)
-	# el polvo estelar SIEMPRE, encima de todo el fondo
+	# el polvo estelar SIEMPRE, encima de todo el fondo (tinte del JSON del mapa)
 	_starfield = Starfield2D.new()
+	_starfield.tint = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
+	_starfield.tint_ratio = float(config.get("starfield_tint_ratio", 0.35))
 	add_child(_starfield)
 
 
@@ -130,7 +134,7 @@ func update_parallax(center: Vector2, zoom: Vector2, viewport: Vector2) -> void:
 	# cadena de lentes: sobre el eje sol -> centro, con el sol en pantalla y
 	# sin planeta encima; entra con fundido de 0.1 s y se apaga en seco (original)
 	if _sun != null:
-		_sun.rotation_degrees -= 9.0 * _starfield.get_process_delta_time()
+		_sun.rotation_degrees += _sun_spin * _starfield.get_process_delta_time()
 		var pos := _sun.get_global_transform_with_canvas().origin
 		var on := pos.x >= -100 and pos.y >= -100 \
 			and pos.x <= viewport.x + 100 and pos.y <= viewport.y + 100
