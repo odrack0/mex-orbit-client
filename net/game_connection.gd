@@ -1,0 +1,78 @@
+# La conexion al game server: WebSocket + contrato generado.
+# Emite señales tipadas; el mundo no toca bytes jamas.
+class_name GameConnection
+extends Node
+
+signal welcome(msg)          # MexProtocol.Welcome
+signal enter_map(msg)        # MexProtocol.EnterMap
+signal entity_spawn(msg)
+signal entity_despawn(msg)
+signal entity_move(msg)
+signal hero_stats(msg)
+signal error_reply(msg)
+signal session_replaced
+signal disconnected
+
+var _ws := WebSocketPeer.new()
+var _abierto := false
+
+
+func connect_to(url: String, ticket: String) -> void:
+	_ws.connect_to_url(url)
+	set_process(true)
+	_ticket_pendiente = ticket
+
+var _ticket_pendiente := ""
+
+
+func _process(_delta: float) -> void:
+	_ws.poll()
+	match _ws.get_ready_state():
+		WebSocketPeer.STATE_OPEN:
+			if not _abierto:
+				_abierto = true
+				var hello := MexProtocol.Hello.new()
+				hello.protocol_version = 1
+				hello.game_ticket = _ticket_pendiente
+				_ws.put_packet(hello.encode())
+			while _ws.get_available_packet_count() > 0:
+				_despachar(_ws.get_packet())
+		WebSocketPeer.STATE_CLOSED:
+			if _abierto:
+				_abierto = false
+				disconnected.emit()
+			set_process(false)
+
+
+func send(frame: PackedByteArray) -> void:
+	if _ws.get_ready_state() == WebSocketPeer.STATE_OPEN:
+		_ws.put_packet(frame)
+
+
+func _despachar(frame: PackedByteArray) -> void:
+	match _msg_id(frame):
+		MexProtocol.Welcome.MSG_ID: welcome.emit(MexProtocol.Welcome.decode(frame))
+		MexProtocol.EnterMap.MSG_ID: enter_map.emit(MexProtocol.EnterMap.decode(frame))
+		MexProtocol.EntitySpawn.MSG_ID: entity_spawn.emit(MexProtocol.EntitySpawn.decode(frame))
+		MexProtocol.EntityDespawn.MSG_ID: entity_despawn.emit(MexProtocol.EntityDespawn.decode(frame))
+		MexProtocol.EntityMove.MSG_ID: entity_move.emit(MexProtocol.EntityMove.decode(frame))
+		MexProtocol.HeroStats.MSG_ID: hero_stats.emit(MexProtocol.HeroStats.decode(frame))
+		MexProtocol.Ping.MSG_ID:
+			var pong := MexProtocol.Pong.new()
+			pong.nonce = MexProtocol.Ping.decode(frame).nonce
+			send(pong.encode())
+		MexProtocol.ErrorReply.MSG_ID: error_reply.emit(MexProtocol.ErrorReply.decode(frame))
+		MexProtocol.SessionReplaced.MSG_ID: session_replaced.emit()
+		_: pass   # mensaje desconocido: se ignora (el contrato es saltable)
+
+
+static func _msg_id(frame: PackedByteArray) -> int:
+	var id := 0
+	var shift := 0
+	for i in mini(frame.size(), 4):
+		var b := frame[i]
+		id |= (b & 0x7F) << shift
+		if (b & 0x80) == 0:
+			return id
+		shift += 7
+	return -1

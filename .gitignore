@@ -1,0 +1,5 @@
+# Godot
+.godot/
+
+# credenciales de dev: JAMAS se versionan
+dev_login.cfg
