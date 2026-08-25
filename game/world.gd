@@ -13,6 +13,7 @@ var _conn: GameConnection
 var _entidades := {}          # entity_id -> EntityNode
 var _hero: EntityNode
 var _camara: Camera2D
+var _fondo: MapBackground
 var _seq := 0
 var _limites := Vector2(20800, 12800)
 
@@ -90,24 +91,12 @@ func _ready() -> void:
 	_conn.connect_to(Session.game_host, Session.game_ticket)
 
 
-func _construir_fondo() -> void:
-	# nebulosa del pipeline estirada al mapa + tile de estrellas repetido encima
-	var neb := Sprite2D.new()
-	neb.texture = load("res://assets/world/map-1-1.png")
-	neb.centered = false
-	neb.scale = _limites / Vector2(neb.texture.get_width(), neb.texture.get_height())
-	neb.z_index = -10
-	add_child(neb)
-
-	var stars := Sprite2D.new()
-	var tex: Texture2D = load("res://assets/world/starfield-tile.png")
-	stars.texture = tex
-	stars.centered = false
-	stars.region_enabled = true
-	stars.region_rect = Rect2(0, 0, _limites.x, _limites.y)
-	stars.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-	stars.z_index = -9
-	add_child(stars)
+func _construir_fondo(map_code: String) -> void:
+	# el stack de capas del prototipo: mosaicos + fondo principal + planetas
+	# + sol con lentes + polvo estelar, todos con su paralaje propio
+	_fondo = MapBackground.new()
+	add_child(_fondo)
+	_fondo.build(MapBgConfig.para(map_code, _limites))
 
 
 func _construir_hud() -> void:
@@ -147,7 +136,7 @@ func _on_welcome(w) -> void:
 
 func _on_enter_map(em) -> void:
 	_limites = Vector2(em.limits_x, em.limits_y)
-	_construir_fondo()
+	_construir_fondo(em.map_code)
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
 
@@ -394,6 +383,8 @@ func _volar_a(destino: Vector2) -> void:
 func _process(delta: float) -> void:
 	_process_hold_move(delta)
 	_process_pending_collect()
+	if _fondo != null:
+		_fondo.update_parallax(_camara.position, _camara.zoom, get_viewport_rect().size)
 	if _hero != null:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]
@@ -429,6 +420,7 @@ func _process_pending_collect() -> void:
 var _at_fase := 0
 var _at_target := 0
 var _at_recogido := false
+var _at_ultimo_vuelo := 0.0
 
 
 func _autotest(delta: float) -> void:
@@ -463,6 +455,12 @@ func _autotest(delta: float) -> void:
 				_conn.send(msg.encode())
 				_at_fase = 2
 		2:
+			# perseguir al objetivo si se aleja del rango del laser
+			var objetivo_npc: EntityNode = _entidades.get(_at_target)
+			if objetivo_npc != null and _hero.position.distance_to(objetivo_npc.position) > 450.0 \
+					and _autotest_t - _at_ultimo_vuelo > 2.0:
+				_at_ultimo_vuelo = _autotest_t
+				_volar_a(objetivo_npc.position + Vector2(120, 0))
 			# _on_destroyed limpia la seleccion; la caja aparece via BoxSpawn y
 			# el click-flujo se simula fijando el pending directamente
 			if not _entidades.has(_at_target):
