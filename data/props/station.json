@@ -1,0 +1,19 @@
+{
+  "_comentario": "La estacion de la base. world_size es su diametro en unidades de mundo (el rango seguro que manda el server es 1500). El reactor late con la capa emisiva cian, mas lento y suave que el nucleo de un alien.",
+  "code": "station",
+  "texture": "res://assets/world/station.png",
+  "emissive": "res://assets/world/station-emissive.png",
+  "world_size": 820,
+
+  "pulse": {
+    "min_intensity": 0.55,
+    "max_intensity": 1.8,
+    "speed": 1.1,
+    "sharpness": 1.6
+  },
+  "safe_ring": {
+    "color": "00E5FF",
+    "alpha": 0.22,
+    "width": 3.0
+  }
+}

@@ -7,6 +7,7 @@ class_name AssetDefs
 const RUTA_NAVES := "res://data/ships/%s.json"
 const RUTA_NPCS := "res://data/npcs/%s.json"
 const RUTA_MAPAS := "res://data/maps/%s.json"
+const RUTA_PROPS := "res://data/props/%s.json"
 
 static var _cache := {}
 
@@ -27,6 +28,11 @@ static func entidad(type_id: String) -> Dictionary:
 
 static func mapa(code: String) -> Dictionary:
 	return _cargar(RUTA_MAPAS % code)
+
+
+## Props del mundo (estacion, portal, caja...).
+static func prop(code: String) -> Dictionary:
+	return _cargar(RUTA_PROPS % code)
 
 
 static func _cargar(ruta: String) -> Dictionary:

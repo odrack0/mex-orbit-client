@@ -37,6 +37,12 @@ var _base: StationPanel
 var _estacion_pos := Vector2.ZERO
 var _estacion_rango := 0.0
 var _en_base := false
+var _estacion: Sprite2D
+var _estacion_reactor: Sprite2D
+var _reactor_min := 0.55
+var _reactor_max := 1.8
+var _reactor_speed := 1.1
+var _reactor_sharp := 1.6
 var _laser_on := false
 var _beam: Line2D
 var _cajas := {}                  # box_id -> Sprite2D
@@ -181,21 +187,44 @@ func _construir_minimapa(map_code: String) -> void:
 
 
 func _construir_estacion() -> void:
-	# la estacion en el mundo, con el anillo de su zona segura
+	# la estacion y su zona segura, con las particularidades de su JSON
+	var d := AssetDefs.prop("station")
+	var aro: Dictionary = d.get("safe_ring", {})
+	var color_aro := AssetDefs.color(aro.get("color", "00E5FF"), NTheme.CYAN)
+	var alfa_aro: float = float(aro.get("alpha", 0.22))
+	var grosor_aro: float = float(aro.get("width", 3.0))
+
 	var anillo := Node2D.new()
 	anillo.position = _estacion_pos
 	anillo.z_index = -1
 	anillo.draw.connect(func():
-		anillo.draw_arc(Vector2.ZERO, _estacion_rango, 0, TAU, 96, Color(NTheme.CYAN, 0.22), 3.0))
+		anillo.draw_arc(Vector2.ZERO, _estacion_rango, 0, TAU, 96,
+			Color(color_aro, alfa_aro), grosor_aro))
 	add_child(anillo)
 	anillo.queue_redraw()
 
-	var est := Sprite2D.new()
-	est.texture = load("res://assets/world/station.png")
-	est.position = _estacion_pos
-	est.scale = Vector2.ONE * 0.6      # el render de 1024 rinde a ~614 px
-	est.z_index = -1
-	add_child(est)
+	_estacion = Sprite2D.new()
+	_estacion.texture = load(d.get("texture", "res://assets/world/station.png"))
+	_estacion.position = _estacion_pos
+	# tamaño en unidades de MUNDO segun el JSON, sea cual sea la resolucion del render
+	var lado := float(_estacion.texture.get_width())
+	_estacion.scale = Vector2.ONE * (float(d.get("world_size", 820)) / lado)
+	_estacion.z_index = -1
+	add_child(_estacion)
+
+	# el reactor late con su capa emisiva (mas lento y suave que un alien)
+	if d.has("emissive"):
+		_estacion_reactor = Sprite2D.new()
+		_estacion_reactor.texture = load(d.emissive)
+		var mat := CanvasItemMaterial.new()
+		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		_estacion_reactor.material = mat
+		_estacion.add_child(_estacion_reactor)
+		var p: Dictionary = d.get("pulse", {})
+		_reactor_min = float(p.get("min_intensity", 0.55))
+		_reactor_max = float(p.get("max_intensity", 1.8))
+		_reactor_speed = float(p.get("speed", 1.1))
+		_reactor_sharp = float(p.get("sharpness", 1.6))
 
 
 func _construir_base() -> void:
@@ -538,6 +567,13 @@ func _process(delta: float) -> void:
 	_process_autopilot()
 	if _fondo != null:
 		_fondo.update_parallax(_camara.position, _camara.zoom, get_viewport_rect().size)
+
+	# el reactor de la estacion respira
+	if _estacion_reactor != null:
+		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _reactor_speed)
+		onda = pow(onda, _reactor_sharp)
+		var k: float = _reactor_min + (_reactor_max - _reactor_min) * onda
+		_estacion_reactor.self_modulate = Color(k, k, k, 1.0)
 	if _hero != null:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]
@@ -630,11 +666,13 @@ func _autotest(delta: float) -> void:
 		3:
 			# recogida hecha: volver a la base
 			if _at_recogido:
-				_volar_a(_estacion_pos + Vector2(300, 0))
+				_volar_a(_estacion_pos + Vector2(330, 60))
 				_at_fase = 4
 		4:
-			# al entrar en rango, descargar (dispara el refinado automatico)
-			if _en_base and _autotest_t - _at_ultimo_vuelo > 1.0:
+			# se acerca de verdad a la estacion antes de descargar (asi la
+			# captura del autotest sirve tambien para revisar su arte)
+			if _en_base and _hero.position.distance_to(_estacion_pos) < 420.0 \
+					and _autotest_t - _at_ultimo_vuelo > 1.0:
 				_at_ultimo_vuelo = _autotest_t
 				_req_id += 1
 				var msg := MexProtocol.UnloadCargo.new()
