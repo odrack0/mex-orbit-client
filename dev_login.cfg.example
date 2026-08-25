@@ -1,6 +1,3 @@
-; Plantilla de credenciales de desarrollo.
-; dev-run.ps1 copia este archivo a dev_login.cfg si no existe (dev_login.cfg
-; NO se versiona: es tuyo y puede llevar credenciales reales).
 [login]
 username = "odrack"
 password = "dev1234"
