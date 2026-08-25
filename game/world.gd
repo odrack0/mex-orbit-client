@@ -25,6 +25,12 @@ var _seleccionada := 0        # entity_id con seleccion local
 
 # combate y loot (E2/I5)
 const COLLECT_ARRIVE := 200.0     # llegar a esto de la caja = recolectar (server valida 250)
+const AUTOPILOT_ARRIVE := 120.0   # a esta distancia el autopiloto declara llegada
+
+# autopiloto del minimapa (herencia del prototipo): destino sostenido que se
+# reemite si el heroe queda detenido sin llegar; el vuelo manual lo cancela
+var _autopilot := Vector2.INF
+var _minimapa: MinimapWindow
 var _laser_on := false
 var _beam: Line2D
 var _cajas := {}                  # box_id -> Sprite2D
@@ -135,11 +141,56 @@ func _on_welcome(w) -> void:
 	_estado("Enlace establecido · cuenta %d · tick %d Hz" % [w.account_id, w.tick_rate], NTheme.CYAN)
 
 
+var _map_code := ""
+
+
 func _on_enter_map(em) -> void:
 	_limites = Vector2(em.limits_x, em.limits_y)
+	_map_code = em.map_code
 	_construir_fondo(em.map_code)
+	_construir_minimapa(em.map_code)
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
+
+
+func _construir_minimapa(map_code: String) -> void:
+	if _minimapa != null:
+		return
+	var capa := CanvasLayer.new()
+	capa.layer = 11
+	add_child(capa)
+	_minimapa = MinimapWindow.new()
+	capa.add_child(_minimapa)
+	_minimapa.setup(self, map_code)
+	_minimapa.fly_to.connect(_on_autopilot)
+
+
+func _on_autopilot(destino: Vector2) -> void:
+	_autopilot = destino.clamp(Vector2.ZERO, _limites)
+	_estado("Autopiloto hacia (%d, %d)" % [_autopilot.x, _autopilot.y], NTheme.MUTED)
+	_volar_a(_autopilot)
+
+
+## Vuelo sostenido del autopiloto: si el heroe quedo detenido sin llegar
+## (correccion del server, choque de estados), reemite el destino.
+func _process_autopilot() -> void:
+	if _autopilot == Vector2.INF or _hero == null:
+		return
+	if _hero.position.distance_to(_autopilot) <= AUTOPILOT_ARRIVE:
+		_estado("Autopiloto: destino alcanzado", NTheme.MUTED)
+		_autopilot = Vector2.INF
+		return
+	if _hero.position.distance_to(_hero.objetivo) < 1.0:
+		_volar_a(_autopilot)
+
+
+# ---- accesores para el minimapa ----
+func limites() -> Vector2: return _limites
+func heroe() -> EntityNode: return _hero
+func entidades() -> Dictionary: return _entidades
+func cajas() -> Dictionary: return _cajas
+func autopiloto() -> Vector2: return _autopilot
+func map_code() -> String: return _map_code
 
 
 func _on_spawn(sp) -> void:
@@ -314,7 +365,9 @@ func _handle_click(world_pos: Vector2) -> void:
 		_seleccionar(bajo)
 		return
 	# click en vacio: volar; mientras siga presionado, _process persigue al cursor
+	# (el vuelo manual cancela el autopiloto, como en el prototipo)
 	_pending_box = 0
+	_autopilot = Vector2.INF
 	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
@@ -394,6 +447,7 @@ func _volar_a(destino: Vector2) -> void:
 func _process(delta: float) -> void:
 	_process_hold_move(delta)
 	_process_pending_collect()
+	_process_autopilot()
 	if _fondo != null:
 		_fondo.update_parallax(_camara.position, _camara.zoom, get_viewport_rect().size)
 	if _hero != null:
