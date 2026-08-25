@@ -26,6 +26,11 @@ var _visual_angle := 0.0          # grados de pantalla de la proa
 var _turn_tween: Tween
 var _idle_timer := 0.0
 
+# llamas de motor con acelerador (herencia del prototipo: el empuje sube al
+# volar y se apaga al frenar, la llama respira con el)
+var _flames: Array[Sprite2D] = []
+var _thrust := 0.0
+
 var _sprite: Sprite2D
 var _nombre: Label
 var _hp: ColorRect
@@ -48,6 +53,20 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_sprite.scale = Vector2.ONE * 0.55
 	add_child(_sprite)
 
+	# toberas: dos llamas aditivas en la popa (solo naves, no bichos)
+	if not es_npc:
+		var tex: Texture2D = load("res://assets/fx/engine-flame.png")
+		for lado in [-22.0, 22.0]:
+			var llama := Sprite2D.new()
+			llama.texture = tex
+			llama.rotation_degrees = 90.0
+			llama.position = Vector2(lado, 98.0)
+			llama.offset = Vector2(118.0, 0.0)   # la llama nace en la tobera y crece hacia atras
+			llama.scale = Vector2(0.0, 0.55)
+			llama.material = _material_add()
+			_sprite.add_child(llama)
+			_flames.append(llama)
+
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if spawn.kind == MexProtocol.EntityKind.PLAYER else NTheme.HOSTILE)
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
 	_nombre.position = Vector2(-60, -96)
@@ -67,8 +86,23 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	add_child(_hp)
 
 
+static func _material_add() -> CanvasItemMaterial:
+	var m := CanvasItemMaterial.new()
+	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return m
+
+
 func _process(delta: float) -> void:
-	if position.distance_to(objetivo) > 0.5:
+	# acelerador: el empuje sube en vuelo y se apaga al frenar; la llama respira
+	var en_vuelo := position.distance_to(objetivo) > 0.5
+	if not _flames.is_empty():
+		_thrust = clampf(_thrust + (2.5 if en_vuelo else -3.5) * delta, 0.0, 1.0)
+		var respiro := 1.0 + 0.12 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
+		for llama in _flames:
+			llama.scale.x = 0.42 * _thrust * respiro
+			llama.self_modulate.a = _thrust
+
+	if en_vuelo:
 		position = position.move_toward(objetivo, speed * delta)
 	elif es_npc:
 		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
@@ -109,7 +143,10 @@ func _girar_a(grados: float) -> void:
 
 func _set_visual_angle(grados: float) -> void:
 	_visual_angle = fposmod(grados, 360.0)
-	_sprite.rotation_degrees = _visual_angle
+	# el giro SALTA de posicion en posicion durante el tween, como el flip de
+	# frames del sheet original: es el look que distingue al prototipo
+	var paso := 360.0 / TURN_STEPS
+	_sprite.rotation_degrees = roundf(_visual_angle / paso) * paso
 
 
 ## Eco autoritativo del server: correccion suave si la deriva es chica, snap si es grande.
