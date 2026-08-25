@@ -87,6 +87,13 @@ if ($SoloServicios) {
 Get-Process | Where-Object { $_.ProcessName -like '*Godot*' } |
     Stop-Process -Force -Confirm:$false -ErrorAction SilentlyContinue
 
+# Godot solo registra un class_name nuevo tras escanear el proyecto: sin este
+# paso, un script recien creado revienta con "Could not find type".
+Push-Location $cliente
+godot --headless --path . --import 2>&1 | Out-Null
+Pop-Location
+Write-Host 'clases globales: OK'
+
 if ($Autotest) {
     # el autotest usa la cuenta TestBot; una sesion por cuenta, asi que no
     # debe correr mientras el usuario juega con ella

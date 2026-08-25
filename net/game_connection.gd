@@ -20,20 +20,46 @@ signal npc_prices(msg)
 signal station_range(msg)
 signal unload_result(msg)
 signal sell_result(msg)
+signal chat_message(msg)
+signal resume_ok
 signal error_reply(msg)
 signal session_replaced
 signal disconnected
 
 var _ws := WebSocketPeer.new()
 var _abierto := false
+var _ticket_pendiente := ""
+var _url := ""
+## Token de reconexion (lo entrega Welcome): con el se vuelve a la misma nave
+## dentro de la ventana de gracia, sin pasar por la api.
+var reconnect_token := ""
+var _reanudando := false
 
 
 func connect_to(url: String, ticket: String) -> void:
+	_url = url
+	_ticket_pendiente = ticket
+	_reanudando = false
+	_abierto = false
+	_ws = WebSocketPeer.new()
 	_ws.connect_to_url(url)
 	set_process(true)
-	_ticket_pendiente = ticket
 
-var _ticket_pendiente := ""
+
+## Reintento de reconexion con el token: el server nos devuelve nuestra nave.
+func reconnect() -> void:
+	if reconnect_token == "":
+		return
+	_reanudando = true
+	_abierto = false
+	_ws = WebSocketPeer.new()
+	_ws.connect_to_url(_url)
+	set_process(true)
+
+
+## Corta el socket como si se cayera la red (autotest de reconexion).
+func simular_caida() -> void:
+	_ws.close(4000, "prueba de reconexion")
 
 
 func _process(_delta: float) -> void:
@@ -42,10 +68,16 @@ func _process(_delta: float) -> void:
 		WebSocketPeer.STATE_OPEN:
 			if not _abierto:
 				_abierto = true
-				var hello := MexProtocol.Hello.new()
-				hello.protocol_version = 1
-				hello.game_ticket = _ticket_pendiente
-				_ws.put_packet(hello.encode())
+				if _reanudando:
+					var resume := MexProtocol.Resume.new()
+					resume.protocol_version = 1
+					resume.reconnect_token = reconnect_token
+					_ws.put_packet(resume.encode())
+				else:
+					var hello := MexProtocol.Hello.new()
+					hello.protocol_version = 1
+					hello.game_ticket = _ticket_pendiente
+					_ws.put_packet(hello.encode())
 			while _ws.get_available_packet_count() > 0:
 				_despachar(_ws.get_packet())
 		WebSocketPeer.STATE_CLOSED:
@@ -83,6 +115,8 @@ func _despachar(frame: PackedByteArray) -> void:
 			var pong := MexProtocol.Pong.new()
 			pong.nonce = MexProtocol.Ping.decode(frame).nonce
 			send(pong.encode())
+		MexProtocol.ChatMessage.MSG_ID: chat_message.emit(MexProtocol.ChatMessage.decode(frame))
+		MexProtocol.ResumeOk.MSG_ID: resume_ok.emit()
 		MexProtocol.ErrorReply.MSG_ID: error_reply.emit(MexProtocol.ErrorReply.decode(frame))
 		MexProtocol.SessionReplaced.MSG_ID: session_replaced.emit()
 		_: pass   # mensaje desconocido: se ignora (el contrato es saltable)

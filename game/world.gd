@@ -34,6 +34,7 @@ var _minimapa: MinimapWindow
 
 # la base (E2/I6)
 var _base: StationPanel
+var _chat: ChatWindow
 var _estacion_pos := Vector2.ZERO
 var _estacion_rango := 0.0
 var _en_base := false
@@ -84,8 +85,10 @@ func _ready() -> void:
 	_conn.unload_result.connect(_on_unload_result)
 	_conn.sell_result.connect(_on_sell_result)
 	_conn.error_reply.connect(_on_error)
-	_conn.session_replaced.connect(func(): _estado("Sesión reemplazada por otra conexión", NTheme.WARN))
-	_conn.disconnected.connect(func(): _estado("Enlace perdido", NTheme.HOSTILE))
+	_conn.chat_message.connect(_on_chat)
+	_conn.resume_ok.connect(_on_resume_ok)
+	_conn.session_replaced.connect(_on_session_replaced)
+	_conn.disconnected.connect(_on_disconnected)
 
 
 	# la explosion del pipeline: 8 frames de 128
@@ -108,6 +111,8 @@ func _ready() -> void:
 
 
 func _construir_fondo(map_code: String) -> void:
+	if _fondo != null:
+		return                     # una reconexion reenvia EnterMap: no duplicar capas
 	# el stack de capas del prototipo: mosaicos + fondo principal + planetas
 	# + sol con lentes + polvo estelar, todos con su paralaje propio
 	_fondo = MapBackground.new()
@@ -136,8 +141,15 @@ func _construir_hud() -> void:
 	_hud_pos = NTheme.label("(0, 0)", NTheme.mono(), 11, NTheme.MUTED)
 	col.add_child(_hud_pos)
 
+	# la linea de estado vive abajo al CENTRO: las esquinas son del chat y del
+	# minimapa, y antes se pisaban entre si
 	_hud_estado = NTheme.label("", NTheme.exo2(), 12, NTheme.MUTED)
-	_hud_estado.position = Vector2(12, 700 - 24)
+	_hud_estado.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hud_estado.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_hud_estado.offset_left = 430
+	_hud_estado.offset_right = -430
+	_hud_estado.offset_top = -34
+	_hud_estado.offset_bottom = -14
 	capa.add_child(_hud_estado)
 
 
@@ -147,7 +159,64 @@ func _estado(texto: String, color: Color) -> void:
 
 
 func _on_welcome(w) -> void:
+	_conn.reconnect_token = w.reconnect_token      # con esto se vuelve tras una caída
+	_reintentos = 0
 	_estado("Enlace establecido · cuenta %d · tick %d Hz" % [w.account_id, w.tick_rate], NTheme.CYAN)
+	if _chat != null:
+		_chat.add_system("Enlace establecido con el sector")
+
+
+# ---- reconexión (ventana de gracia del server: 60 s) ----
+const MAX_REINTENTOS := 8
+var _reintentos := 0
+var _sesion_reemplazada := false
+
+
+func _on_disconnected() -> void:
+	if _sesion_reemplazada:
+		return                                     # nos echaron: no insistir
+	if _conn.reconnect_token == "" or _reintentos >= MAX_REINTENTOS:
+		_estado("Enlace perdido", NTheme.HOSTILE)
+		return
+	_reintentos += 1
+	_estado("Enlace perdido · reconectando (%d/%d)…" % [_reintentos, MAX_REINTENTOS], NTheme.WARN)
+	if _chat != null:
+		_chat.add_system("Enlace perdido, reconectando…", NTheme.WARN)
+	# reintento con espera creciente, dentro de la ventana de gracia
+	await get_tree().create_timer(minf(1.0 * _reintentos, 5.0)).timeout
+	_conn.reconnect()
+
+
+func _on_resume_ok() -> void:
+	# el server nos devolvió nuestra nave: se limpia el mundo local y se
+	# reconstruye con la re-sincronización que viene detrás
+	for id in _entidades:
+		_entidades[id].queue_free()
+	_entidades.clear()
+	for id in _cajas:
+		_cajas[id].queue_free()
+	_cajas.clear()
+	_hero = null
+	_seleccionada = 0
+	_laser_on = false
+	_reintentos = 0
+	_at_reconectado = true
+	_estado("Reconectado: seguías en vuelo", NTheme.HP)
+	if _chat != null:
+		_chat.add_system("Reconectado: tu nave seguía en el sector", NTheme.HP)
+
+
+func _on_session_replaced() -> void:
+	_sesion_reemplazada = true
+	_estado("Sesión reemplazada por otra conexión", NTheme.WARN)
+	if _chat != null:
+		_chat.add_system("Otra conexión tomó esta cuenta", NTheme.WARN)
+
+
+func _on_chat(msg) -> void:
+	_at_chat_ok = true
+	if _chat != null:
+		_chat.add_message(msg.channel, msg.from_name, msg.text)
 
 
 var _map_code := ""
@@ -162,6 +231,7 @@ func _on_enter_map(em) -> void:
 	_construir_estacion()
 	_construir_minimapa(em.map_code)
 	_construir_base()
+	_construir_chat()
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
 
@@ -179,6 +249,8 @@ func _construir_minimapa(map_code: String) -> void:
 
 
 func _construir_estacion() -> void:
+	if _estacion != null:
+		return                     # idem: EnterMap puede repetirse al reconectar
 	# la estacion y su zona segura, con las particularidades de su JSON
 	var d := AssetDefs.prop("station")
 	var aro: Dictionary = d.get("safe_ring", {})
@@ -238,6 +310,23 @@ func _construir_base() -> void:
 		msg.request_id = _req_id
 		msg.material_id = material_id
 		msg.amount = amount
+		_conn.send(msg.encode()))
+
+
+func _construir_chat() -> void:
+	if _chat != null:
+		return
+	var capa := CanvasLayer.new()
+	capa.layer = 11
+	add_child(capa)
+	_chat = ChatWindow.new()
+	capa.add_child(_chat)
+	_chat.send_message.connect(func(canal: int, texto: String):
+		_req_id += 1
+		var msg := MexProtocol.ChatSend.new()
+		msg.request_id = _req_id
+		msg.channel = canal
+		msg.text = texto
 		_conn.send(msg.encode()))
 
 
@@ -471,6 +560,13 @@ func _on_error(e) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# escribiendo en el chat, el teclado es suyo (Enter lo enfoca, como el original)
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER:
+		if _chat != null and not _chat.tiene_foco():
+			_chat.enfocar()
+			return
+	if _chat != null and _chat.tiene_foco() and event is InputEventKey:
+		return
 	# soltar el boton termina la persecucion del cursor
 	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_hold_move = false
@@ -647,6 +743,8 @@ var _at_descargado := false
 var _at_vendido := false
 var _at_disparos := 0
 var _at_shot_combate := false
+var _at_chat_ok := false
+var _at_reconectado := false
 
 
 func _autotest(delta: float) -> void:
@@ -731,8 +829,22 @@ func _autotest(delta: float) -> void:
 				_conn.send(venta.encode())
 				_at_fase = 6
 		6:
-			if _at_vendido:
-				_at_captura("AUTOTEST OK — loop completo: Vex, caja, base, refinado y venta", 0)
+			# chat: se manda al canal GLOBAL y debe volver por el mismo socket
+			if _at_vendido and _autotest_t - _at_ultimo_vuelo > 1.0:
+				_at_ultimo_vuelo = _autotest_t
+				_chat.enfocar()
+				_chat.send_message.emit(0, "autotest: hola sector")
+				_at_fase = 7
+		7:
+			# eco del chat recibido -> cortar la red y volver con el token
+			if _at_chat_ok and _autotest_t - _at_ultimo_vuelo > 1.0:
+				_at_ultimo_vuelo = _autotest_t
+				_conn.simular_caida()
+				_at_fase = 8
+		8:
+			if _at_reconectado and _hero != null \
+					and _autotest_t - _at_ultimo_vuelo > 3.0:
+				_at_captura("AUTOTEST OK — loop completo + chat + reconexion", 0)
 
 
 func _at_captura(mensaje: String, codigo: int) -> void:

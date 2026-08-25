@@ -32,14 +32,14 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 
 ## Estado
 
-**E2/I4 en marcha**: login con la secuencia real, vuelo por el 1-1 con predicción + reconciliación, mecánica de vuelo portada fiel del prototipo (click sostenido persigue al cursor) y HUD mínimo del sistema N. Correr: `godot --path .` (requiere api en 5100 y game server en 5200; `dev_login.cfg` local precarga credenciales). Autotest: `godot --path . -- --screenshot=ruta.png`.
+**E2/I7 cerrada**: login con la secuencia real, vuelo por el 1-1 con predicción + reconciliación, combate y loot, base y economía, chat y reconexión con ventana de gracia. El autotest recorre el loop entero de punta a punta (Vex → caja → base → refinado → venta → chat → caída de red → regreso). Correr: `godot --path .` (requiere api en 5100 y game server en 5200; `dev_login.cfg` local precarga credenciales). Autotest: `godot --path . -- --screenshot=ruta.png`.
 
 ## Correr el cliente
 
 ```powershell
 .\tools\dev-run.ps1                 # levanta lo que falte y abre el cliente
 .\tools\dev-run.ps1 -SoloServicios  # deja MySQL/api/game server listos, sin cliente
-.\tools\dev-run.ps1 -Autotest       # autotest headless del loop completo, con captura
+.\tools\dev-run.ps1 -Autotest       # autotest del loop completo (+ chat y reconexión), con captura
 .\tools\dev-run.ps1 -Detener        # apaga cliente, api y game server
 ```
 
@@ -90,5 +90,30 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `AUTOPILOT_ARRIVE` | `game/world.gd` | 120 px | A esta distancia el autopiloto declara destino alcanzado |
 | Escala de la estación | `world.gd::_construir_estacion` | 0.6 | El render de 1024 rinde a ~614 px en el mundo |
 | Anillo de zona segura | `world.gd::_construir_estacion` | cian 22%, grosor 3 | El radio que manda el server en `EnterMap` |
+| `MAX_REINTENTOS` | `game/world.gd` | 8 | Intentos de reconexión antes de rendirse (espera creciente 1→5 s, dentro de la gracia de 60 s del server) |
+| `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
+
+## Chat y reconexión (I7)
+
+**COMMS** (`ui/chat_window.gd`) es una ventana del sistema N — cristal, esquinas en L,
+pestañas `GLOBAL`/`FACCIÓN`, arrastrable por su barra de título. **Enter** enfoca la
+entrada cuando no la tiene; mientras la tiene, el teclado es suyo y `_unhandled_input`
+del mundo no ve nada (nada de disparar mientras escribes). El chat no tiene socket
+propio: viaja tipado por el mismo enlace del juego.
+
+**Reconexión automática.** El `Welcome` trae un `reconnect_token`; `GameConnection` lo
+guarda y su handshake manda `Resume` en vez de `Hello` cuando `reconnect()` reabre el
+socket. Al caerse el enlace, `world.gd` reintenta con espera creciente y avisa en COMMS.
+`ResumeOk` limpia el mundo local (entidades, cajas, selección) porque detrás viene la
+re-sincronización completa del server; por eso `_construir_fondo`, `_construir_estacion`,
+`_construir_minimapa`, `_construir_base` y `_construir_chat` **son idempotentes**: un
+`EnterMap` repetido no duplica capas.
+
+**La línea de estado vive abajo al centro**, no en la esquina: las esquinas inferiores
+son del chat (izquierda) y del minimapa (derecha).
+
+> `godot` solo registra un `class_name` nuevo tras escanear el proyecto. `dev-run.ps1`
+> corre `godot --headless --path . --import` antes de lanzar el cliente; sin ese paso un
+> script recién creado revienta con *"Could not find type"*.
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
