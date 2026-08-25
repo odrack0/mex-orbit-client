@@ -1133,9 +1133,11 @@ class AttackEvent:
 	var target_hp: int = 0
 	var target_shield: int = 0
 	var missed: bool = false
+	var ammo_id: String = ""
+	var skilled: bool = false
 
 	func validate() -> void:
-		pass
+		assert(ammo_id.length() <= 64, "AttackEvent.ammo_id demasiado largo")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
@@ -1152,6 +1154,10 @@ class AttackEvent:
 		Wire.write_varint(buf, target_shield)
 		Wire.write_tag(buf, 7, 0)
 		Wire.write_varint(buf, 1 if missed else 0)
+		Wire.write_tag(buf, 8, 2)
+		Wire.write_string(buf, ammo_id)
+		Wire.write_tag(buf, 9, 0)
+		Wire.write_varint(buf, 1 if skilled else 0)
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> AttackEvent:
 		var m := AttackEvent.new()
@@ -1167,6 +1173,8 @@ class AttackEvent:
 				5: m.target_hp = Wire.read_varint(b, pos)
 				6: m.target_shield = Wire.read_varint(b, pos)
 				7: m.missed = Wire.read_varint(b, pos) != 0
+				8: m.ammo_id = Wire.read_string(b, pos)
+				9: m.skilled = Wire.read_varint(b, pos) != 0
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m

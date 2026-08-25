@@ -44,7 +44,6 @@ var _reactor_max := 1.8
 var _reactor_speed := 1.1
 var _reactor_sharp := 1.6
 var _laser_on := false
-var _beam: Line2D
 var _cajas := {}                  # box_id -> Sprite2D
 var _pending_box := 0             # flujo del prototipo: volar a la caja y recoger al llegar
 var _pending_box_pos := Vector2.ZERO
@@ -88,13 +87,6 @@ func _ready() -> void:
 	_conn.session_replaced.connect(func(): _estado("Sesión reemplazada por otra conexión", NTheme.WARN))
 	_conn.disconnected.connect(func(): _estado("Enlace perdido", NTheme.HOSTILE))
 
-	# el haz del laser: se dibuja entre el heroe y su objetivo mientras dispara
-	_beam = Line2D.new()
-	_beam.width = 3.0
-	_beam.default_color = NTheme.CYAN
-	_beam.visible = false
-	_beam.z_index = 5
-	add_child(_beam)
 
 	# la explosion del pipeline: 8 frames de 128
 	_frames_explosion = SpriteFrames.new()
@@ -343,23 +335,69 @@ func _on_target_info(ti) -> void:
 	nodo.set_hp_abs(ti.hp + ti.shield)
 
 
+## Colores de daño del original (su tabla hitpointColors).
+const HIT_HACES := Color("FF0000")      # el daño que haces
+const HIT_RECIBES := Color("DB63E2")    # el daño que te hacen
+
+
 func _on_attack(ev) -> void:
 	var blanco: EntityNode = _entidades.get(ev.target_id)
+	var tirador: EntityNode = _entidades.get(ev.attacker_id)
 	if blanco == null:
 		return
+
+	_at_disparos += 1
+	# el disparo: sale de una boca de cañón del tirador y viaja al blanco
+	if tirador != null:
+		var ammo: String = ev.ammo_id if ev.ammo_id != "" else "ammo_cel_1"
+		Projectile2D.fire(self, tirador.siguiente_canon(), blanco.position, ammo, ev.skilled)
+
+	if ev.missed:
+		_numero_flotante(blanco, "MISS", HIT_RECIBES if blanco == _hero else HIT_HACES)
+		return
+
 	blanco.set_hp_abs(ev.target_hp + ev.target_shield)
-	# numero de daño flotante: sube por encima de las barras y se desvanece
-	var texto := NTheme.label(str(ev.damage), NTheme.mono(), 14, NTheme.WARN)
-	texto.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	texto.add_theme_constant_override("outline_size", 4)
-	texto.position = blanco.position + Vector2(randf_range(-30, 30), -104)
-	texto.z_index = 6
-	add_child(texto)
+	# impacto: en el escudo si aún queda, en el casco si no
+	if ev.target_shield > 0 and tirador != null:
+		blanco.impacto_escudo(tirador.position)
+	else:
+		blanco.impacto_casco()
+	_numero_flotante(blanco, str(ev.damage), HIT_RECIBES if blanco == _hero else HIT_HACES)
+
+
+## Número de combate: sube 42 px en 1 s sobre la entidad, con contorno negro.
+## Golpes seguidos del mismo color sobre el mismo blanco se ACUMULAN en el
+## número vivo y reinician el vuelo, como en el prototipo.
+var _numeros := {}
+
+
+func _numero_flotante(sobre: EntityNode, texto: String, color: Color) -> void:
+	var clave := "%d:%s" % [sobre.entity_id, color.to_html(false)]
+	var vivo = _numeros.get(clave)
+	if vivo != null and is_instance_valid(vivo) and texto.is_valid_int():
+		vivo.set_meta("suma", int(vivo.get_meta("suma", 0)) + int(texto))
+		vivo.text = str(vivo.get_meta("suma"))
+		vivo.position = sobre.position + Vector2(-60, -110)
+		return
+
+	var label := NTheme.label(texto, NTheme.mono(), 15, color)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	label.add_theme_constant_override("outline_size", 5)
+	label.custom_minimum_size = Vector2(120, 0)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = sobre.position + Vector2(-60, -110)
+	label.z_index = 20
+	if texto.is_valid_int():
+		label.set_meta("suma", int(texto))
+	add_child(label)
+	_numeros[clave] = label
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(texto, "position:y", texto.position.y - 46, 0.8)
-	tw.tween_property(texto, "modulate:a", 0.0, 0.8)
-	tw.chain().tween_callback(texto.queue_free)
+	tw.tween_property(label, "position:y", label.position.y - 42, 1.0)
+	tw.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.35)
+	tw.chain().tween_callback(func():
+		_numeros.erase(clave)
+		label.queue_free())
 
 
 func _on_destroyed(msg) -> void:
@@ -371,7 +409,6 @@ func _on_destroyed(msg) -> void:
 	if _seleccionada == msg.entity_id:
 		_seleccionada = 0
 		_laser_on = false
-		_beam.visible = false
 		if _hero != null:
 			_hero.set_attack_target(null)   # sin presa, el rumbo vuelve al vuelo
 
@@ -578,12 +615,8 @@ func _process(delta: float) -> void:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]
 
-	# el haz del laser sigue a los contendientes
-	if _laser_on and _hero != null and _entidades.has(_seleccionada):
-		_beam.visible = true
-		_beam.points = PackedVector2Array([_hero.position, _entidades[_seleccionada].position])
-	else:
-		_beam.visible = false
+	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
+	# ya no hay haz permanente entre las naves)
 
 	if Session.autotest_screenshot != "":
 		_autotest(delta)
@@ -612,6 +645,8 @@ var _at_recogido := false
 var _at_ultimo_vuelo := 0.0
 var _at_descargado := false
 var _at_vendido := false
+var _at_disparos := 0
+var _at_shot_combate := false
 
 
 func _autotest(delta: float) -> void:
@@ -646,6 +681,11 @@ func _autotest(delta: float) -> void:
 				_conn.send(msg.encode())
 				_at_fase = 2
 		2:
+			# captura extra a media pelea: sirve de QA visual del combate
+			if not _at_shot_combate and _at_disparos >= 3:
+				_at_shot_combate = true
+				var img_c := get_viewport().get_texture().get_image()
+				img_c.save_png(Session.autotest_screenshot.replace(".png", "-combate.png"))
 			# perseguir al objetivo si se aleja del rango del laser
 			var objetivo_npc: EntityNode = _entidades.get(_at_target)
 			if objetivo_npc != null and _hero.attack_target == null:

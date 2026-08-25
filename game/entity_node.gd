@@ -40,6 +40,12 @@ var _flames: Array[Sprite2D] = []
 var _trails: Array[GPUParticles2D] = []
 var _thrust := 0.0
 
+# bocas de cañón (espacio de la textura) y a cuál toca disparar
+var _canones: Array[Vector2] = []
+var _canon_actual := 0
+var _impactos_casco := 0        # tope del prototipo: 5 simultáneos
+var _impactos_escudo := 0       # tope del prototipo: 9
+
 # capa emisiva pulsante (nucleo y venas del Vex)
 var _emissive: Sprite2D
 var _pulse_min := 0.2          # intensidad del blend aditivo (>1 sobreexpone)
@@ -86,6 +92,10 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	for motor in d.get("engines", []):
 		_flames.append(_crear_llama(motor, trail))
 		_trails.append(_crear_estela(motor, trail))
+
+	# bocas de cañón del JSON (espacio de la textura; se alternan al disparar)
+	for canon in d.get("cannons", []):
+		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 
 	# nombre y barra DEBAJO de la nave, como el prototipo (con contorno negro
 	# para que se lean sobre el fondo estelar). El offset sale del tamaño real.
@@ -296,6 +306,63 @@ func set_hp_pct(pct: float) -> void:
 func set_hp_abs(hp: int) -> void:
 	if max_hp_abs > 0:
 		set_hp_pct(float(hp) / max_hp_abs)
+
+
+## Boca de cañón desde la que sale el próximo disparo, en coordenadas de MUNDO
+## (respeta la rotación y escala del sprite). Sin cañones definidos, el centro.
+func siguiente_canon() -> Vector2:
+	if _canones.is_empty():
+		return position
+	var local := _canones[_canon_actual]
+	_canon_actual = (_canon_actual + 1) % _canones.size()
+	return _sprite.to_global(local)
+
+
+## Chispazo en el casco: punto aleatorio del disco de click, suelto en el mundo.
+func impacto_casco() -> void:
+	if _impactos_casco >= 5:      # el tope del prototipo
+		return
+	_impactos_casco += 1
+	var rnd := randf()
+	var offset := Vector2.from_angle(rnd * TAU) * (click_radius * 0.5 * rnd)
+	var anim := _sheet_anim("res://assets/fx/hull-impact.png", 96, 8, 0.45)
+	anim.position = position + offset
+	anim.rotation = randf() * TAU
+	get_parent().add_child(anim)
+	anim.tree_exited.connect(func(): _impactos_casco -= 1)
+
+
+## Onda hexagonal en el escudo: sobre la circunferencia, del lado del atacante.
+func impacto_escudo(desde: Vector2) -> void:
+	if _impactos_escudo >= 9:     # el tope del prototipo
+		return
+	_impactos_escudo += 1
+	var dir := (desde - position).normalized()
+	var anim := _sheet_anim("res://assets/fx/shield-impact.png", 128, 8, 0.3)
+	anim.position = dir * click_radius
+	anim.rotation = dir.angle()
+	anim.modulate = NTheme.SHIELD
+	add_child(anim)               # hijo: sigue a la nave
+	anim.tree_exited.connect(func(): _impactos_escudo -= 1)
+
+
+static func _sheet_anim(ruta: String, lado: int, frames: int, duracion: float) -> AnimatedSprite2D:
+	var sf := SpriteFrames.new()
+	sf.add_animation("x")
+	sf.set_animation_loop("x", false)
+	sf.set_animation_speed("x", frames / duracion)
+	var hoja: Texture2D = load(ruta)
+	for i in frames:
+		var f := AtlasTexture.new()
+		f.atlas = hoja
+		f.region = Rect2(i * lado, 0, lado, lado)
+		sf.add_frame("x", f)
+	var anim := AnimatedSprite2D.new()
+	anim.sprite_frames = sf
+	anim.z_index = 3
+	anim.play("x")
+	anim.animation_finished.connect(anim.queue_free)
+	return anim
 
 
 ## Seleccion local: esquinas de mira alrededor de la entidad (estilo N).

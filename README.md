@@ -59,6 +59,8 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 | `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y estilo de la estela (color, largo, ancho, vida) |
 | `data/npcs/<code>.json` | textura, capa emisiva y su pulso (rango de alfa y velocidad), radio de click |
 | `data/maps/<code>.json` | el stack de capas: fondo principal, mosaicos con su `p_factor`/escala/alfa, planetas con posición y profundidad, sol con su giro, tinte del polvo estelar |
+| `data/props/<code>.json` | props del mundo (estación): textura, emisiva, tamaño en unidades de mundo, pulso |
+| `data/ammo/<code>.json` | **el aspecto de cada arma**: color, largo, grosor y duración del haz, con su variante `beam_skilled` (el disparo potenciado del perfil de piloto: más grueso y brillante) |
 
 Agregar una nave nueva = soltar su PNG + escribir su JSON. Cero código.
 Los anclajes se miden con `mex-orbit-art/tools/find-anchors.py <export.png>` en vez de estimarlos a ojo.
@@ -80,8 +82,9 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | Acelerador de estelas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las estelas al volar/frenar (su forma y color vienen del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
-| Haz del láser | `game/world.gd` | ancho 3, cian | El beam héroe→objetivo mientras dispara (Ctrl lo alterna) |
-| Daño flotante | `world.gd::_on_attack` | sube 46 px en 0.8 s | Los números de daño que se desvanecen |
+| Disparos | `data/ammo/*.json` + `projectile_2d.gd` | duración 0.15 s | Proyectil que **viaja** con duración fija (no velocidad), como el prototipo; sale alternando por las bocas de `cannons` de la nave |
+| Daño flotante | `world.gd::_numero_flotante` | sube 42 px en 1 s | Colores del original: `FF0000` el daño que haces, `DB63E2` el que recibes; golpes seguidos se **acumulan** en el número vivo |
+| Topes de impacto | `entity_node.gd` | 5 casco, 9 escudo | Máximo de animaciones simultáneas por nave (los del prototipo) |
 | Explosión | `world.gd` | 16 fps, escala 1.4 | Los 8 frames del pipeline al morir una entidad |
 | Pasos de zoom del minimapa | `ui/minimap_window.gd` | 180, 238, 300, 380, 460 | Anchos del canvas (los del prototipo); el alto sale del ratio del mapa |
 | `AUTOPILOT_ARRIVE` | `game/world.gd` | 120 px | A esta distancia el autopiloto declara destino alcanzado |

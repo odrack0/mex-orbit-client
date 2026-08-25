@@ -1,0 +1,21 @@
+{
+  "_comentario": "Munición básica. Color heredado del original (LCB-10 = rojo #fa0000 muestreado de su sprite), con arte propio. `beam` es el disparo normal; `beam_skilled` el potenciado por el perfil de piloto: más grueso y brillante, como el skillLaser del original (grosor 8 -> 14).",
+  "code": "cel-1",
+  "loot_id": "ammo_cel_1",
+  "display_name": "CEL-1",
+
+  "beam": {
+    "texture": "res://assets/fx/beam.png",
+    "color": "FA0000",
+    "length": 96,
+    "thickness": 1.0,
+    "duration": 0.15
+  },
+  "beam_skilled": {
+    "texture": "res://assets/fx/beam-skilled.png",
+    "color": "FB2D2D",
+    "length": 104,
+    "thickness": 1.15,
+    "duration": 0.15
+  }
+}

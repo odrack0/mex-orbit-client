@@ -8,6 +8,7 @@ const RUTA_NAVES := "res://data/ships/%s.json"
 const RUTA_NPCS := "res://data/npcs/%s.json"
 const RUTA_MAPAS := "res://data/maps/%s.json"
 const RUTA_PROPS := "res://data/props/%s.json"
+const RUTA_AMMO := "res://data/ammo/%s.json"
 
 static var _cache := {}
 
@@ -33,6 +34,12 @@ static func mapa(code: String) -> Dictionary:
 ## Props del mundo (estacion, portal, caja...).
 static func prop(code: String) -> Dictionary:
 	return _cargar(RUTA_PROPS % code)
+
+
+## Municion por loot_id ("ammo_cel_1") o por code ("cel-1").
+static func ammo(id: String) -> Dictionary:
+	var code := id.trim_prefix("ammo_").replace("_", "-")
+	return _cargar(RUTA_AMMO % code)
 
 
 static func _cargar(ruta: String) -> Dictionary:

@@ -16,5 +16,11 @@
     "length": 96,
     "width": 9,
     "lifetime": 0.42
-  }
+  },
+
+  "_canones": "bocas de cañón a los lados del canopy (validadas sobre el render). Los disparos alternan entre ellas, como los salvos del cliente original.",
+  "cannons": [
+    { "x": -35, "y": -160 },
+    { "x": 35, "y": -160 }
+  ]
 }
