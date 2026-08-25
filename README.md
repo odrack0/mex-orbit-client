@@ -59,7 +59,7 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 | `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y estilo de la estela (color, largo, ancho, vida) |
 | `data/npcs/<code>.json` | textura, capa emisiva y su pulso (rango de alfa y velocidad), radio de click |
 | `data/maps/<code>.json` | el stack de capas: fondo principal, mosaicos con su `p_factor`/escala/alfa, planetas con posición y profundidad, sol con su giro, tinte del polvo estelar |
-| `data/props/<code>.json` | props del mundo (estación): textura, emisiva, tamaño en unidades de mundo, pulso |
+| `data/props/<code>.json` | props del mundo (**estación**, **portal**, **caja de carga**): textura, emisiva, tamaño en unidades de mundo, pulso, radio de click y color en el minimapa |
 | `data/ammo/<code>.json` | **el aspecto de cada arma**: color, largo, grosor y duración del haz, con su variante `beam_skilled` (el disparo potenciado del perfil de piloto: más grueso y brillante) |
 
 Agregar una nave nueva = soltar su PNG + escribir su JSON. Cero código.
@@ -93,6 +93,26 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_REINTENTOS` | `game/world.gd` | 8 | Intentos de reconexión antes de rendirse (espera creciente 1→5 s, dentro de la gracia de 60 s del server) |
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
+
+## Mobiliario del mapa: portal y caja de carga
+
+**Nada de esto tiene la posición en el cliente.** El portal es dato de BD
+(`map_portal`) y llega **completo en `EnterMap`** — la spec del protocolo manda
+que portales, estaciones y POIs se envíen enteros al entrar, no por relevancia.
+La caja de carga la coloca el server al morir un alien (`BoxSpawn`). El cliente
+solo pone el arte, y ese arte sale de `data/props/`.
+
+- **`PortalNode`** (`game/portal_node.gd`): el **aro queda quieto** y es la capa
+  emisiva —el vórtice— la que gira y late; rotar el sprite entero delataría los
+  pernos del aro. Debajo va la etiqueta del sector destino, en `--violet` (el
+  token que el sistema de diseño reserva para portales). Un portal con
+  `is_working = 0` se pinta apagado y apenas alumbra. Clic = rumbo al portal;
+  **el salto de sector es de E3**.
+- **Caja de carga**: su pulso es de **alfa**, no de intensidad — es una luz de
+  baliza que llama al jugador, no un reactor como el núcleo de un alien.
+- **Minimapa**: estación y portales se dibujan como **rombos** (cian y violeta),
+  forma distinta de los círculos de naves y cajas, para que el mobiliario fijo no
+  se confunda con lo que se mueve.
 
 ## Dos barras de estado, no tres
 

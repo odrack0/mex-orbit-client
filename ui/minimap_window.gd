@@ -115,9 +115,26 @@ func _dibujar() -> void:
 	if _world == null:
 		return
 
-	# cajas: puntos ambar
+	# mobiliario del mapa primero, para que las entidades queden encima:
+	# la estacion (rombo cian) y los portales (rombo violeta con anillo)
+	var base := _a_mapa(_world.estacion_pos())
+	_rombo(base, 4.0, NTheme.CYAN)
+	var dp: Dictionary = AssetDefs.prop("portal").get("minimap", {})
+	var rp: float = float(dp.get("radius", 3.0)) + 1.0
+	for p in _world.portales().values():
+		var c := AssetDefs.color(dp.get("color", "A78BFA"), NTheme.VIOLET)
+		if not p.is_working:
+			c = NTheme.MUTED
+		var pp := _a_mapa(p.position)
+		_rombo(pp, rp, c)
+		_canvas.draw_arc(pp, 6.0, 0, TAU, 20, Color(c, 0.45), 1.0)
+
+	# cajas: puntos ambar (su color sale del JSON de la caja)
+	var dc: Dictionary = AssetDefs.prop("cargo-box").get("minimap", {})
+	var cc := AssetDefs.color(dc.get("color", "FFC85C"), NTheme.WARN)
+	var rc := float(dc.get("radius", 2.0))
 	for caja in _world.cajas().values():
-		_canvas.draw_circle(_a_mapa(caja.position), 2.0, NTheme.WARN)
+		_canvas.draw_circle(_a_mapa(caja.position), rc, cc)
 
 	# entidades: hostiles con anillo pulsante, jugadores en texto claro
 	var heroe: Node2D = _world.heroe()
@@ -143,6 +160,13 @@ func _dibujar() -> void:
 			_canvas.draw_line(ap + Vector2(4, -4), ap + Vector2(-4, 4), NTheme.WARN, 1.4)
 		_canvas.draw_circle(hp, 3.0, NTheme.CYAN)
 		_canvas.draw_arc(hp, 5.5 + sin(_t * 3.0) * 1.2, 0, TAU, 24, Color(NTheme.CYAN, 0.5), 1.0)
+
+
+## Rombo: la forma del mobiliario fijo, para no confundirlo con naves ni cajas.
+func _rombo(centro: Vector2, r: float, color: Color) -> void:
+	_canvas.draw_colored_polygon(PackedVector2Array([
+		centro + Vector2(0, -r), centro + Vector2(r, 0),
+		centro + Vector2(0, r), centro + Vector2(-r, 0)]), color)
 
 
 func _linea_punteada(desde: Vector2, hasta: Vector2, color: Color) -> void:

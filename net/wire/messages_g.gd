@@ -178,6 +178,49 @@ class MaterialPrice:
 	static func decode_struct(b: PackedByteArray) -> MaterialPrice:
 		return decode_from(b, [0])
 
+class MapPortal:
+	var portal_id: int = 0
+	var x: int = 0
+	var y: int = 0
+	var target_map_code: String = ""
+	var is_working: bool = false
+
+	func validate() -> void:
+		assert(x <= 100000, "MapPortal.x > 100000")
+		assert(y <= 100000, "MapPortal.y > 100000")
+		assert(target_map_code.length() <= 16, "MapPortal.target_map_code demasiado largo")
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, portal_id)
+		Wire.write_tag(buf, 2, 0)
+		Wire.write_varint(buf, x)
+		Wire.write_tag(buf, 3, 0)
+		Wire.write_varint(buf, y)
+		Wire.write_tag(buf, 4, 2)
+		Wire.write_string(buf, target_map_code)
+		Wire.write_tag(buf, 5, 0)
+		Wire.write_varint(buf, 1 if is_working else 0)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> MapPortal:
+		var m := MapPortal.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.portal_id = Wire.read_varint(b, pos)
+				2: m.x = Wire.read_varint(b, pos)
+				3: m.y = Wire.read_varint(b, pos)
+				4: m.target_map_code = Wire.read_string(b, pos)
+				5: m.is_working = Wire.read_varint(b, pos) != 0
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	static func decode_struct(b: PackedByteArray) -> MapPortal:
+		return decode_from(b, [0])
+
 class Hello:
 	const MSG_ID := 1
 	var protocol_version: int = 0
@@ -606,6 +649,7 @@ class EnterMap:
 	var station_x: int = 0
 	var station_y: int = 0
 	var station_range: int = 0
+	var portals: Array = []
 
 	func validate() -> void:
 		assert(map_code.length() <= 16, "EnterMap.map_code demasiado largo")
@@ -617,6 +661,8 @@ class EnterMap:
 		assert(station_x <= 100000, "EnterMap.station_x > 100000")
 		assert(station_y <= 100000, "EnterMap.station_y > 100000")
 		assert(station_range <= 10000, "EnterMap.station_range > 10000")
+		for v in portals:
+			v.validate()
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
@@ -635,6 +681,12 @@ class EnterMap:
 		Wire.write_varint(buf, station_y)
 		Wire.write_tag(buf, 8, 0)
 		Wire.write_varint(buf, station_range)
+		for v in portals:
+			Wire.write_tag(buf, 9, 2)
+			var sub_9 := PackedByteArray()
+			v.encode_fields(sub_9)
+			Wire.write_varint(buf, sub_9.size())
+			buf.append_array(sub_9)
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> EnterMap:
 		var m := EnterMap.new()
@@ -651,6 +703,7 @@ class EnterMap:
 				6: m.station_x = Wire.read_varint(b, pos)
 				7: m.station_y = Wire.read_varint(b, pos)
 				8: m.station_range = Wire.read_varint(b, pos)
+				9: m.portals.append(MapPortal.decode_struct(Wire.read_slice(b, pos)))
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m

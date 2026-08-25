@@ -46,11 +46,10 @@ var _reactor_speed := 1.1
 var _reactor_sharp := 1.6
 var _laser_on := false
 var _cajas := {}                  # box_id -> Sprite2D
+var _portales := {}               # portal_id -> PortalNode
 var _pending_box := 0             # flujo del prototipo: volar a la caja y recoger al llegar
 var _pending_box_pos := Vector2.ZERO
 var _req_id := 0
-var _tex_caja: Texture2D = preload("res://assets/world/cargo-box.png")
-var _tex_caja_emissive: Texture2D = preload("res://assets/world/cargo-box-emissive.png")
 var _frames_explosion: SpriteFrames
 
 # HUD (sistema N minimo de la iteracion: panel de nave + estado del enlace)
@@ -232,6 +231,7 @@ func _on_enter_map(em) -> void:
 	_estacion_rango = float(em.station_range)
 	_construir_fondo(em.map_code)
 	_construir_estacion()
+	_construir_portales(em.portals)
 	_construir_minimapa(em.map_code)
 	_construir_base()
 	_construir_chat()
@@ -249,6 +249,18 @@ func _construir_minimapa(map_code: String) -> void:
 	capa.add_child(_minimapa)
 	_minimapa.setup(self, map_code)
 	_minimapa.fly_to.connect(_on_autopilot)
+
+
+## Los portales del mapa: llegan COMPLETOS en EnterMap (no por relevancia), con
+## su posicion y su destino desde BD. Aqui solo se instancian.
+func _construir_portales(portales: Array) -> void:
+	if not _portales.is_empty():
+		return                     # EnterMap puede repetirse al reconectar
+	for p in portales:
+		var nodo := PortalNode.new()
+		nodo.setup(p)
+		add_child(nodo)
+		_portales[nodo.portal_id] = nodo
 
 
 func _construir_estacion() -> void:
@@ -382,6 +394,8 @@ func limites() -> Vector2: return _limites
 func heroe() -> EntityNode: return _hero
 func entidades() -> Dictionary: return _entidades
 func cajas() -> Dictionary: return _cajas
+func portales() -> Dictionary: return _portales
+func estacion_pos() -> Vector2: return _estacion_pos
 func autopiloto() -> Vector2: return _autopilot
 func map_code() -> String: return _map_code
 
@@ -527,22 +541,31 @@ func _explotar(pos: Vector2) -> void:
 func _on_box_spawn(msg) -> void:
 	if _cajas.has(msg.box_id):
 		return
+	# todas las particularidades de la caja salen de su JSON (data/props/cargo-box.json)
+	var d := AssetDefs.prop("cargo-box")
 	var caja := Sprite2D.new()
-	caja.texture = _tex_caja
+	caja.texture = load(d.get("texture", "res://assets/world/cargo-box.png"))
 	caja.position = Vector2(msg.x, msg.y)
-	caja.scale = Vector2.ONE * 0.19    # el render de 256 rinde a ~48 px en juego
+	# tamaño en unidades de MUNDO, sea cual sea la resolucion del render
+	var lado := float(caja.texture.get_width())
+	caja.scale = Vector2.ONE * (float(d.get("world_size", 48)) / lado)
 	caja.z_index = 1
 	add_child(caja)
-	# la banda emisiva late para llamar al jugador (fase por caja)
-	var brillo := Sprite2D.new()
-	brillo.texture = _tex_caja_emissive
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	brillo.material = mat
-	caja.add_child(brillo)
-	var tw := caja.create_tween().set_loops()
-	tw.tween_property(brillo, "self_modulate:a", 0.25, 0.9).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(brillo, "self_modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
+	# la banda emisiva late en ALFA para llamar al jugador (fase por caja)
+	if d.has("emissive"):
+		var brillo := Sprite2D.new()
+		brillo.texture = load(d.emissive)
+		var mat := CanvasItemMaterial.new()
+		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		brillo.material = mat
+		caja.add_child(brillo)
+		var p: Dictionary = d.get("pulse", {})
+		var medio: float = float(p.get("half_period", 0.9))
+		var tw := caja.create_tween().set_loops()
+		tw.tween_property(brillo, "self_modulate:a", float(p.get("min_alpha", 0.25)), medio) \
+			.set_trans(Tween.TRANS_SINE)
+		tw.tween_property(brillo, "self_modulate:a", float(p.get("max_alpha", 1.0)), medio) \
+			.set_trans(Tween.TRANS_SINE)
 	_cajas[msg.box_id] = caja
 
 
@@ -624,6 +647,15 @@ func _handle_click(world_pos: Vector2) -> void:
 	if bajo != null:
 		_seleccionar(bajo)
 		return
+	# ¿click sobre un portal? rumbo a el (el salto de sector llega en E3)
+	var portal := _portal_at(world_pos)
+	if portal != null:
+		_pending_box = 0
+		_autopilot = portal.position
+		_volar_a(portal.position)
+		_estado("Rumbo al portal · sector %s" % portal.target_map_code
+			if portal.is_working else "Ese portal está inactivo", NTheme.VIOLET)
+		return
 	# click en vacio: volar; mientras siga presionado, _process persigue al cursor
 	# (el vuelo manual cancela el autopiloto, como en el prototipo)
 	_pending_box = 0
@@ -631,6 +663,14 @@ func _handle_click(world_pos: Vector2) -> void:
 	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
+
+
+func _portal_at(world_pos: Vector2) -> PortalNode:
+	for id in _portales:
+		var p: PortalNode = _portales[id]
+		if p.position.distance_to(world_pos) < p.click_radius:
+			return p
+	return null
 
 
 func _box_at(world_pos: Vector2) -> int:
@@ -718,7 +758,7 @@ func _process(delta: float) -> void:
 		onda = pow(onda, _reactor_sharp)
 		var k: float = _reactor_min + (_reactor_max - _reactor_min) * onda
 		_estacion_reactor.self_modulate = Color(k, k, k, 1.0)
-	if _hero != null:
+	if _hero != null and not _at_camara_libre:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]
 
@@ -756,6 +796,7 @@ var _at_disparos := 0
 var _at_shot_combate := false
 var _at_chat_ok := false
 var _at_reconectado := false
+var _at_camara_libre := false     # el autotest suelta la camara para retratar el portal
 
 
 func _autotest(delta: float) -> void:
@@ -853,9 +894,28 @@ func _autotest(delta: float) -> void:
 				_conn.simular_caida()
 				_at_fase = 8
 		8:
+			# QA visual del portal: volar hasta el borde del mapa costaria ~50 s de
+			# reloj, asi que se suelta la camara y se retrata en su sitio
 			if _at_reconectado and _hero != null \
 					and _autotest_t - _at_ultimo_vuelo > 3.0:
-				_at_captura("AUTOTEST OK — loop completo + chat + reconexion", 0)
+				_at_ultimo_vuelo = _autotest_t
+				if _portales.is_empty():
+					_at_captura("AUTOTEST FALLO — el mapa llego sin portales", 1)
+					return
+				_at_camara_libre = true
+				_camara.position = _portales.values()[0].position
+				_at_fase = 9
+		9:
+			if _autotest_t - _at_ultimo_vuelo > 1.5:
+				var img_p := get_viewport().get_texture().get_image()
+				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
+				_at_camara_libre = false
+				# una ventana que no se construyo (error de script en su .gd) pasaba
+				# desapercibida: el autotest seguia dando OK sin minimapa
+				if _minimapa == null or _chat == null or _base == null:
+					_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
+					return
+				_at_captura("AUTOTEST OK — loop completo + chat + reconexion + portal", 0)
 
 
 func _at_captura(mensaje: String, codigo: int) -> void:

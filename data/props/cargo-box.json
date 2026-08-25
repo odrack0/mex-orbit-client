@@ -1,0 +1,18 @@
+{
+  "_comentario": "La caja de carga que sueltan los aliens (unica fuente de crudos, guidelines §8). Su posicion y su contenido son del server; esto es su arte. La banda emisiva late en ALFA (no en intensidad como el nucleo de un alien): es una luz de baliza, no un reactor.",
+  "code": "cargo-box",
+  "texture": "res://assets/world/cargo-box.png",
+  "emissive": "res://assets/world/cargo-box-emissive.png",
+  "world_size": 48,
+  "click_radius": 34,
+
+  "pulse": {
+    "min_alpha": 0.25,
+    "max_alpha": 1.0,
+    "half_period": 0.9
+  },
+  "minimap": {
+    "color": "FFC85C",
+    "radius": 2.0
+  }
+}

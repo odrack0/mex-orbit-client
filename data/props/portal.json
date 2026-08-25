@@ -1,0 +1,27 @@
+{
+  "_comentario": "El portal entre sectores. Su POSICION no vive aqui: es dato de BD (map_portal) y llega en EnterMap. Esto son solo sus particularidades de arte. El aro queda quieto y la capa emisiva (el vortice) es la que gira y late: girar el aro entero delataria los pernos.",
+  "code": "portal",
+  "texture": "res://assets/world/portal.png",
+  "emissive": "res://assets/world/portal-emissive.png",
+  "world_size": 380,
+  "click_radius": 190,
+
+  "spin": {
+    "speed": -0.5
+  },
+  "pulse": {
+    "min_intensity": 0.45,
+    "max_intensity": 1.6,
+    "speed": 0.9,
+    "sharpness": 1.4
+  },
+  "label": {
+    "color": "A78BFA",
+    "size": 12,
+    "offset_y": 26
+  },
+  "minimap": {
+    "color": "A78BFA",
+    "radius": 3.0
+  }
+}
