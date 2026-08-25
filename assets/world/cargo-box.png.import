@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://mltn5cpwji1"
-path="res://.godot/imported/cargo-box.svg-b428e25d91cbc1583b36ca352b4f9a46.ctex"
+uid="uid://52p4r52ghhn6"
+path="res://.godot/imported/cargo-box.png-3f10392b88e378ba10133ab5f21f530e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/world/cargo-box.svg"
-dest_files=["res://.godot/imported/cargo-box.svg-b428e25d91cbc1583b36ca352b4f9a46.ctex"]
+source_file="res://assets/world/cargo-box.png"
+dest_files=["res://.godot/imported/cargo-box.png-3f10392b88e378ba10133ab5f21f530e.ctex"]
 
 [params]
 
@@ -38,6 +38,3 @@ process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
 detect_3d/compress_to=1
-svg/scale=1.0
-editor/scale_with_editor_scale=false
-editor/convert_colors_with_editor_theme=false

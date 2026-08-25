@@ -31,7 +31,8 @@ var _cajas := {}                  # box_id -> Sprite2D
 var _pending_box := 0             # flujo del prototipo: volar a la caja y recoger al llegar
 var _pending_box_pos := Vector2.ZERO
 var _req_id := 0
-var _tex_caja: Texture2D = preload("res://assets/world/cargo-box.svg")
+var _tex_caja: Texture2D = preload("res://assets/world/cargo-box.png")
+var _tex_caja_emissive: Texture2D = preload("res://assets/world/cargo-box-emissive.png")
 var _frames_explosion: SpriteFrames
 
 # HUD (sistema N minimo de la iteracion: panel de nave + estado del enlace)
@@ -228,9 +229,19 @@ func _on_box_spawn(msg) -> void:
 	var caja := Sprite2D.new()
 	caja.texture = _tex_caja
 	caja.position = Vector2(msg.x, msg.y)
-	caja.scale = Vector2.ONE * 0.75
+	caja.scale = Vector2.ONE * 0.19    # el render de 256 rinde a ~48 px en juego
 	caja.z_index = 1
 	add_child(caja)
+	# la banda emisiva late para llamar al jugador (fase por caja)
+	var brillo := Sprite2D.new()
+	brillo.texture = _tex_caja_emissive
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	brillo.material = mat
+	caja.add_child(brillo)
+	var tw := caja.create_tween().set_loops()
+	tw.tween_property(brillo, "self_modulate:a", 0.25, 0.9).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(brillo, "self_modulate:a", 1.0, 0.9).set_trans(Tween.TRANS_SINE)
 	_cajas[msg.box_id] = caja
 
 
