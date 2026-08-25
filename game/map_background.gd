@@ -13,6 +13,9 @@ var _main: Sprite2D            # el skybox
 var _world := Vector2.ONE
 var _sun: Sprite2D
 var _ghosts: Array[Sprite2D] = []
+var _occluders: Array = []     # planetas que pueden tapar el destello
+var _flare_on := true
+var _flare_tween: Tween
 
 # fantasmas de la cadena de lentes: fraccion del eje sol->centro, escala y tinte
 const GHOSTS := [
@@ -43,15 +46,19 @@ func build(config: Dictionary) -> void:
 		_main.centered = false
 		add_child(_main)
 		_world = config.world
-	# planetas (los renders llegan por prompts; sin textura se omiten)
+	# planetas (los renders llegan por prompts; sin textura se omiten).
+	# Cada uno es tambien OCLUSOR del destello: si tapa al sol, la cadena
+	# de lentes se apaga — como el bitmap collider del original.
 	for p: Dictionary in config.get("planets", []):
 		if p.tex == null:
 			continue
 		var planeta := Sprite2D.new()
 		planeta.texture = p.tex
-		planeta.scale = Vector2.ONE * p.get("scale", 1.0)
+		var escala_p: float = p.get("scale", 1.0)
+		planeta.scale = Vector2.ONE * escala_p
 		add_child(planeta)
 		_layers.append({"node": planeta, "p_factor": p.p_factor, "offset": p.pos})
+		_occluders.append({"node": planeta, "radius": planeta.texture.get_width() * escala_p * 0.5})
 	# mosaicos medio y cercano encima
 	for t: Dictionary in config.get("tiles_near", []):
 		_add_tile(t, config.world)
@@ -62,6 +69,7 @@ func build(config: Dictionary) -> void:
 		_sun.texture = load("res://assets/world/layers/sun.png")
 		_sun.scale = Vector2.ONE * 0.9
 		_sun.position = config.sun.pos
+		_sun.centered = true      # gira sobre su eje (-9 grados/s, como el original)
 		_main.add_child(_sun)
 		var ghost_tex: Texture2D = load("res://assets/world/layers/flare-ghost.png")
 		for g: Array in GHOSTS:
@@ -70,6 +78,7 @@ func build(config: Dictionary) -> void:
 			ghost.scale = Vector2.ONE * g[1]
 			ghost.modulate = g[2]
 			ghost.material = _material_add()
+			ghost.z_index = 1     # la cadena va sobre las capas de fondo
 			add_child(ghost)
 			_ghosts.append(ghost)
 	# el polvo estelar SIEMPRE, encima de todo el fondo
@@ -118,16 +127,35 @@ func update_parallax(center: Vector2, zoom: Vector2, viewport: Vector2) -> void:
 			+ (entry.offset as Vector2) * zoom
 		node.scale = (entry.base_scale as Vector2) * zoom
 
-	# cadena de lentes: sobre el eje sol -> centro, solo con el sol en pantalla
+	# cadena de lentes: sobre el eje sol -> centro, con el sol en pantalla y
+	# sin planeta encima; entra con fundido de 0.1 s y se apaga en seco (original)
 	if _sun != null:
+		_sun.rotation_degrees -= 9.0 * _starfield.get_process_delta_time()
 		var pos := _sun.get_global_transform_with_canvas().origin
-		var visible_sol := pos.x >= -100 and pos.y >= -100 \
+		var on := pos.x >= -100 and pos.y >= -100 \
 			and pos.x <= viewport.x + 100 and pos.y <= viewport.y + 100
+		if on:
+			for oc: Dictionary in _occluders:
+				var nodo: Node2D = oc.node
+				if nodo.get_global_transform_with_canvas().origin.distance_to(pos) \
+						< float(oc.radius) * zoom.x:
+					on = false
+					break
 		var eje := screen_center - pos
 		for i in _ghosts.size():
-			var ghost := _ghosts[i]
-			ghost.visible = visible_sol
-			ghost.position = pos + eje * (GHOSTS[i][0] as float)
+			_ghosts[i].position = pos + eje * (GHOSTS[i][0] as float)
+		if on != _flare_on:
+			_flare_on = on
+			if _flare_tween != null:
+				_flare_tween.kill()
+			if on:
+				_flare_tween = create_tween().set_parallel(true)
+				for i in _ghosts.size():
+					_flare_tween.tween_property(_ghosts[i], "modulate:a",
+						(GHOSTS[i][2] as Color).a, 0.1)
+			else:
+				for ghost in _ghosts:
+					ghost.modulate.a = 0.0
 
 
 static func _material_add() -> CanvasItemMaterial:
