@@ -9,10 +9,22 @@ const TEXTURAS := {
 	"vex": preload("res://assets/npcs/vex.png"),
 }
 
+# Giro heredado del prototipo: tween de 0.1 s por el camino corto, orientacion
+# cuantizada a 32 pasos de 11.25 grados (el look de los 32 frames del original)
+# y zona muerta para no vibrar persiguiendo el cursor.
+const TURN_TIME := 0.1
+const TURN_STEPS := 32
+const DEAD_ZONE := 2.0
+
 var entity_id := 0
 var speed := 0.0
 var objetivo := Vector2.ZERO
 var es_heroe := false
+var es_npc := false
+
+var _visual_angle := 0.0          # grados de pantalla de la proa
+var _turn_tween: Tween
+var _idle_timer := 0.0
 
 var _sprite: Sprite2D
 var _nombre: Label
@@ -24,9 +36,11 @@ var _seleccionada := false
 func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	entity_id = spawn.entity_id
 	es_heroe = heroe
+	es_npc = spawn.kind == MexProtocol.EntityKind.NPC
 	speed = float(spawn.speed)
 	position = Vector2(spawn.x, spawn.y)
 	objetivo = position
+	_idle_timer = 2.0 + randf() * 5.0
 	_hp_pct = spawn.hp_pct
 
 	_sprite = Sprite2D.new()
@@ -56,21 +70,57 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 func _process(delta: float) -> void:
 	if position.distance_to(objetivo) > 0.5:
 		position = position.move_toward(objetivo, speed * delta)
-		var rumbo := objetivo - position
-		if rumbo.length() > 1.0:
-			# proa hacia arriba en el arte -> el angulo se corrige +90 grados
-			_sprite.rotation = rumbo.angle() + PI / 2
+	elif es_npc:
+		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
+		_idle_timer -= delta
+		if _idle_timer <= 0.0:
+			_idle_timer = 2.0 + randf() * 5.0
+			_girar_a(_visual_angle + (randf() - 0.5) * 360.0)
+
+
+## Fija el destino y orienta la proa UNA vez (no cada frame, como el prototipo).
+func set_objetivo(destino: Vector2) -> void:
+	# zona muerta del prototipo: un destino encima de la nave en pleno vuelo
+	# no re-orienta (evita el trompo al clickear sobre ti mismo)
+	var en_vuelo := position.distance_to(objetivo) > 0.5
+	if en_vuelo and absf(destino.x - position.x) <= DEAD_ZONE \
+			and absf(destino.y - position.y) <= DEAD_ZONE:
+		objetivo = destino
+		return
+	objetivo = destino
+	var rumbo := destino - position
+	if rumbo.length() > 1.0:
+		# proa hacia arriba en el arte -> +90 grados de pantalla
+		_girar_a(rad_to_deg(rumbo.angle()) + 90.0)
+
+
+## Giro del prototipo: cuantizado a TURN_STEPS y tweenado por el camino corto.
+func _girar_a(grados: float) -> void:
+	var paso := 360.0 / TURN_STEPS
+	var destino_ang := fposmod(roundf(grados / paso) * paso, 360.0)
+	var delta := fposmod(destino_ang - _visual_angle + 180.0, 360.0) - 180.0
+	if is_zero_approx(delta):
+		return
+	if _turn_tween != null:
+		_turn_tween.kill()
+	_turn_tween = create_tween()
+	_turn_tween.tween_method(_set_visual_angle, _visual_angle, _visual_angle + delta, TURN_TIME)
+
+
+func _set_visual_angle(grados: float) -> void:
+	_visual_angle = fposmod(grados, 360.0)
+	_sprite.rotation_degrees = _visual_angle
 
 
 ## Eco autoritativo del server: correccion suave si la deriva es chica, snap si es grande.
 func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, teleport: bool) -> void:
 	speed = nueva_vel
-	objetivo = Vector2(tx, ty)
 	var server_pos := Vector2(x, y)
 	if teleport or position.distance_to(server_pos) > 220.0:
 		position = server_pos
 	else:
 		position = position.lerp(server_pos, 0.35)
+	set_objetivo(Vector2(tx, ty))
 
 
 func set_hp_pct(pct: float) -> void:

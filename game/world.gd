@@ -224,7 +224,7 @@ func _volar_a(destino: Vector2) -> void:
 	# que el server: cliente y autoridad siempre coinciden en el destino
 	destino = destino.clamp(Vector2.ZERO, _limites)
 	# prediccion optimista: el heroe parte YA; el eco del server lo reconcilia
-	_hero.objetivo = destino
+	_hero.set_objetivo(destino)
 	_last_sent_target = destino
 	_seq += 1
 	var intent := MexProtocol.MoveIntent.new()
