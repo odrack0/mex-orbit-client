@@ -31,6 +31,12 @@ const AUTOPILOT_ARRIVE := 120.0   # a esta distancia el autopiloto declara llega
 # reemite si el heroe queda detenido sin llegar; el vuelo manual lo cancela
 var _autopilot := Vector2.INF
 var _minimapa: MinimapWindow
+
+# la base (E2/I6)
+var _base: StationPanel
+var _estacion_pos := Vector2.ZERO
+var _estacion_rango := 0.0
+var _en_base := false
 var _laser_on := false
 var _beam: Line2D
 var _cajas := {}                  # box_id -> Sprite2D
@@ -67,6 +73,11 @@ func _ready() -> void:
 	_conn.box_spawn.connect(_on_box_spawn)
 	_conn.box_despawn.connect(_on_box_despawn)
 	_conn.collect_result.connect(_on_collect_result)
+	_conn.storage_state.connect(func(s): if _base != null: _base.set_storage(s.materials))
+	_conn.npc_prices.connect(func(p): if _base != null: _base.set_prices(p.prices))
+	_conn.station_range.connect(_on_station_range)
+	_conn.unload_result.connect(_on_unload_result)
+	_conn.sell_result.connect(_on_sell_result)
 	_conn.error_reply.connect(_on_error)
 	_conn.session_replaced.connect(func(): _estado("Sesión reemplazada por otra conexión", NTheme.WARN))
 	_conn.disconnected.connect(func(): _estado("Enlace perdido", NTheme.HOSTILE))
@@ -147,8 +158,12 @@ var _map_code := ""
 func _on_enter_map(em) -> void:
 	_limites = Vector2(em.limits_x, em.limits_y)
 	_map_code = em.map_code
+	_estacion_pos = Vector2(em.station_x, em.station_y)
+	_estacion_rango = float(em.station_range)
 	_construir_fondo(em.map_code)
+	_construir_estacion()
 	_construir_minimapa(em.map_code)
+	_construir_base()
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
 
@@ -163,6 +178,71 @@ func _construir_minimapa(map_code: String) -> void:
 	capa.add_child(_minimapa)
 	_minimapa.setup(self, map_code)
 	_minimapa.fly_to.connect(_on_autopilot)
+
+
+func _construir_estacion() -> void:
+	# la estacion en el mundo, con el anillo de su zona segura
+	var anillo := Node2D.new()
+	anillo.position = _estacion_pos
+	anillo.z_index = -1
+	anillo.draw.connect(func():
+		anillo.draw_arc(Vector2.ZERO, _estacion_rango, 0, TAU, 96, Color(NTheme.CYAN, 0.22), 3.0))
+	add_child(anillo)
+	anillo.queue_redraw()
+
+	var est := Sprite2D.new()
+	est.texture = load("res://assets/world/station.png")
+	est.position = _estacion_pos
+	est.scale = Vector2.ONE * 0.6      # el render de 1024 rinde a ~614 px
+	est.z_index = -1
+	add_child(est)
+
+
+func _construir_base() -> void:
+	if _base != null:
+		return
+	var capa := CanvasLayer.new()
+	capa.layer = 11
+	add_child(capa)
+	_base = StationPanel.new()
+	capa.add_child(_base)
+	_base.unload_pressed.connect(func():
+		_req_id += 1
+		var msg := MexProtocol.UnloadCargo.new()
+		msg.request_id = _req_id
+		_conn.send(msg.encode()))
+	_base.sell_pressed.connect(func(material_id: String, amount: int):
+		_req_id += 1
+		var msg := MexProtocol.SellToNpc.new()
+		msg.request_id = _req_id
+		msg.material_id = material_id
+		msg.amount = amount
+		_conn.send(msg.encode()))
+
+
+func _on_station_range(msg) -> void:
+	_en_base = msg.in_range
+	if _base != null:
+		_base.visible = msg.in_range
+	_estado("En la base: descarga tu bodega y vende al NPC" if msg.in_range
+		else "Sector %s" % _map_code, NTheme.CYAN if msg.in_range else NTheme.MUTED)
+
+
+func _on_unload_result(res) -> void:
+	var partes := []
+	for m in res.stored:
+		partes.append("%d × %s" % [m.amount, m.material_id.trim_prefix("material_").capitalize()])
+	var texto := "Almacenado: " + (", ".join(partes) if not partes.is_empty() else "nada")
+	for m in res.refined:
+		texto += "  ·  REFINADO: %d × %s" % [m.amount, m.material_id.trim_prefix("material_").capitalize()]
+	_estado(texto, NTheme.HP if not res.refined.is_empty() else NTheme.WARN)
+	_at_descargado = true
+
+
+func _on_sell_result(res) -> void:
+	_estado("Vendido: +%s C  ·  saldo %s C" % [_miles(res.credits_gained), _miles(res.new_credits)],
+		NTheme.WARN)
+	_at_vendido = true
 
 
 func _on_autopilot(destino: Vector2) -> void:
@@ -486,11 +566,13 @@ var _at_fase := 0
 var _at_target := 0
 var _at_recogido := false
 var _at_ultimo_vuelo := 0.0
+var _at_descargado := false
+var _at_vendido := false
 
 
 func _autotest(delta: float) -> void:
 	_autotest_t += delta
-	if _autotest_t > 60.0:
+	if _autotest_t > 120.0:
 		_at_captura("AUTOTEST TIMEOUT en fase %d" % _at_fase, 1)
 		return
 	match _at_fase:
@@ -536,8 +618,33 @@ func _autotest(delta: float) -> void:
 					_at_fase = 3
 					return
 		3:
+			# recogida hecha: volver a la base
 			if _at_recogido:
-				_at_captura("AUTOTEST OK — Vex destruido, caja recogida; bodega y credits en HUD", 0)
+				_volar_a(_estacion_pos + Vector2(300, 0))
+				_at_fase = 4
+		4:
+			# al entrar en rango, descargar (dispara el refinado automatico)
+			if _en_base and _autotest_t - _at_ultimo_vuelo > 1.0:
+				_at_ultimo_vuelo = _autotest_t
+				_req_id += 1
+				var msg := MexProtocol.UnloadCargo.new()
+				msg.request_id = _req_id
+				_conn.send(msg.encode())
+				_at_fase = 5
+		5:
+			# almacen recibido: vender el primer material que el NPC compre
+			if _at_descargado and _autotest_t - _at_ultimo_vuelo > 1.0:
+				_at_ultimo_vuelo = _autotest_t
+				_req_id += 1
+				var venta := MexProtocol.SellToNpc.new()
+				venta.request_id = _req_id
+				venta.material_id = "material_asterium"
+				venta.amount = 0            # todo
+				_conn.send(venta.encode())
+				_at_fase = 6
+		6:
+			if _at_vendido:
+				_at_captura("AUTOTEST OK — loop completo: Vex, caja, base, refinado y venta", 0)
 
 
 func _at_captura(mensaje: String, codigo: int) -> void:

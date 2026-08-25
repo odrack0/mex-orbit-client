@@ -149,6 +149,35 @@ class RespawnOption:
 	static func decode_struct(b: PackedByteArray) -> RespawnOption:
 		return decode_from(b, [0])
 
+class MaterialPrice:
+	var material_id: String = ""
+	var price_credits: int = 0
+
+	func validate() -> void:
+		assert(material_id.length() <= 64, "MaterialPrice.material_id demasiado largo")
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 2)
+		Wire.write_string(buf, material_id)
+		Wire.write_tag(buf, 2, 0)
+		Wire.write_varint(buf, price_credits)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> MaterialPrice:
+		var m := MaterialPrice.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.material_id = Wire.read_string(b, pos)
+				2: m.price_credits = Wire.read_varint(b, pos)
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	static func decode_struct(b: PackedByteArray) -> MaterialPrice:
+		return decode_from(b, [0])
+
 class Hello:
 	const MSG_ID := 1
 	var protocol_version: int = 0
@@ -574,6 +603,9 @@ class EnterMap:
 	var limits_x: int = 0
 	var limits_y: int = 0
 	var cargo_risk_pct: int = 0
+	var station_x: int = 0
+	var station_y: int = 0
+	var station_range: int = 0
 
 	func validate() -> void:
 		assert(map_code.length() <= 16, "EnterMap.map_code demasiado largo")
@@ -582,6 +614,9 @@ class EnterMap:
 		assert(limits_y >= 1000, "EnterMap.limits_y < 1000")
 		assert(limits_y <= 100000, "EnterMap.limits_y > 100000")
 		assert(cargo_risk_pct <= 100, "EnterMap.cargo_risk_pct > 100")
+		assert(station_x <= 100000, "EnterMap.station_x > 100000")
+		assert(station_y <= 100000, "EnterMap.station_y > 100000")
+		assert(station_range <= 10000, "EnterMap.station_range > 10000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
@@ -594,6 +629,12 @@ class EnterMap:
 		Wire.write_varint(buf, limits_y)
 		Wire.write_tag(buf, 5, 0)
 		Wire.write_varint(buf, cargo_risk_pct)
+		Wire.write_tag(buf, 6, 0)
+		Wire.write_varint(buf, station_x)
+		Wire.write_tag(buf, 7, 0)
+		Wire.write_varint(buf, station_y)
+		Wire.write_tag(buf, 8, 0)
+		Wire.write_varint(buf, station_range)
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> EnterMap:
 		var m := EnterMap.new()
@@ -607,6 +648,9 @@ class EnterMap:
 				3: m.limits_x = Wire.read_varint(b, pos)
 				4: m.limits_y = Wire.read_varint(b, pos)
 				5: m.cargo_risk_pct = Wire.read_varint(b, pos)
+				6: m.station_x = Wire.read_varint(b, pos)
+				7: m.station_y = Wire.read_varint(b, pos)
+				8: m.station_range = Wire.read_varint(b, pos)
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m
@@ -1534,7 +1578,6 @@ class SellToNpc:
 
 	func validate() -> void:
 		assert(material_id.length() <= 64, "SellToNpc.material_id demasiado largo")
-		assert(amount >= 1, "SellToNpc.amount < 1")
 		assert(amount <= 1000000, "SellToNpc.amount > 1000000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
@@ -1614,6 +1657,178 @@ class SellResult:
 		var pos := [0]
 		var id := Wire.read_varint(b, pos)
 		assert(id == 157, "msg_id inesperado")
+		return decode_from(b, pos)
+
+class UnloadCargo:
+	const MSG_ID := 158
+	var request_id: int = 0
+
+	func validate() -> void:
+		pass
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, request_id)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> UnloadCargo:
+		var m := UnloadCargo.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.request_id = Wire.read_varint(b, pos)
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 158)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> UnloadCargo:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 158, "msg_id inesperado")
+		return decode_from(b, pos)
+
+class UnloadResult:
+	const MSG_ID := 159
+	var request_id: int = 0
+	var stored: Array = []
+	var refined: Array = []
+
+	func validate() -> void:
+		for v in stored:
+			v.validate()
+		for v in refined:
+			v.validate()
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, request_id)
+		for v in stored:
+			Wire.write_tag(buf, 2, 2)
+			var sub_2 := PackedByteArray()
+			v.encode_fields(sub_2)
+			Wire.write_varint(buf, sub_2.size())
+			buf.append_array(sub_2)
+		for v in refined:
+			Wire.write_tag(buf, 3, 2)
+			var sub_3 := PackedByteArray()
+			v.encode_fields(sub_3)
+			Wire.write_varint(buf, sub_3.size())
+			buf.append_array(sub_3)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> UnloadResult:
+		var m := UnloadResult.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.request_id = Wire.read_varint(b, pos)
+				2: m.stored.append(MaterialAmount.decode_struct(Wire.read_slice(b, pos)))
+				3: m.refined.append(MaterialAmount.decode_struct(Wire.read_slice(b, pos)))
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 159)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> UnloadResult:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 159, "msg_id inesperado")
+		return decode_from(b, pos)
+
+class NpcPrices:
+	const MSG_ID := 160
+	var prices: Array = []
+
+	func validate() -> void:
+		for v in prices:
+			v.validate()
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		for v in prices:
+			Wire.write_tag(buf, 1, 2)
+			var sub_1 := PackedByteArray()
+			v.encode_fields(sub_1)
+			Wire.write_varint(buf, sub_1.size())
+			buf.append_array(sub_1)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> NpcPrices:
+		var m := NpcPrices.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.prices.append(MaterialPrice.decode_struct(Wire.read_slice(b, pos)))
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 160)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> NpcPrices:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 160, "msg_id inesperado")
+		return decode_from(b, pos)
+
+class StationRange:
+	const MSG_ID := 161
+	var in_range: bool = false
+	var station_id: int = 0
+
+	func validate() -> void:
+		pass
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, 1 if in_range else 0)
+		Wire.write_tag(buf, 2, 0)
+		Wire.write_varint(buf, station_id)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> StationRange:
+		var m := StationRange.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.in_range = Wire.read_varint(b, pos) != 0
+				2: m.station_id = Wire.read_varint(b, pos)
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 161)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> StationRange:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 161, "msg_id inesperado")
 		return decode_from(b, pos)
 
 class ChatSend:

@@ -15,6 +15,11 @@ signal entity_destroyed(msg)
 signal box_spawn(msg)
 signal box_despawn(msg)
 signal collect_result(msg)
+signal storage_state(msg)
+signal npc_prices(msg)
+signal station_range(msg)
+signal unload_result(msg)
+signal sell_result(msg)
 signal error_reply(msg)
 signal session_replaced
 signal disconnected
@@ -69,6 +74,11 @@ func _despachar(frame: PackedByteArray) -> void:
 		MexProtocol.BoxSpawn.MSG_ID: box_spawn.emit(MexProtocol.BoxSpawn.decode(frame))
 		MexProtocol.BoxDespawn.MSG_ID: box_despawn.emit(MexProtocol.BoxDespawn.decode(frame))
 		MexProtocol.CollectResult.MSG_ID: collect_result.emit(MexProtocol.CollectResult.decode(frame))
+		MexProtocol.StorageState.MSG_ID: storage_state.emit(MexProtocol.StorageState.decode(frame))
+		MexProtocol.NpcPrices.MSG_ID: npc_prices.emit(MexProtocol.NpcPrices.decode(frame))
+		MexProtocol.StationRange.MSG_ID: station_range.emit(MexProtocol.StationRange.decode(frame))
+		MexProtocol.UnloadResult.MSG_ID: unload_result.emit(MexProtocol.UnloadResult.decode(frame))
+		MexProtocol.SellResult.MSG_ID: sell_result.emit(MexProtocol.SellResult.decode(frame))
 		MexProtocol.Ping.MSG_ID:
 			var pong := MexProtocol.Pong.new()
 			pong.nonce = MexProtocol.Ping.decode(frame).nonce
