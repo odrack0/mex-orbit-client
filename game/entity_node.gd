@@ -31,7 +31,9 @@ var _visual_angle := 0.0          # grados de pantalla de la proa
 var _turn_tween: Tween
 var _idle_timer := 0.0
 
-# estelas de motor: una por tobera del JSON, con acelerador
+# motores (modelo del prototipo): una LLAMA por tobera anclada a la nave que
+# crece con el empuje, mas una estela de CHISPAS soltadas al mundo
+var _flames: Array[Sprite2D] = []
 var _trails: Array[GPUParticles2D] = []
 var _thrust := 0.0
 
@@ -74,9 +76,10 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 		_pulse_max = float(p.get("max_alpha", 1.0))
 		_pulse_speed = float(p.get("speed", 2.1))
 
-	# estelas de motor en los anclajes del JSON (espacio de la textura)
+	# motores en los anclajes del JSON (espacio de la textura)
 	var trail: Dictionary = d.get("engine_trail", {})
 	for motor in d.get("engines", []):
+		_flames.append(_crear_llama(motor, trail))
 		_trails.append(_crear_estela(motor, trail))
 
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
@@ -98,38 +101,59 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	add_child(_hp)
 
 
-## Estela de una tobera: particulas que salen hacia la popa y se disipan.
-## Vive como hija del sprite, asi hereda su rotacion y escala.
+## La llama de una tobera: pluma anclada a la nave que rota con ella y crece
+## con el empuje. Su boquilla queda EN la tobera y se afila hacia la popa.
+func _crear_llama(motor: Dictionary, trail: Dictionary) -> Sprite2D:
+	var llama := Sprite2D.new()
+	llama.texture = load("res://assets/fx/engine-flame.png")
+	llama.position = Vector2(float(motor.get("x", 0)), float(motor.get("y", 0)))
+	# el arte de la llama apunta hacia ABAJO (+Y), que es la popa: sin rotar.
+	# el pivote va en la boquilla para que crezca hacia atras, no hacia los lados
+	llama.offset = Vector2(0, llama.texture.get_height() * 0.5)
+	llama.modulate = AssetDefs.color(trail.get("color", "00E5FF"))
+	llama.material = _material_add()
+	llama.z_index = -1                   # detras del casco
+	_sprite.add_child(llama)
+	return llama
+
+
+## Estela de chispas soltadas AL MUNDO (no siguen a la nave): el rastro que
+## queda atras, como el humo de motor del prototipo.
 func _crear_estela(motor: Dictionary, trail: Dictionary) -> GPUParticles2D:
 	var p := GPUParticles2D.new()
 	p.position = Vector2(float(motor.get("x", 0)), float(motor.get("y", 0)))
-	p.amount = 48
+	p.amount = 96                   # densas: la estela debe leerse continua
 	p.lifetime = float(trail.get("lifetime", 0.42))
-	p.local_coords = false          # la estela se queda en el mundo: se ve el rastro
-	p.texture = load("res://assets/fx/engine-flame.png")
+	p.local_coords = false          # se quedan en el mundo: se ve el rastro
+	p.texture = load("res://assets/fx/spark.png")
 
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	mat.emission_sphere_radius = float(trail.get("width", 9)) * 0.35
-	# la popa es +Y en el espacio de la textura (proa hacia arriba)
-	mat.direction = Vector3(0, 1, 0)
-	mat.spread = 6.0
+	mat.emission_sphere_radius = float(trail.get("width", 9)) * 0.3
+	mat.direction = Vector3(0, 1, 0)     # hacia la popa (+Y de la textura)
+	mat.spread = 5.0
 	mat.gravity = Vector3.ZERO
 	var largo: float = float(trail.get("length", 96))
-	mat.initial_velocity_min = largo * 1.6
-	mat.initial_velocity_max = largo * 2.2
-	mat.scale_min = 0.10
-	mat.scale_max = 0.16
-	mat.damping_min = largo * 1.2
-	mat.damping_max = largo * 1.8
+	mat.initial_velocity_min = largo * 0.15
+	mat.initial_velocity_max = largo * 0.35
+	mat.damping_min = largo * 1.0
+	mat.damping_max = largo * 1.6
+	mat.scale_min = 0.04            # finas: chispas, no bolas
+	mat.scale_max = 0.10
+	# las chispas se encogen al apagarse
+	var curva := Curve.new()
+	curva.add_point(Vector2(0, 1.0))
+	curva.add_point(Vector2(1, 0.0))
+	var curva_tex := CurveTexture.new()
+	curva_tex.curve = curva
+	mat.scale_curve = curva_tex
 
-	# del nucleo claro al color de la estela, apagandose
 	var grad := Gradient.new()
 	var nucleo := AssetDefs.color(trail.get("core_color", "DFFBFF"))
 	var color := AssetDefs.color(trail.get("color", "00E5FF"))
 	grad.set_color(0, nucleo)
 	grad.set_color(1, Color(color, 0.0))
-	grad.add_point(0.35, color)
+	grad.add_point(0.3, color)
 	var rampa := GradientTexture1D.new()
 	rampa.gradient = grad
 	mat.color_ramp = rampa
@@ -150,13 +174,18 @@ static func _material_add() -> CanvasItemMaterial:
 func _process(delta: float) -> void:
 	var en_vuelo := position.distance_to(objetivo) > 0.5
 
-	# acelerador: el empuje sube en vuelo y cae al frenar; las estelas responden
-	if not _trails.is_empty():
+	# acelerador: el empuje sube en vuelo y cae al frenar (modelo del prototipo)
+	if not _flames.is_empty() or not _trails.is_empty():
 		_thrust = clampf(_thrust + (3.0 if en_vuelo else -4.0) * delta, 0.0, 1.0)
+		# la llama crece a lo largo con el empuje y respira; el ancho apenas cambia
+		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
+		for llama in _flames:
+			llama.visible = _thrust > 0.02
+			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro)
+			llama.self_modulate.a = 0.35 + 0.65 * _thrust
 		for t in _trails:
-			t.emitting = _thrust > 0.05
+			t.emitting = _thrust > 0.15
 			t.self_modulate.a = _thrust
-			t.speed_scale = 0.6 + 0.4 * _thrust
 
 	# el latido de la capa emisiva (fase por entidad: no laten al unisono)
 	if _emissive != null:
