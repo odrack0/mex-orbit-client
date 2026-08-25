@@ -25,6 +25,8 @@ var es_npc := false
 var _visual_angle := 0.0          # grados de pantalla de la proa
 var _turn_tween: Tween
 var _idle_timer := 0.0
+var max_hp_abs := 0               # llega con TargetInfo; permite barras absolutas
+var max_shield_abs := 0
 
 # llamas de motor con acelerador (herencia del prototipo: el empuje sube al
 # volar y se apaga al frenar, la llama respira con el)
@@ -163,6 +165,11 @@ func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, telep
 func set_hp_pct(pct: float) -> void:
 	_hp_pct = clampf(pct, 0.0, 1.0)
 	_hp.size.x = 60 * _hp_pct
+
+
+func set_hp_abs(hp: int) -> void:
+	if max_hp_abs > 0:
+		set_hp_pct(float(hp) / max_hp_abs)
 
 
 ## Seleccion local: esquinas de mira alrededor de la entidad (estilo N).

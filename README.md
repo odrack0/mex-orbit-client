@@ -49,5 +49,9 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
 | Zoom de cámara | `game/world.gd` | ×1.1, clamp 0.1–3 | Rueda del mouse, calcado del prototipo |
 | Llamas de motor | `entity_node.gd::_process` | subida 2.5/s, caída 3.5/s, largo 0.42 | El acelerador de las toberas y su respiración |
+| `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
+| Haz del láser | `game/world.gd` | ancho 3, cian | El beam héroe→objetivo mientras dispara (Ctrl lo alterna) |
+| Daño flotante | `world.gd::_on_attack` | sube 46 px en 0.8 s | Los números de daño que se desvanecen |
+| Explosión | `world.gd` | 16 fps, escala 1.4 | Los 8 frames del pipeline al morir una entidad |
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.

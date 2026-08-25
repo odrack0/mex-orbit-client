@@ -9,6 +9,12 @@ signal entity_spawn(msg)
 signal entity_despawn(msg)
 signal entity_move(msg)
 signal hero_stats(msg)
+signal target_info(msg)
+signal attack_event(msg)
+signal entity_destroyed(msg)
+signal box_spawn(msg)
+signal box_despawn(msg)
+signal collect_result(msg)
 signal error_reply(msg)
 signal session_replaced
 signal disconnected
@@ -57,6 +63,12 @@ func _despachar(frame: PackedByteArray) -> void:
 		MexProtocol.EntityDespawn.MSG_ID: entity_despawn.emit(MexProtocol.EntityDespawn.decode(frame))
 		MexProtocol.EntityMove.MSG_ID: entity_move.emit(MexProtocol.EntityMove.decode(frame))
 		MexProtocol.HeroStats.MSG_ID: hero_stats.emit(MexProtocol.HeroStats.decode(frame))
+		MexProtocol.TargetInfo.MSG_ID: target_info.emit(MexProtocol.TargetInfo.decode(frame))
+		MexProtocol.AttackEvent.MSG_ID: attack_event.emit(MexProtocol.AttackEvent.decode(frame))
+		MexProtocol.EntityDestroyed.MSG_ID: entity_destroyed.emit(MexProtocol.EntityDestroyed.decode(frame))
+		MexProtocol.BoxSpawn.MSG_ID: box_spawn.emit(MexProtocol.BoxSpawn.decode(frame))
+		MexProtocol.BoxDespawn.MSG_ID: box_despawn.emit(MexProtocol.BoxDespawn.decode(frame))
+		MexProtocol.CollectResult.MSG_ID: collect_result.emit(MexProtocol.CollectResult.decode(frame))
 		MexProtocol.Ping.MSG_ID:
 			var pong := MexProtocol.Pong.new()
 			pong.nonce = MexProtocol.Ping.decode(frame).nonce
