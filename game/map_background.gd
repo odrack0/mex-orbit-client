@@ -9,8 +9,9 @@ extends CanvasLayer
 
 var _layers: Array = []        # {node, p_factor, offset}
 var _starfield: Starfield2D
+var _main: Sprite2D            # el skybox
+var _world := Vector2.ONE
 var _sun: Sprite2D
-var _sun_entry: Dictionary
 var _ghosts: Array[Sprite2D] = []
 
 # fantasmas de la cadena de lentes: fraccion del eje sol->centro, escala y tinte
@@ -33,13 +34,15 @@ func build(config: Dictionary) -> void:
 	# capa 0: mosaicos profundos primero (z por orden de insercion)
 	for t: Dictionary in config.get("tiles_far", []):
 		_add_tile(t, config.world)
-	# capa 1: el fondo principal
+	# capa 1: el fondo principal como SKYBOX — siempre cubre el viewport (el
+	# cielo no se encoge con el zoom) y deriva proporcional al recorrido del
+	# mapa. Evita el corte del fondo en las orillas y con zoom-out.
 	if config.has("main"):
-		var main := Sprite2D.new()
-		main.texture = config.main
-		main.centered = false
-		add_child(main)
-		_layers.append({"node": main, "p_factor": 10.0, "offset": Vector2.ZERO})
+		_main = Sprite2D.new()
+		_main.texture = config.main
+		_main.centered = false
+		add_child(_main)
+		_world = config.world
 	# planetas (los renders llegan por prompts; sin textura se omiten)
 	for p: Dictionary in config.get("planets", []):
 		if p.tex == null:
@@ -52,14 +55,14 @@ func build(config: Dictionary) -> void:
 	# mosaicos medio y cercano encima
 	for t: Dictionary in config.get("tiles_near", []):
 		_add_tile(t, config.world)
-	# el sol y su cadena de lentes
-	if config.has("sun"):
+	# el sol vive DENTRO del skybox (posicion en el espacio del fondo): se
+	# mueve y escala con el, como una estrella pintada en el cielo
+	if config.has("sun") and _main != null:
 		_sun = Sprite2D.new()
 		_sun.texture = load("res://assets/world/layers/sun.png")
 		_sun.scale = Vector2.ONE * 0.9
-		add_child(_sun)
-		_sun_entry = {"node": _sun, "p_factor": config.sun.p_factor, "offset": config.sun.pos}
-		_layers.append(_sun_entry)
+		_sun.position = config.sun.pos
+		_main.add_child(_sun)
 		var ghost_tex: Texture2D = load("res://assets/world/layers/flare-ghost.png")
 		for g: Array in GHOSTS:
 			var ghost := Sprite2D.new()
@@ -81,20 +84,32 @@ func _add_tile(t: Dictionary, world: Vector2) -> void:
 	tile.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	tile.region_enabled = true
 	# el mosaico cubre el recorrido completo de su paralaje + margen de pantalla
+	# margen amplio: con zoom-out el mosaico se encoge en pantalla y aun asi
+	# debe cubrir el viewport en las orillas del mapa
 	var escala: float = t.get("scale", 1.0)
-	var span_x: float = world.x / float(t.p_factor) * escala + 4096.0
-	var span_y: float = world.y / float(t.p_factor) * escala + 4096.0
+	var span_x: float = world.x / float(t.p_factor) * escala + 8192.0
+	var span_y: float = world.y / float(t.p_factor) * escala + 8192.0
 	tile.region_rect = Rect2(0, 0, span_x, span_y)
 	tile.self_modulate.a = t.get("alpha", 1.0)
 	add_child(tile)
-	_layers.append({"node": tile, "p_factor": t.p_factor, "offset": Vector2(-2048, -2048)})
+	_layers.append({"node": tile, "p_factor": t.p_factor, "offset": Vector2(-4096, -4096)})
 
 
-## La formula del Flash, cada frame.
+## La formula del Flash para las capas + skybox para el fondo principal.
 func update_parallax(center: Vector2, zoom: Vector2, viewport: Vector2) -> void:
 	_starfield.resize(viewport)
 	_starfield.advance(center, _starfield.get_process_delta_time())
 	var screen_center := viewport * 0.5
+
+	# skybox: cubre el viewport siempre; deriva del recorrido completo del mapa
+	if _main != null:
+		var tex := _main.texture.get_size()
+		var s := maxf(viewport.x / tex.x, viewport.y / tex.y)
+		_main.scale = Vector2.ONE * s
+		var recorrido := tex * s - viewport          # cuanto puede derivar
+		var t := (center / _world).clamp(Vector2.ZERO, Vector2.ONE)
+		_main.position = -t * recorrido
+
 	for entry: Dictionary in _layers:
 		var node: Node2D = entry.node
 		if not entry.has("base_scale"):
@@ -102,9 +117,10 @@ func update_parallax(center: Vector2, zoom: Vector2, viewport: Vector2) -> void:
 		node.position = -center / float(entry.p_factor) * zoom + screen_center \
 			+ (entry.offset as Vector2) * zoom
 		node.scale = (entry.base_scale as Vector2) * zoom
+
 	# cadena de lentes: sobre el eje sol -> centro, solo con el sol en pantalla
 	if _sun != null:
-		var pos := _sun.position
+		var pos := _sun.get_global_transform_with_canvas().origin
 		var visible_sol := pos.x >= -100 and pos.y >= -100 \
 			and pos.x <= viewport.x + 100 and pos.y <= viewport.y + 100
 		var eje := screen_center - pos
