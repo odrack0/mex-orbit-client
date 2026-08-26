@@ -1,0 +1,20 @@
+{
+  "_comentario": "Mordax: el que muerde. Es una boca vista desde arriba. Late rapido y con valles cortos (sharpness baja): esta hambriento, no en reposo. Gira rapido pero menos que el Ferox: muerde de cerca, no persigue de lejos.",
+  "code": "mordax",
+  "texture": "res://assets/npcs/mordax-base.png",
+  "emissive": "res://assets/npcs/mordax-emissive.png",
+  "screen_size": 186,
+  "click_radius": 62,
+  "engines": [],
+  "_giro": "steps 0 = giro continuo. 200 grados/s, acorde a sus 340 de velocidad.",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 200
+  },
+  "pulse": {
+    "min_intensity": 0.3,
+    "max_intensity": 2.5,
+    "speed": 3.6,
+    "sharpness": 1.8
+  }
+}

@@ -856,7 +856,7 @@ var _at_reconectado := false
 var _at_camara_libre := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
-const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox"]
+const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox", "gravit", "mordax"]
 var _at_bicho := 0
 
 
@@ -869,7 +869,7 @@ func _autotest(delta: float) -> void:
 	# cualquier fase que use _hero reventaba en cuanto un Ferox hacia su trabajo.
 	if _muerto or (_hero == null and _at_fase > 0):
 		return
-	if _autotest_t > 150.0:
+	if _autotest_t > 170.0:
 		_at_captura("AUTOTEST TIMEOUT en fase %d" % _at_fase, 1)
 		return
 	match _at_fase:
