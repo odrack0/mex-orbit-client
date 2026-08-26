@@ -1,42 +1,47 @@
-# Comms — ventana del sistema N: pestañas de canal, historial y entrada.
+# Comms — pestañas de canal, historial y entrada.
 # El chat viaja TIPADO por el mismo socket del juego (el legado tenía un socket
 # aparte y una gramática de texto con separadores sin escapar).
+#
+# El chrome sale de `NWindow`. Antes tenia cabecera propia —titulo, arrastre y
+# las pestanias, todo en la misma fila— y de paso migrarlo se corrige algo que
+# estaba mal: en el prototipo las PESTANIAS van en el cuerpo (`.fb`), no en la
+# cabecera. La cabecera es del chrome; el canal es contenido.
 class_name ChatWindow
-extends Control
+extends NWindow
 
 signal send_message(channel: int, text: String)
 
+const ICONO := "res://assets/ui/icons/chat.svg"
 const MAX_LINEAS := 120
+const ANCHO := 400
 
-var _panel: PanelContainer
 var _log: RichTextLabel
 var _entrada: LineEdit
 var _canal := 0                 # 0 GLOBAL · 1 FACCION
 var _tabs: Array[Button] = []
 
 
+static func crear() -> ChatWindow:
+	var v := ChatWindow.new()
+	v.clave = "chat"
+	v._construir("Comms", ICONO)
+	v._cuerpo()
+	return v
+
+
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", NTheme.glass_panel())
-	_panel.custom_minimum_size = Vector2(400, 0)
-	add_child(_panel)
+	custom_minimum_size = Vector2(ANCHO, 0)
 
-	var col := VBoxContainer.new()
+
+func _cuerpo() -> void:
+	var col := contenido
 	col.add_theme_constant_override("separation", 5)
-	_panel.add_child(col)
 
-	var cabecera := HBoxContainer.new()
-	cabecera.add_theme_constant_override("separation", 4)
-	col.add_child(cabecera)
-	var titulo := NTheme.label("COMMS", NTheme.michroma(), 8, NTheme.CYAN)
-	titulo.mouse_filter = Control.MOUSE_FILTER_STOP
-	titulo.mouse_default_cursor_shape = Control.CURSOR_MOVE
-	titulo.gui_input.connect(_drag)
-	titulo.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	cabecera.add_child(titulo)
-	cabecera.add_child(_tab("GLOBAL", 0))
-	cabecera.add_child(_tab("FACCIÓN", 1))
+	var pestanias := HBoxContainer.new()
+	pestanias.add_theme_constant_override("separation", 3)
+	pestanias.add_child(_tab("GLOBAL", 0))
+	pestanias.add_child(_tab("FACCIÓN", 1))
+	col.add_child(pestanias)
 
 	_log = RichTextLabel.new()
 	_log.bbcode_enabled = true
@@ -70,7 +75,7 @@ func _ready() -> void:
 	col.add_child(_entrada)
 
 	_refrescar_tabs()
-	_reposicionar.call_deferred()
+	_colocar.call_deferred()
 
 
 func _tab(texto: String, canal: int) -> Button:
@@ -78,10 +83,8 @@ func _tab(texto: String, canal: int) -> Button:
 	b.text = texto
 	b.add_theme_font_override("font", NTheme.michroma())
 	b.add_theme_font_size_override("font_size", 8)
-	b.custom_minimum_size = Vector2(78, 20)
-	b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
-	b.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
-	b.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	b.custom_minimum_size = Vector2(0, 20)
+	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	b.pressed.connect(func():
 		_canal = canal
@@ -91,20 +94,33 @@ func _tab(texto: String, canal: int) -> Button:
 	return b
 
 
+## Estilo `.ltab` del prototipo, el mismo que el selector de Ajustes: el canal
+## activo en CIAN sobre fondo cian tenue. El ambar no entra aqui — significa
+## "esta ventana esta abierta" y no se comparte con nada mas.
 func _refrescar_tabs() -> void:
 	for i in _tabs.size():
-		_tabs[i].add_theme_color_override("font_color",
-			NTheme.CYAN if i == _canal else NTheme.MUTED)
+		var activo := i == _canal
+		var b: Button = _tabs[i]
+		b.add_theme_color_override("font_color", NTheme.CYAN if activo else NTheme.MUTED)
+		b.add_theme_color_override("font_hover_color", NTheme.CYAN)
+		var caja := StyleBoxFlat.new()
+		caja.bg_color = Color(NTheme.CYAN, 0.12 if activo else 0.04)
+		caja.border_color = NTheme.EDGE if activo else NTheme.EDGE_SOFT
+		caja.set_border_width_all(1)
+		caja.content_margin_left = 10
+		caja.content_margin_right = 10
+		b.add_theme_stylebox_override("normal", caja)
+		var hover := caja.duplicate()
+		hover.bg_color = Color(NTheme.CYAN, 0.16)
+		b.add_theme_stylebox_override("hover", hover)
+		b.add_theme_stylebox_override("pressed", hover)
 
 
-func _drag(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
-		_panel.position += event.relative
-
-
-func _reposicionar() -> void:
+func _colocar() -> void:
+	if cargar_posicion():
+		return
 	await get_tree().process_frame
-	_panel.position = Vector2(12, get_viewport_rect().size.y - _panel.size.y - 12)
+	position = Vector2(12, get_viewport_rect().size.y - size.y - 12)
 
 
 func _enviar(texto: String) -> void:

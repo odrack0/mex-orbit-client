@@ -40,6 +40,23 @@ static func mono() -> FontFile:
 	return _mono
 
 
+## Michroma con ESPACIADO DE GLIFO — el `letter-spacing` del §3, que en Godot no
+## existe en Label pero si en FontVariation. El primer intento lo falseaba
+## metiendo espacios entre las letras, y eso solo aguanta un titulo corto y fijo:
+## sobre "Sector 1-1 · (2330, 2060)" queda ilegible. Es la diferencia entre
+## imitar el spec y cumplirlo.
+static var _michroma_track := {}
+
+
+static func michroma_track(px: int) -> FontVariation:
+	if not _michroma_track.has(px):
+		var f := FontVariation.new()
+		f.base_font = michroma()
+		f.spacing_glyph = px
+		_michroma_track[px] = f
+	return _michroma_track[px]
+
+
 ## Panel de cristal con las esquinas en L del sistema N.
 static func glass_panel() -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -53,7 +70,7 @@ static func glass_panel() -> StyleBoxFlat:
 	return sb
 
 
-static func label(texto: String, fuente: FontFile, tam: int, color: Color) -> Label:
+static func label(texto: String, fuente: Font, tam: int, color: Color) -> Label:
 	var l := Label.new()
 	l.text = texto
 	l.add_theme_font_override("font", fuente)

@@ -60,11 +60,8 @@ var _frames_explosion: SpriteFrames
 
 # HUD (sistema N minimo de la iteracion: panel de nave + estado del enlace)
 var _hud_estado: Label
-var _hud_hp: Label
-var _hud_shield: Label
-var _hud_pos: Label
-var _hud_credits: Label
-var _hud_cargo: Label
+var _nave: ShipWindow
+var _taskbar: Taskbar
 
 # autotest: vuela solo y guarda captura
 var _autotest_t := 0.0
@@ -147,24 +144,14 @@ func _construir_hud() -> void:
 	var capa := CanvasLayer.new()
 	add_child(capa)
 
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", NTheme.glass_panel())
-	panel.position = Vector2(12, 12)
-	capa.add_child(panel)
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 4)
-	panel.add_child(col)
-	col.add_child(NTheme.label("NAVE", NTheme.michroma(), 8, NTheme.CYAN))
-	_hud_hp = NTheme.label("--", NTheme.mono(), 12, NTheme.HP)
-	col.add_child(_hud_hp)
-	_hud_shield = NTheme.label("--", NTheme.mono(), 12, NTheme.SHIELD)
-	col.add_child(_hud_shield)
-	_hud_credits = NTheme.label("--", NTheme.mono(), 12, NTheme.WARN)
-	col.add_child(_hud_credits)
-	_hud_cargo = NTheme.label("--", NTheme.mono(), 12, NTheme.WARN)
-	col.add_child(_hud_cargo)
-	_hud_pos = NTheme.label("(0, 0)", NTheme.mono(), 11, NTheme.MUTED)
-	col.add_child(_hud_pos)
+	# La NAVE deja de ser un panel suelto con cinco etiquetas y pasa a ser una
+	# ventana de verdad, con las barras segmentadas del §7. Una barra dice cuanto
+	# queda DE LO QUE HABIA, que es lo que se lee de un vistazo en combate.
+	_nave = ShipWindow.crear()
+	capa.add_child(_nave)
+	# debajo de la taskbar (8 de margen + 44 de boton + 8 de aire), no encima
+	if not _nave.cargar_posicion():
+		_nave.position = Vector2(12, 8 + Taskbar.LADO + 10)
 
 	# la linea de estado vive abajo al CENTRO: las esquinas son del chat y del
 	# minimapa, y antes se pisaban entre si
@@ -359,7 +346,7 @@ func _construir_chat() -> void:
 	var capa := CanvasLayer.new()
 	capa.layer = 11
 	add_child(capa)
-	_chat = ChatWindow.new()
+	_chat = ChatWindow.crear()
 	capa.add_child(_chat)
 	_chat.send_message.connect(func(canal: int, texto: String):
 		_req_id += 1
@@ -387,12 +374,38 @@ func _construir_ajustes() -> void:
 	# §1.9: la sysbar va arriba a la derecha y FUERA del menu de ventanas. Hoy
 	# lleva un solo boton porque es el unico que tiene algo detras; ayuda,
 	# pantalla completa y salir se cuelgan con `agregar()` cuando existan.
+	# §5: el menu de TODAS las ventanas del juego. Es la otra mitad del §1 — "todo
+	# es ventana" solo funciona si hay de donde reabrirlas, y sin esto cerrar una
+	# ventana la perdia para siempre.
+	_taskbar = Taskbar.new()
+	capa.add_child(_taskbar)
+	_taskbar.agregar("nave", ShipWindow.ICONO, "Nave", func(): _alternar_ventana("nave", _nave))
+	_taskbar.separador()
+	_taskbar.agregar("chat", ChatWindow.ICONO, "Chat", func(): _alternar_ventana("chat", _chat))
+	_taskbar.agregar("minimapa", MinimapWindow.ICONO, "Minimapa",
+		func(): _alternar_ventana("minimapa", _minimapa))
+	for par in [["nave", _nave], ["chat", _chat], ["minimapa", _minimapa]]:
+		if par[1] != null:
+			_taskbar.marcar(par[0], par[1].visible)
+			par[1].cerrada.connect(_taskbar.marcar.bind(par[0], false))
+
 	_sysbar = SysBar.new()
 	capa.add_child(_sysbar)
 	_sysbar.agregar("ajustes", SettingsWindow.ICONO, "Ajustes", _alternar_ajustes)
 	# §1.3: el icono se pone ambar cuando su ventana esta abierta, y vuelve a
 	# neutro tanto si se cierra desde el icono como desde la `×` de la ventana.
 	_ajustes.cerrada.connect(func(): _sysbar.marcar("ajustes", false))
+
+
+## §1.5: el icono ABRE y CIERRA su ventana. Y al reabrirla vuelve al frente, que
+## es el §1.10 — si no, una ventana enterrada parece que no se abrio.
+func _alternar_ventana(clave: String, v: NWindow) -> void:
+	if v == null:
+		return
+	v.visible = not v.visible
+	if v.visible:
+		v.move_to_front()
+	_taskbar.marcar(clave, v.visible)
 
 
 func _alternar_ajustes() -> void:
@@ -558,10 +571,10 @@ func _on_move(mv) -> void:
 
 
 func _on_hero_stats(hs) -> void:
-	_hud_hp.text = "HP %s / %s" % [_miles(hs.hp), _miles(hs.max_hp)]
-	_hud_shield.text = "ESC %s / %s" % [_miles(hs.shield), _miles(hs.max_shield)]
-	_hud_credits.text = "%s C" % _miles(hs.credits)
-	_hud_cargo.text = "Bodega %s / %s" % [_miles(hs.cargo), _miles(hs.max_cargo)]
+	_nave.poner("vida", hs.hp, hs.max_hp)
+	_nave.poner("escudo", hs.shield, hs.max_shield)
+	_nave.poner("bodega", hs.cargo, hs.max_cargo)
+	_nave.poner_texto("creditos", "%s C" % _miles(hs.credits))
 	# tus propias barras salen de aquí: HeroStats es la única fuente de tus máximos
 	if _hero != null:
 		_hero.max_hp_abs = hs.max_hp
@@ -947,7 +960,7 @@ func _process(delta: float) -> void:
 		_estacion_reactor.self_modulate = Color(k, k, k, 1.0)
 	if _hero != null and not _at_camara_libre:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
-		_hud_pos.text = "(%d, %d)" % [_hero.position.x, _hero.position.y]
+		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
@@ -1214,9 +1227,29 @@ func _autotest(delta: float) -> void:
 				if _ajustes.visible:
 					_at_captura("AUTOTEST FALLO — el engranaje no cierra los Ajustes", 1)
 					return
+				_at_fase = 94
+		94:
+			# La taskbar es lo que hace cierto el §1: "todo es ventana" solo vale
+			# si se pueden REABRIR. Se prueba el ciclo entero —cerrar, comprobar
+			# que el icono vuelve a neutro, reabrir— porque una ventana que se
+			# cierra y no vuelve es peor que una que no se cierra.
+			_alternar_ventana("nave", _nave)
+			if _nave.visible or _taskbar.esta_marcado("nave"):
+				_at_captura("AUTOTEST FALLO — la taskbar no cerro la ventana Nave", 1)
+				return
+			_alternar_ventana("nave", _nave)
+			if not _nave.visible or not _taskbar.esta_marcado("nave"):
+				_at_captura("AUTOTEST FALLO — la taskbar no reabrio la ventana Nave", 1)
+				return
+			_at_ultimo_vuelo = _autotest_t
+			_at_fase = 95
+		95:
+			if _autotest_t - _at_ultimo_vuelo > 0.5:
+				var img_t := get_viewport().get_texture().get_image()
+				img_t.save_png(Session.autotest_screenshot.replace(".png", "-ventanas.png"))
 				_at_fase = 93
 		93:
-			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, bestiario (%d especies) y %d muerte(s)"
+			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"
 				% [AT_BESTIARIO.size(), _at_muertes], 0)
 
 

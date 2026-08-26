@@ -33,6 +33,8 @@ var clave := ""                   # para persistir la posicion
 
 var _deco: Control
 var _cabecera: PanelContainer
+var _fila_cabecera: HBoxContainer
+var _titulo: Label
 var _arrastrando := false
 
 
@@ -107,29 +109,51 @@ func _construir_cabecera(titulo: String, icono: String) -> Control:
 	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fila.add_child(chip)
 
-	# Michroma 9px .16em UPPERCASE. Godot no tiene letter-spacing en Label, asi
-	# que el tracking se hace separando las letras con espacios finos: es feo de
-	# ver en el codigo y es lo unico que respeta el spec sin fuente aparte.
-	var t := NTheme.label(_tracking(titulo.to_upper()), NTheme.michroma(), 9, NTheme.TXT)
+	# Michroma 9px con .16em de tracking (~1,4 px a ese cuerpo)
+	var t := NTheme.label(titulo.to_upper(), NTheme.michroma_track(1), 9, NTheme.TXT)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_titulo = t
 	fila.add_child(t)
 
+	_fila_cabecera = fila
 	fila.add_child(_boton_chrome("–"))
 	fila.add_child(_boton_chrome("×"))
 	return _cabecera
 
 
-## Tracking a mano: Michroma 9px con .16em son ~1,4 px entre letras, y el espacio
-## fino U+2009 es lo mas parecido que hay sin generar la fuente con kerning.
-static func _tracking(s: String) -> String:
-	var fuera := ""
-	for i in s.length():
-		fuera += s[i]
-		if i < s.length() - 1:
-			fuera += " "
-	return fuera
+## Boton extra en la cabecera, a la izquierda de `–` y `×` — el `.zbtn` del
+## prototipo. Lo pide el minimapa para sus pasos de zoom: el §8 los quiere ahi
+## arriba y no dentro del cuerpo, porque no son contenido sino control de la
+## ventana.
+func boton_cabecera(glifo: String, al_pulsar: Callable) -> Button:
+	var b := Button.new()
+	b.text = glifo
+	b.custom_minimum_size = Vector2(15, 15)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_override("font", NTheme.mono())
+	b.add_theme_font_size_override("font_size", 10)
+	b.add_theme_color_override("font_color", NTheme.CYAN)
+	var caja := StyleBoxFlat.new()
+	caja.bg_color = Color(NTheme.CYAN, 0.06)
+	caja.border_color = NTheme.EDGE_SOFT
+	caja.set_border_width_all(1)
+	b.add_theme_stylebox_override("normal", caja)
+	var hover := caja.duplicate()
+	hover.bg_color = Color(NTheme.CYAN, 0.16)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", hover)
+	b.pressed.connect(al_pulsar)
+	_fila_cabecera.add_child(b)
+	_fila_cabecera.move_child(b, _fila_cabecera.get_child_count() - 3)
+	return b
+
+
+## El titulo, para las ventanas que lo actualizan en vivo — el minimapa le cuelga
+## las coordenadas del heroe (§8).
+func titulo_label() -> Label:
+	return _titulo
 
 
 func _boton_chrome(glifo: String) -> Button:

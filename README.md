@@ -167,6 +167,12 @@ esquinas en L de 13 px, cabecera de 26 px con franja cian de 3 px y degradado ci
 chip de icono, botones `–` y `×` de 17 px, arrastre por la cabecera con clamp al viewport y grip
 diagonal. Una ventana se construye diciendo qué icono y qué título lleva; el spec está en un sitio.
 
+**`Taskbar`** (`ui/taskbar.gd`) es el `#taskbar` del §5: cap vertical "MENÚ", botones de 44×44 con
+icono de 21 y separadores por grupos. Es **la otra mitad del §1** — "todo es ventana" solo es cierto
+si hay de dónde reabrirlas, y hasta ahora cerrar una ventana la perdía para siempre. Por eso el
+autotest prueba el ciclo entero (cerrar → icono a neutro → reabrir) y no solo que el botón exista:
+una ventana que se cierra y no vuelve es peor que una que no se cierra.
+
 **`SysBar`** (`ui/sysbar.gd`) es el `#sysbar` del §1.9: arriba a la derecha y **fuera** del menú de
 ventanas, botones de 36×36 con hueco de 5 y margen de 8. Hoy lleva **un solo botón** porque es el
 único que tiene algo detrás; ayuda, pantalla completa y salir se cuelgan con `agregar()` el día que
@@ -178,7 +184,25 @@ Ajustes *por el engranaje* —no llamando a `alternar()`, que se saltaría justo
 romperse—, comprueba que la ventana aparece **y** que el icono se puso ámbar, y luego que el segundo
 clic cierra.
 
-Tres cosas que costaron un intento cada una y no son obvias:
+**La ventana Nave estrena las barras segmentadas del §7.** Era un panel suelto con cinco etiquetas de
+texto (`HP 4.000 / 4.000`); ahora las stats van en barras de 96×11 a rayas verticales de 4 px. Un
+número dice cuánto queda; una barra dice cuánto queda **de lo que había**, y eso se lee sin leer. Van
+**dos y solo dos** para la integridad —casco y escudo, v1 no tiene nano-casco—; la tercera es la
+bodega, que no es integridad sino espacio, y por eso va en ámbar y no en un color de stat.
+
+**El chat gana algo al migrar**: sus pestañas de canal estaban en la cabecera, junto al título, y en
+el prototipo van en el **cuerpo** (`.fb`). La cabecera es del chrome; el canal es contenido. El
+minimapa al revés: sus pasos de zoom suben a la cabecera como `.zbtn`, que es donde el §8 los quiere
+— no son contenido, son control de la ventana.
+
+Cuatro cosas que costaron un intento cada una y no son obvias:
+
+- **El `letter-spacing` del §3 existe en Godot, pero no en `Label`.** El primer intento lo falseó
+  metiendo espacios entre las letras del título. Eso aguanta un título corto y fijo y se cae con el
+  del minimapa, que es vivo: `S e c t o r   1 - 1   ·   ( 2 3 3 0 ,   2 0 6 0 )`. Lo correcto es
+  `FontVariation.spacing_glyph`, que es tracking de verdad. Imitar el spec y cumplirlo no son lo
+  mismo.
+
 
 - **`set_anchors_preset` recalcula los offsets que no toques** para conservar el rect anterior. La
   sysbar arrancaba midiendo 0×0 en el origen, así que el preset le dejó `offset_left` en menos el
@@ -188,6 +212,9 @@ Tres cosas que costaron un intento cada una y no son obvias:
 - **`PRESET_MODE_MINSIZE` no sirve en el mismo fotograma** en que se agrega un hijo: un contenedor
   todavía no ha calculado su mínimo ahí, y salen offsets de ancho cero. Anclar en vez de medir evita
   la carrera entera.
+- **Anclas y offsets se ponen juntos, siempre.** El punto ámbar de "abierta" llevaba anclas
+  centradas y una `position` a mano; se salió del botón y acabó pintado **encima de la ventana
+  Nave**, que estaba en otra capa. Es el mismo fallo que dejó la sysbar invisible, en pequeño.
 - **El degradado va con `draw_polygon` y un color por vértice**, que interpola solo. La primera
   versión usó un `GradientTexture2D` y salió una **banda blanca opaca** que tapaba el título y los
   botones — el degradado no llegaba a la textura y quedaba el negro→blanco por defecto. Dos
