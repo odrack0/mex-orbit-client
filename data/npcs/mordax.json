@@ -16,5 +16,15 @@
     "max_intensity": 2.5,
     "speed": 3.6,
     "sharpness": 1.8
-  }
+  },
+  "_asset": "ATLAS ANIMADO. Celda de 320 para 186 px en pantalla. Lo que el video da y el PNG no podia: la boca se ABRE y se CIERRA. En un bicho que es literalmente una boca vista desde arriba, eso no es adorno, es el personaje. Cuesta 19,1 MB.",
+  "_bucle": "48 fotogramas sin recortar: costura 4,44 sobre un paso normal de 3,16 = 1,4 veces. El mejor recorte solo bajaba a 3,26 perdiendo 7 fotogramas, asi que no compensa. Su paso normal es alto porque la boca se mueve mucho entre fotograma y fotograma.",
+  "frames": {
+    "atlas": "res://assets/npcs/mordax-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 48,
+    "fps": 12
+  },
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas."
 }

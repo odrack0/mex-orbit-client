@@ -202,8 +202,8 @@ no rehacer nada.
 | `background` | solo polvo estelar | fondo y planetas | + mosaicos de paralaje |
 | `explosion` | no se dibuja | se dibuja | ídem |
 
-**El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan ~58 MB de
-VRAM. Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+**El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
+de VRAM (cinco bichos y la caja). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
 sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
 
 **El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
@@ -239,14 +239,47 @@ lugar de `texture` y `EntityNode` monta un `Sprite2D` con `hframes`/`vframes` qu
             "hframes": 7, "vframes": 7, "count": 49, "fps": 12 }
 ```
 
-**El coste se controla solo con la jerarquía del bestiario**: el atlas del Gravon son 27 MB de VRAM,
-pero en el mapa hay **tres** Gravon frente a quince Vex. Lo caro recae sobre lo que casi no se
-repite.
+### Qué cuesta un atlas, contado bien
+
+Durante tres bichos este README dijo que el coste se controlaba con la jerarquía del bestiario
+—"hay tres Gravon frente a quince Vex"—, y **esa cuenta estaba mal**. Una textura se sube a la GPU
+**una vez** y la comparten todas las instancias: quince Vex no gastan quince PNG. El número de
+bichos no multiplica nada.
+
+Lo que de verdad se paga es **por especie**, y en dos monedas:
+
+| | de qué depende | cómo se controla |
+|---|---|---|
+| VRAM | del tamaño del atlas | eligiendo la celda por el `screen_size` del bicho |
+| presupuesto total | de **cuántas especies** llevan atlas | no dándoselo a todas |
+
+De ahí sale la regla de la celda, que es la lección del Gravit: **la celda se elige por lo que el
+bicho mide en pantalla, no copiando la del anterior**. El Gravon usa 384 porque ocupa 214 px; el
+Gravit ocupa 124, así que con 384 estaríamos pagando triple muestreo que nadie ve. Con 256 cuesta
+12,2 MB en vez de 27,6 — la mitad del presupuesto de la ronda, ahorrada por mirar un número que ya
+estaba en el JSON.
+
+| bicho | en pantalla | celda | fotogramas | VRAM |
+|---|---|---|---|---|
+| Gravon | 214 px | 384 | 49 | 27,6 MB |
+| Skarnox | 208 px | 384 | 42 | 27,6 MB |
+| Mordax | 186 px | 320 | 48 | 19,1 MB |
+| Gravit | 124 px | 256 | 45 | 12,2 MB |
+| Vorax | 232 px | 128×512 | 49 | 12,2 MB |
+| caja | 96 px | 192 | 49 | 6,9 MB |
+
+El Vorax es el recordatorio de que la celda **no tiene por qué ser cuadrada**: es un gusano de
+125×638, y cuadrarlo tiraría el 80% de cada celda.
 
 Tres cosas que conviene no olvidar:
 
 - **La luz va cocida** en los fotogramas, así que estos bichos **no llevan capa emisiva ni shaders**
-  — su vida ya está en el asset. El `pulse` no les aplica.
+  — su vida ya está en el asset. El `pulse` no les aplica. Esto estaba escrito aquí desde el Gravon
+  pero el código solo lo cumplía a medias: se saltaba la capa emisiva y **no** el shader del cuerpo.
+  Nunca se notó porque ningún animado traía efectos de cuerpo… hasta el Gravit, cuyos aros se abren
+  en el vídeo **y** los giraba `rings` por encima. Ahora `_montar_ondulacion` sale en cuanto hay
+  atlas: **la animación manda sobre el truco**. En media y baja, donde no hay atlas, el shader vuelve
+  — y los pernos del Gravit siguen orbitando sobre su PNG.
 - Lo que evita que tres Gravon animen al unísono es un **desfase del índice de fotograma** por
   entidad, no la fase del pulso. Es el mismo problema de los gusanos ondulando en fase, resuelto en
   otro sitio.
@@ -263,6 +296,22 @@ campo de ellas no parpadee al unísono. Su bucle es el mejor del catálogo — l
 veces** un paso normal entre fotogramas, es decir que salta menos que avanzar un fotograma. No es
 suerte: su luz **da la vuelta completa** al contorno de la tapa, así que el ciclo cierra por
 construcción. Es la forma de pedir una animación que loopee sin depender de que el modelo acierte.
+
+**La costura se mide contra el paso normal entre fotogramas, no en absoluto.** Un vídeo con mucho
+movimiento salta mucho en cualquier transición; lo que delata un bucle roto es que la última salte
+**más** que las demás. Con seis medidas ya se ve el patrón:
+
+| asset | costura | qué pasó |
+|---|---|---|
+| caja | 0,9× | cierra por construcción: la luz da la vuelta entera |
+| Gravit | 1,1× | se pasaba de ciclo (4,12 contra 1,18); recortar 3 fotogramas lo arregló |
+| Mordax | 1,4× | entero: el mejor recorte apenas mejoraba y costaba 7 fotogramas |
+| Skarnox | 2,0× | 13× de crudo; recortar 6 fotogramas lo salvó |
+| Gravon | 3,0× | el vídeo **era** un ciclo entero que no cerraba: recortar solo quita movimiento |
+
+El Gravit y el Skarnox son el caso que el recorte arregla —sobra material—; el Gravon es el que no
+—falta cierre—. Por eso el script solo recorta si la mejora es grande, y si no, avisa y deja el
+vídeo entero: la discrepancia se arregla **al generar**, no componiendo en 2D.
 
 ## Dos modelos de giro, y la diferencia importa
 

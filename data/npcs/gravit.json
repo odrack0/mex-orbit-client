@@ -11,7 +11,7 @@
     "steps": 0,
     "deg_per_sec": 70
   },
-  "_anillos": "Anillos giratorios. A diferencia del Gravon, aqui gira TAMBIEN el borde con los pernos (outer 0.47): el Gravit es simetrico de revolucion —cuatro pernos iguales a 90 grados— asi que no tiene proa que romper, y sus anillos interiores son tan lisos que rotarlos solo no se veia. Los pernos orbitando son lo que da la lectura.",
+  "_anillos": "Anillos giratorios SOLO para el camino fijo (calidad media y baja). En alta manda el atlas, donde los aros se abren y se cierran de verdad, y el shader NO se monta encima: girar unos fotogramas que ya giran es contar el movimiento dos veces. Sobre el PNG si hace falta, y aqui gira TAMBIEN el borde con los pernos (outer 0.47): el Gravit es simetrico de revolucion, asi que no tiene proa que romper, y sus anillos interiores son tan lisos que rotarlos solo no se veia.",
   "rings": {
     "speed": 0.9,
     "bands": 4,
@@ -24,5 +24,15 @@
     "max_intensity": 2.2,
     "speed": 1.4,
     "sharpness": 3.0
-  }
+  },
+  "_asset": "ATLAS ANIMADO. La celda es de 256, no de 384 como el Gravon: el Gravit mide 124 px en pantalla, asi que 384 seria triple muestreo pagado en VRAM. La celda se elige por el `screen_size` del bicho, no copiando la del anterior. Cuesta 12,2 MB.",
+  "_bucle": "El video traia 48 fotogramas y se pasaba de ciclo: la costura saltaba 4,12 contra un paso normal de 1,18. Recortado a 45 baja a 1,28 — es decir, 1,1 veces el paso normal, que ya no se distingue de una transicion cualquiera. El mejor bucle del catalogo.",
+  "frames": {
+    "atlas": "res://assets/npcs/gravit-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 45,
+    "fps": 12
+  },
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas."
 }

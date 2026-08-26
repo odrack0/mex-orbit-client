@@ -229,6 +229,11 @@ func _montar_ondulacion(d: Dictionary) -> void:
 	var titileo: Dictionary = d.get("flicker", {})
 	if Quality.nivel("shader") < 1:
 		return          # calidad baja: ni se crea el material
+	if _anim_total > 0:
+		# El atlas YA trae el movimiento cocido en sus fotogramas. Montarle encima
+		# un shader de cuerpo lo contaria dos veces: al Gravit se le abren los aros
+		# en el video Y se los giraria el shader. La animacion manda sobre el truco.
+		return
 	if o.is_empty() and peri.is_empty() and anillos.is_empty() and titileo.is_empty():
 		return
 	_onda_idle = float(o.get("idle", 0.35))
