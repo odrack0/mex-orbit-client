@@ -5,6 +5,14 @@
   "emissive": "res://assets/npcs/vexor-emissive.png",
   "screen_size": 178,
   "click_radius": 58,
+  "_onda": "Solo se dobla el ABDOMEN. from 0.68 esta medido, no estimado: el perfil de anchura del render cae de 241 a 134 px justo ahi, que es donde acaban las placas del torax. La quitina de arriba no se menea; el abdomen segmentado si.",
+  "undulate": {
+    "amplitude": 0.045,
+    "frequency": 2.2,
+    "speed": 4.2,
+    "from": 0.68,
+    "idle": 0.5
+  },
   "engines": [],
   "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. mismo bicho crecido: la masa se nota en el giro",
   "turn": {

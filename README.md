@@ -96,7 +96,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
-| `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
+| `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -208,6 +208,11 @@ Tres decisiones que conviene no deshacer:
 
 La onda sube al desplazarse y baja al pararse, pero nunca a cero: un bicho vivo respira aunque no
 avance. Y cada entidad lleva su fase, o un banco de gusanos ondulando al unísono canta a bucle.
+
+**`from` se mide, no se estima.** En el Vexor solo debe doblarse el abdomen: la quitina del tórax
+es armadura. El corte está en `0.68` porque el perfil de anchura del render cae ahí de 241 a 134 px,
+que es justo donde acaban las placas. Sacar ese perfil es una vuelta por las filas del PNG contando
+píxeles opacos — mejor que ajustar el número a ojo hasta que parezca bien.
 
 ## Muerte y reaparición
 
