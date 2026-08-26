@@ -153,3 +153,22 @@ son del chat (izquierda) y del minimapa (derecha).
 > script recién creado revienta con *"Could not find type"*.
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
+
+## El bestiario del 1-1
+
+Cinco especies, y cada una se distingue **antes** de leer su nombre:
+
+| Alien | Familia | Cómo se reconoce |
+|---|---|---|
+| Vex | quitina | La plaga: pequeño, angular, un núcleo rojo |
+| Vexor | quitina | El mismo bicho **crecido**: dos núcleos y venas ramificadas |
+| Skarn | mineral | Peñasco de basalto con magma en las grietas |
+| Skarnox | mineral | El Skarn crecido: corona de cristal y una **fractura abierta** con el núcleo fundido |
+| Ferox | óseo | El único **claro**: hueso marfil, hojas y cola de látigo |
+
+El Ferox es una decisión deliberada: las otras dos familias son oscuras, así que se separa por **valor**, no
+solo por silueta — a 150 px se distingue de un vistazo. Es también el más rápido del mapa (420, por encima de
+la Phoenix), porque su identidad es alcanzarte, no aguantar.
+
+Los sufijos son la regla de la taxonomía, no adorno: **-or/-ox = forma mayor**. Con dos parejas
+(Vex→Vexor, Skarn→Skarnox) el jugador la aprende sin que nadie se la explique.

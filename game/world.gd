@@ -798,21 +798,29 @@ var _at_chat_ok := false
 var _at_reconectado := false
 var _at_camara_libre := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
+## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
+const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox"]
+var _at_bicho := 0
 
 
 func _autotest(delta: float) -> void:
 	_autotest_t += delta
-	if _autotest_t > 120.0:
+	if _autotest_t > 150.0:
 		_at_captura("AUTOTEST TIMEOUT en fase %d" % _at_fase, 1)
 		return
 	match _at_fase:
 		0:
 			if _autotest_t > 1.5 and _hero != null:
+				# el Vex mas cercano, no el NPC mas cercano: con cinco especies en
+				# el mapa el vecino podia ser un Skarnox de 47 s de TTK y el
+				# autotest se comia su propio limite de tiempo peleando
 				var cercano: EntityNode = null
 				var mejor := INF
 				for id in _entidades:
 					var e: EntityNode = _entidades[id]
-					if e.es_npc and _hero.position.distance_to(e.position) < mejor:
+					if e.type_id != "vex":
+						continue
+					if _hero.position.distance_to(e.position) < mejor:
 						mejor = _hero.position.distance_to(e.position)
 						cercano = e
 				if cercano != null:
@@ -911,9 +919,13 @@ func _autotest(delta: float) -> void:
 				var img_p := get_viewport().get_texture().get_image()
 				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
 				_at_fase = 10
-		10, 11:
-			# retrato de cada bicho nuevo: la camara los visita sin volar hasta ellos
-			var especie := "vexor" if _at_fase == 10 else "skarn"
+		10:
+			# retrato de cada bicho del bestiario: la camara los visita sin volar
+			# hasta ellos. Agregar un alien = agregarlo a AT_BESTIARIO, nada mas.
+			if _at_bicho >= AT_BESTIARIO.size():
+				_at_fase = 11
+				return
+			var especie: String = AT_BESTIARIO[_at_bicho]
 			var bicho := _primero_de_especie(especie)
 			if bicho == null:
 				_at_captura("AUTOTEST FALLO — no hay ningun %s en el mapa" % especie, 1)
@@ -925,15 +937,16 @@ func _autotest(delta: float) -> void:
 				var img_b := get_viewport().get_texture().get_image()
 				img_b.save_png(Session.autotest_screenshot.replace(".png", "-%s.png" % especie))
 				_at_camara_t = -1.0
-				_at_fase += 1
-		12:
+				_at_bicho += 1
+		11:
 			_at_camara_libre = false
 			# una ventana que no se construyo (error de script en su .gd) pasaba
 			# desapercibida: el autotest seguia dando OK sin minimapa
 			if _minimapa == null or _chat == null or _base == null:
 				_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
 				return
-			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal y bestiario", 0)
+			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal y bestiario (%d especies)"
+				% AT_BESTIARIO.size(), 0)
 
 
 ## Primer NPC de una especie, para los retratos de QA del autotest.

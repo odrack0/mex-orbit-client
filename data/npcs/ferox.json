@@ -3,7 +3,7 @@
   "code": "ferox",
   "texture": "res://assets/npcs/ferox-base.png",
   "emissive": "res://assets/npcs/ferox-emissive.png",
-  "screen_size": 168,
+  "screen_size": 190,
   "click_radius": 54,
 
   "engines": [],
