@@ -96,7 +96,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
-| `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
+| `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -212,7 +212,14 @@ avance. Y cada entidad lleva su fase, o un banco de gusanos ondulando al uníson
 **`from` se mide, no se estima.** En el Vexor solo debe doblarse el abdomen: la quitina del tórax
 es armadura. El corte está en `0.68` porque el perfil de anchura del render cae ahí de 241 a 134 px,
 que es justo donde acaban las placas. Sacar ese perfil es una vuelta por las filas del PNG contando
-píxeles opacos — mejor que ajustar el número a ojo hasta que parezca bien.
+píxeles opacos — mejor que ajustar el número a ojo hasta que parezca bien. En el Vex el corte cae en
+`0.74`, y no es el mismo número por casualidad: su silueta ensancha hasta `0.72` y el aguijón asoma
+por debajo, así que se desploma de 352 a 49 px.
+
+**El tamaño también es temperamento.** Vex y Vexor son la misma especie, pero el pequeño agita el
+aguijón más rápido (4,8 frente a 4,2) y más inquieto en reposo (0,55 frente a 0,50), mientras que
+en pantalla se desplaza menos. El chico tiembla, el grande pesa — el mismo criterio que ya rige sus
+velocidades de giro y sus latidos.
 
 ## Muerte y reaparición
 

@@ -5,6 +5,14 @@
   "emissive": "res://assets/npcs/vex-emissive.png",
   "screen_size": 141,
   "click_radius": 46,
+  "_onda": "Solo el aguijon. from 0.74 esta medido: el perfil de anchura del render se desploma de 352 a 49 px en 0.75, donde acaban las placas y asoma la cola. Es MAS nervioso que el Vexor (mas rapido, mas inquieto parado) pero se desplaza menos en pantalla: el pequenio tiembla, el grande pesa.",
+  "undulate": {
+    "amplitude": 0.04,
+    "frequency": 2.4,
+    "speed": 4.8,
+    "from": 0.74,
+    "idle": 0.55
+  },
   "engines": [],
   "_pulso": "intensidad del blend aditivo: por encima de 1 sobreexpone (el nucleo se pone blanco). sharpness marca el destello: 1 = seno suave, 3+ = latido con valles largos",
   "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. la plaga: pequenio y nervioso, el mas agil de su familia",
