@@ -16,6 +16,7 @@ const WIDTHS := [180, 238, 300, 380, 460]
 var _world: Node          # el mundo: entidades, cajas, heroe, limites
 var _wi := 2              # indice del paso de zoom
 var _canvas: Control
+var _lado := Vector2.ZERO      # el tamanio REAL del mapa dibujado, sin deformar
 var _t := 0.0
 
 
@@ -30,6 +31,10 @@ func setup(world: Node, map_code: String) -> void:
 	_canvas = Control.new()
 	_canvas.draw.connect(_dibujar)
 	_canvas.gui_input.connect(_click_canvas)
+	# SHRINK: sin esto el contenedor lo estira al ancho de la ventana y el mapa se
+	# dibuja con un ancho y un alto que no se corresponden — deformado, que es
+	# justo lo que el §8 prohibe
+	_canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	contenido.add_child(_canvas)
 	_aplicar_zoom()
 	_reposicionar()
@@ -40,11 +45,51 @@ func _zoom(delta: int) -> void:
 	_aplicar_zoom()
 
 
+## §8: el alto sale del ancho y del ratio del mapa. NUNCA se deforma.
+##
+## El zoom cambiaba solo el canvas, y una ventana en Godot **no encoge sola**
+## cuando su contenido encoge: el aro se quedaba con el ancho anterior, el
+## contenedor estiraba el canvas para llenarlo y el mapa acababa con el ancho
+## viejo y el alto nuevo. En la captura del bug medía 640x260 —ratio 2,46—
+## cuando el mapa es 20800x12800 —ratio 1,625—. Hay que pedirle a la ventana que
+## se reajuste, y ahi los dos escalan juntos.
 func _aplicar_zoom() -> void:
 	var w: float = WIDTHS[_wi]
 	var limites: Vector2 = _world.limites()
-	_canvas.custom_minimum_size = Vector2(w, w * limites.y / limites.x)
-	_reposicionar.call_deferred()
+	_lado = Vector2(w, w * limites.y / limites.x)
+	_canvas.custom_minimum_size = _lado
+	_reajustar.call_deferred()
+
+
+## Para que el autotest pueda AFIRMAR el §8. La deformacion no se veia en las
+## capturas —un mapa estirado sigue pareciendo un mapa— y por eso llego hasta el
+## usuario: hace falta comparar el ratio con un numero, no mirarlo.
+func deformacion() -> float:
+	if _lado.y <= 0.0:
+		return 999.0
+	var limites: Vector2 = _world.limites()
+	return absf(_lado.x / _lado.y - limites.x / limites.y)
+
+
+## Y que el canvas mida de verdad lo que dice medir: si el contenedor lo estira,
+## el dibujo y los clicks dejan de coincidir con lo que se ve.
+func canvas_cuadra() -> bool:
+	return _canvas != null and _canvas.size.distance_to(_lado) < 2.0
+
+
+func pasos_zoom() -> int:
+	return WIDTHS.size()
+
+
+func zoom_a(i: int) -> void:
+	_wi = clampi(i, 0, WIDTHS.size() - 1)
+	_aplicar_zoom()
+
+
+func _reajustar() -> void:
+	await get_tree().process_frame
+	reset_size()
+	_reposicionar()
 
 
 func _reposicionar() -> void:
@@ -65,17 +110,17 @@ func _process(delta: float) -> void:
 
 func _a_mapa(world_pos: Vector2) -> Vector2:
 	var limites: Vector2 = _world.limites()
-	return world_pos / limites * _canvas.size
+	return world_pos / limites * _lado
 
 
 func _click_canvas(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var limites: Vector2 = _world.limites()
-		fly_to.emit(event.position / _canvas.size * limites)
+		fly_to.emit(event.position / _lado * limites)
 
 
 func _dibujar() -> void:
-	var s := _canvas.size
+	var s := _lado
 	# fondo y borde del canvas (tokens N)
 	_canvas.draw_rect(Rect2(Vector2.ZERO, s), Color(0.02, 0.03, 0.055, 0.9))
 	# rejilla tenue 5x4

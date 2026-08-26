@@ -1241,10 +1241,30 @@ func _autotest(delta: float) -> void:
 			if not _nave.visible or not _taskbar.esta_marcado("nave"):
 				_at_captura("AUTOTEST FALLO — la taskbar no reabrio la ventana Nave", 1)
 				return
+			# §8: el minimapa NUNCA se deforma. Se recorren TODOS los pasos de
+			# zoom porque el fallo era justo ese, y `deformacion()` se puede
+			# comprobar en el acto: sale del tamanio que el minimapa se propone,
+			# no del que el contenedor le acabe dando.
+			#
+			# Nada de `await` aqui dentro: esto corre desde `_process` y un await
+			# convertiria la maquina de fases en una corrutina que devuelve el
+			# control a media prueba. El chequeo que SI necesita layout
+			# —`canvas_cuadra`— espera a la fase siguiente.
+			for i in _minimapa.pasos_zoom():
+				_minimapa.zoom_a(i)
+				if _minimapa.deformacion() > 0.02:
+					_at_captura("AUTOTEST FALLO — el minimapa se deforma en el paso %d (%.3f)"
+						% [i, _minimapa.deformacion()], 1)
+					return
+			_minimapa.zoom_a(2)
 			_at_ultimo_vuelo = _autotest_t
 			_at_fase = 95
 		95:
 			if _autotest_t - _at_ultimo_vuelo > 0.5:
+				# ya hubo fotogramas de sobra para que el layout se asiente
+				if not _minimapa.canvas_cuadra():
+					_at_captura("AUTOTEST FALLO — el canvas del minimapa no mide lo que dice", 1)
+					return
 				var img_t := get_viewport().get_texture().get_image()
 				img_t.save_png(Session.autotest_screenshot.replace(".png", "-ventanas.png"))
 				_at_fase = 93

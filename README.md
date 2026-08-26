@@ -164,8 +164,11 @@ diseño se disperse — cada ventana copia a la anterior y el spec se queda solo
 
 **`NWindow`** (`ui/n_window.gd`) es el `.fp` del prototipo llevado a Godot medida por medida:
 esquinas en L de 13 px, cabecera de 26 px con franja cian de 3 px y degradado cian→violeta→nada,
-chip de icono, botones `–` y `×` de 17 px, arrastre por la cabecera con clamp al viewport y grip
-diagonal. Una ventana se construye diciendo qué icono y qué título lleva; el spec está en un sitio.
+chip de icono, botón `–` de 17 px, arrastre por la cabecera con clamp al viewport y grip diagonal.
+
+**Un solo botón, y no dos.** El chrome nació con `–` y `×` porque el prototipo los tenía, pero aquí
+hacen exactamente lo mismo: toda ventana vuelve desde la taskbar, así que "cerrar" y "minimizar" no
+se distinguen ni en lo que hacen ni en cómo se vuelve. El `×` era herencia del escritorio. Una ventana se construye diciendo qué icono y qué título lleva; el spec está en un sitio.
 
 **`Taskbar`** (`ui/taskbar.gd`) es el `#taskbar` del §5: cap vertical "MENÚ", botones de 44×44 con
 icono de 21 y separadores por grupos. Es **la otra mitad del §1** — "todo es ventana" solo es cierto
@@ -212,6 +215,16 @@ Cuatro cosas que costaron un intento cada una y no son obvias:
 - **`PRESET_MODE_MINSIZE` no sirve en el mismo fotograma** en que se agrega un hijo: un contenedor
   todavía no ha calculado su mínimo ahí, y salen offsets de ancho cero. Anclar en vez de medir evita
   la carrera entera.
+- **Un contenedor no encoge solo.** El zoom del minimapa cambiaba el canvas y no la ventana: el aro
+  se quedaba con el ancho anterior, el contenedor estiraba el canvas para llenarlo y el mapa se
+  dibujaba con el ancho viejo y el alto nuevo — **deformado**, que es justo lo que el §8 prohíbe. Hay
+  que pedirle a la ventana que se reajuste (`reset_size()`) y decirle al canvas que **no** se estire
+  (`SIZE_SHRINK_CENTER`). Y como un mapa estirado sigue pareciendo un mapa en una captura, la prueba
+  compara el ratio contra un número en los cinco pasos de zoom.
+- **Una rejilla alinea; una fila por stat, no.** Las tres barras de la Nave estaban en `HBox`
+  independientes, así que cada fila se repartía el ancho por su cuenta y la de Bodega —cuyo valor
+  `0 / 300` es más corto que `4.000 / 4.000`— salía desplazada. Con un `GridContainer` de tres
+  columnas, las columnas miden lo mismo en todas las filas y las barras quedan a plomo.
 - **Anclas y offsets se ponen juntos, siempre.** El punto ámbar de "abierta" llevaba anclas
   centradas y una `position` a mano; se salió del botón y acabó pintado **encima de la ventana
   Nave**, que estaba en otra capa. Es el mismo fallo que dejó la sysbar invisible, en pequeño.

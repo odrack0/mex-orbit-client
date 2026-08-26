@@ -14,6 +14,7 @@ extends NWindow
 const ICONO := "res://assets/ui/icons/ship.svg"
 const ANCHO := 232
 
+var _rejilla: GridContainer
 var _barras := {}
 var _valores := {}
 
@@ -30,7 +31,21 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(ANCHO, 0)
 
 
+## Las filas van en una REJILLA de tres columnas, no en HBox sueltos.
+##
+## Con una fila por stat, cada una se reparte el ancho por su cuenta: la etiqueta
+## se estira y la barra queda pegada al valor, asi que la barra de Bodega —cuyo
+## valor "0 / 300" es mas corto que "4.000 / 4.000"— aparecia desplazada a la
+## derecha respecto a las de Vida y Escudo. En una rejilla las tres columnas
+## miden lo mismo en todas las filas y las barras quedan a plomo.
 func _cuerpo() -> void:
+	var rejilla := GridContainer.new()
+	rejilla.columns = 3
+	rejilla.add_theme_constant_override("h_separation", 7)
+	rejilla.add_theme_constant_override("v_separation", 6)
+	contenido.add_child(rejilla)
+	_rejilla = rejilla
+
 	_fila_barra("vida", "Vida", NTheme.HP)
 	_fila_barra("escudo", "Escudo", NTheme.SHIELD)
 	_fila_barra("bodega", "Bodega", NTheme.WARN)
@@ -38,34 +53,40 @@ func _cuerpo() -> void:
 	_fila_texto("posicion", "Posición")
 
 
-func _fila_barra(clave: String, etiqueta: String, color: Color) -> void:
-	var fila := HBoxContainer.new()
-	fila.add_theme_constant_override("separation", 7)
-	var k := NTheme.label(etiqueta, NTheme.exo2(), 11, NTheme.MUTED)
+func _etiqueta(texto: String) -> Label:
+	var k := NTheme.label(texto, NTheme.exo2(), 11, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	fila.add_child(k)
+	return k
+
+
+## El valor a la DERECHA de su columna: asi las cifras quedan alineadas entre si
+## y se pueden comparar de un vistazo, que es para lo que sirve `tabular-nums`.
+func _valor(clave: String) -> Label:
+	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
+	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_valores[clave] = v
+	return v
+
+
+func _fila_barra(clave: String, etiqueta: String, color: Color) -> void:
+	_rejilla.add_child(_etiqueta(etiqueta))
 	var barra := BarraSegmentada.new()
 	barra.color = color
-	fila.add_child(barra)
 	_barras[clave] = barra
-	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
-	v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	fila.add_child(v)
-	_valores[clave] = v
-	contenido.add_child(fila)
+	_rejilla.add_child(barra)
+	_rejilla.add_child(_valor(clave))
 
 
 func _fila_texto(clave: String, etiqueta: String) -> void:
-	var fila := HBoxContainer.new()
-	fila.add_theme_constant_override("separation", 7)
-	var k := NTheme.label(etiqueta, NTheme.exo2(), 11, NTheme.MUTED)
-	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fila.add_child(k)
-	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
-	fila.add_child(v)
-	_valores[clave] = v
-	contenido.add_child(fila)
+	_rejilla.add_child(_etiqueta(etiqueta))
+	# hueco en la columna de la barra: mantiene la rejilla cuadrada
+	var hueco := Control.new()
+	hueco.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rejilla.add_child(hueco)
+	_rejilla.add_child(_valor(clave))
 
 
 ## Cada stat se lee contra SU PROPIO maximo (§7). Nunca se suman casco y escudo

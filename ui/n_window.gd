@@ -16,10 +16,11 @@
 class_name NWindow
 extends PanelContainer
 
-## `–` y `×` hacen hoy lo mismo: ocultar. Se mantienen los dos porque el
-## prototipo los tiene y porque el dia que una ventana guarde estado que valga la
-## pena conservar (una pestania abierta, un scroll), minimizar dejara de ser
-## cerrar sin tocar el chrome.
+## UN SOLO boton, `–`. El prototipo traia `–` y `×` heredados del escritorio,
+## pero aqui hacen exactamente lo mismo: en un juego donde toda ventana se reabre
+## desde la taskbar, "cerrar" y "minimizar" no se distinguen en nada — ni en lo
+## que pasa al pulsarlos ni en como se vuelve. Dos botones para una accion solo
+## obligan al jugador a preguntarse cual es cual.
 signal cerrada
 
 const ALTO_CABECERA := 26
@@ -119,7 +120,6 @@ func _construir_cabecera(titulo: String, icono: String) -> Control:
 
 	_fila_cabecera = fila
 	fila.add_child(_boton_chrome("–"))
-	fila.add_child(_boton_chrome("×"))
 	return _cabecera
 
 
@@ -146,7 +146,7 @@ func boton_cabecera(glifo: String, al_pulsar: Callable) -> Button:
 	b.add_theme_stylebox_override("pressed", hover)
 	b.pressed.connect(al_pulsar)
 	_fila_cabecera.add_child(b)
-	_fila_cabecera.move_child(b, _fila_cabecera.get_child_count() - 3)
+	_fila_cabecera.move_child(b, _fila_cabecera.get_child_count() - 2)
 	return b
 
 
