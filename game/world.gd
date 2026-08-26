@@ -76,6 +76,14 @@ func _ready() -> void:
 	if Session.calidad_forzada != "":
 		Quality.niveles = Quality.PRESETS[Session.calidad_forzada].duplicate()
 		Quality.preset = Session.calidad_forzada
+	elif Session.autotest_modo != "":
+		# Una prueba NO puede heredar estado de la corrida anterior. La del cambio
+		# en caliente dejaba la cuenta en "baja" de forma persistente, asi que las
+		# siguientes corrian degradadas sin decirlo: el portal montaba su camino
+		# fijo y la afirmacion del atlas se saltaba sola, dando OK sin probar nada.
+		# Sin -Calidad, el autotest arranca SIEMPRE en alta.
+		Quality.niveles = Quality.PRESETS["alta"].duplicate()
+		Quality.preset = "alta"
 	Quality.cambiada.connect(_on_calidad_cambiada)
 
 	_conn = GameConnection.new()
@@ -383,6 +391,9 @@ func _on_calidad_cambiada(claves: Array) -> void:
 			or claves.has("engine"):
 		for id in _entidades:
 			_entidades[id].reconstruir()
+	if claves.has("collectable"):
+		for id in _portales:
+			_portales[id].reconstruir()
 	if claves.has("collectable") or claves.has("emissive"):
 		var pendientes := []
 		for id in _cajas:
@@ -781,14 +792,25 @@ func _handle_click(world_pos: Vector2) -> void:
 	if bajo != null:
 		_seleccionar(bajo)
 		return
-	# ¿click sobre un portal? rumbo a el (el salto de sector llega en E3)
+	# ¿click sobre un portal? Si ya estamos encima, ACTIVAR; si no, rumbo a el.
 	var portal := _portal_at(world_pos)
 	if portal != null:
 		_pending_box = 0
+		if not portal.is_working:
+			_estado("Ese portal está inactivo", NTheme.VIOLET)
+			return
+		var encima := _hero != null and _hero.position.distance_to(portal.position) <= portal.click_radius
+		if encima and portal.activar():
+			# los 2,1 s del encendido son el hueco donde cabe la latencia: en E3
+			# la peticion de salto sale AQUI y el mapa se muestra cuando hayan
+			# terminado los dos. Hoy no hay salto, asi que solo se ve el encendido.
+			if not portal.encendido_terminado.is_connected(_on_portal_encendido):
+				portal.encendido_terminado.connect(_on_portal_encendido)
+			_estado("Abriendo portal · sector %s" % portal.target_map_code, NTheme.VIOLET)
+			return
 		_autopilot = portal.position
 		_volar_a(portal.position)
-		_estado("Rumbo al portal · sector %s" % portal.target_map_code
-			if portal.is_working else "Ese portal está inactivo", NTheme.VIOLET)
+		_estado("Rumbo al portal · sector %s" % portal.target_map_code, NTheme.VIOLET)
 		return
 	# click en vacio: volar; mientras siga presionado, _process persigue al cursor
 	# (el vuelo manual cancela el autopiloto, como en el prototipo)
@@ -797,6 +819,15 @@ func _handle_click(world_pos: Vector2) -> void:
 	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
+
+
+## El encendido ha llegado a su ultimo fotograma. En E3 aqui se muestra el mapa
+## destino si el server ya respondio; hoy solo se dice que el portal esta abierto.
+func _on_portal_encendido(portal_id: int) -> void:
+	var p: PortalNode = _portales.get(portal_id)
+	if p == null:
+		return
+	_estado("Portal abierto · el salto al sector %s llega en E3" % p.target_map_code, NTheme.VIOLET)
 
 
 func _portal_at(world_pos: Vector2) -> PortalNode:
@@ -936,13 +967,15 @@ var _at_disparos := 0
 var _at_shot_combate := false
 var _at_chat_ok := false
 var _at_reconectado := false
-var _at_camara_libre := false     # el autotest suelta la camara para retratar el mapa
+var _at_camara_libre := false
+var _at_portal_animado := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
 const AT_BESTIARIO := ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
 var _at_primer_frame := false
 var _at_cambio_calidad := false
+var _at_calidad_previa := "alta"
 var _at_caza_desde := 0.0
 var _at_shot_caja := false
 
@@ -1103,9 +1136,31 @@ func _autotest(delta: float) -> void:
 				_camara.position = _portales.values()[0].position
 				_at_fase = 9
 		9:
+			# retrato en REPOSO: con atlas, el aro dormido del primer fotograma
 			if _autotest_t - _at_ultimo_vuelo > 1.5:
 				var img_p := get_viewport().get_texture().get_image()
 				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
+				_at_ultimo_vuelo = _autotest_t
+				_at_portal_animado = _portales.values()[0].activar()
+				_at_fase = 90
+		90:
+			# ...y retrato ABIERTO, tras los 2,1 s del encendido. Una foto sola no
+			# prueba nada: se comprueba que la secuencia llego a su ultimo
+			# fotograma, que es donde el portal se queda al saltar.
+			if _autotest_t - _at_ultimo_vuelo > 3.0:
+				var img_a := get_viewport().get_texture().get_image()
+				img_a.save_png(Session.autotest_screenshot.replace(".png", "-portal-abierto.png"))
+				var con_atlas := Quality.nivel("collectable") >= 2
+				if Session.calidad_forzada == "" and not con_atlas:
+					_at_captura("AUTOTEST FALLO — sin -Calidad esto corre en alta: "
+						+ "el portal tenia que montar el atlas y no lo hizo", 1)
+					return
+				if con_atlas and not _at_portal_animado:
+					_at_captura("AUTOTEST FALLO — el portal no arranco el encendido", 1)
+					return
+				if _at_portal_animado and not _portales.values()[0].encendido_completo():
+					_at_captura("AUTOTEST FALLO — el encendido del portal no llego al final", 1)
+					return
 				_at_fase = 10
 		10:
 			_autotest_bestiario()
@@ -1131,6 +1186,7 @@ func _autotest_bestiario() -> void:
 			# poblado y se retrata. Si reconstruir rompiera algo, revienta aqui.
 			if Session.calidad_forzada == "" and not _at_cambio_calidad:
 				_at_cambio_calidad = true
+				_at_calidad_previa = Quality.preset
 				Quality.aplicar("baja")
 				_at_camara_t = _autotest_t
 				return
@@ -1138,6 +1194,9 @@ func _autotest_bestiario() -> void:
 				return
 			if _at_cambio_calidad:
 				_retrato("cambio-calidad", "")
+				# y se DEVUELVE a donde estaba: una prueba que deja residuo
+				# persistente contamina todas las corridas siguientes
+				Quality.aplicar(_at_calidad_previa)
 			_at_camara_libre = false
 			_at_captura("BESTIARIO OK — %d retratos%s" % [AT_BESTIARIO.size(),
 				" + cambio de calidad en caliente" if _at_cambio_calidad else ""], 0)

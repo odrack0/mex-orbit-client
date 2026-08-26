@@ -64,6 +64,15 @@ destino que se aleja, la persecución cierra a **50 unidades por segundo** y pue
 De ahí salió un timeout intermitente del gate — el peor tipo de fallo, porque parece un bug del
 juego. Pasados 20 s el bot abandona esa presa y busca otra.
 
+**Una prueba no puede heredar estado de la corrida anterior.** La del cambio de calidad en caliente
+aplicaba `baja` y no lo deshacía, y como la calidad **se persiste por cuenta**, todas las corridas
+siguientes arrancaban degradadas sin decirlo. Costó descubrirlo porque no fallaba: el portal montaba
+su camino fijo, la afirmación del atlas se saltaba sola y el gate daba **OK sin haber probado nada**.
+Dos cambios lo cierran, y los dos hacen falta: sin `-Calidad` el autotest fuerza **alta** en vez de
+leer lo guardado, y la prueba en caliente **devuelve** la calidad a donde estaba. De propina, ahora
+falla en voz alta si en una corrida por defecto el portal no monta el atlas — un camino que se salta
+solo es peor que un camino roto.
+
 Y el modo de arte toma **dos fotogramas** de cada bicho (`-<especie>.png` y `-<especie>-b.png`,
 separados ~0,9 s). Una foto fija no demuestra que un shader se **mueva**; con dos se compara. Pegarlas
 lado a lado es la forma fiable de verificar una animación — medir píxeles que cambian **no sirve**,
@@ -134,12 +143,13 @@ que portales, estaciones y POIs se envíen enteros al entrar, no por relevancia.
 La caja de carga la coloca el server al morir un alien (`BoxSpawn`). El cliente
 solo pone el arte, y ese arte sale de `data/props/`.
 
-- **`PortalNode`** (`game/portal_node.gd`): el **aro queda quieto** y es la capa
-  emisiva —el vórtice— la que gira y late; rotar el sprite entero delataría los
-  pernos del aro. Debajo va la etiqueta del sector destino, en `--violet` (el
-  token que el sistema de diseño reserva para portales). Un portal con
-  `is_working = 0` se pinta apagado y apenas alumbra. Clic = rumbo al portal;
-  **el salto de sector es de E3**.
+- **`PortalNode`** (`game/portal_node.gd`): en calidad **alta** el portal **reposa
+  dormido** en el primer fotograma de su atlas y, al activarlo, reproduce **2,1 s
+  de encendido una sola vez**. Clic estando encima = activar; clic desde lejos =
+  rumbo a él. En **media y baja** cae al camino de siempre: el aro quieto con la
+  capa emisiva —el vórtice— girando y latiendo (rotar el sprite entero delataría
+  los pernos). Debajo va la etiqueta del sector destino, en `--violet`. Un portal
+  con `is_working = 0` se pinta apagado y no se puede activar.
 - **Caja de carga**: su pulso es de **alfa**, no de intensidad — es una luz de
   baliza que llama al jugador, no un reactor como el núcleo de un alien.
 - **Minimapa**: estación y portales se dibujan como **rombos** (cian y violeta),
@@ -203,7 +213,7 @@ no rehacer nada.
 | `explosion` | no se dibuja | se dibuja | ídem |
 
 **El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
-de VRAM (cinco bichos y la caja). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+de VRAM (cinco bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
 sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
 
 **El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
@@ -267,6 +277,7 @@ estaba en el JSON.
 | Gravit | 124 px | 256 | 45 | 12,2 MB |
 | Vorax | 232 px | 128×512 | 49 | 12,2 MB |
 | caja | 96 px | 192 | 49 | 6,9 MB |
+| portal | 380 u | 384 | 25 | 14,1 MB |
 
 El Vorax es el recordatorio de que la celda **no tiene por qué ser cuadrada**: es un gusano de
 125×638, y cuadrarlo tiraría el 80% de cada celda.
@@ -312,6 +323,32 @@ movimiento salta mucho en cualquier transición; lo que delata un bucle roto es 
 El Gravit y el Skarnox son el caso que el recorte arregla —sobra material—; el Gravon es el que no
 —falta cierre—. Por eso el script solo recorta si la mejora es grande, y si no, avisa y deja el
 vídeo entero: la discrepancia se arregla **al generar**, no componiendo en 2D.
+
+### Secuencia, no bucle: el tercer patrón
+
+Un bicho animado repite su ciclo para siempre. El portal **no**: reposa en su primer fotograma y
+reproduce el encendido entero **una vez**. Ahí no hay costura que cerrar —nadie vuelve al principio—
+así que el atlas se exporta con `RANGO=0:24` y el análisis de bucle se salta completo. Es más: el
+recorte al mejor cierre le comería justo el final, que es **el fotograma en el que el portal se
+queda**.
+
+**Y los 2,1 s no son un número estético: son el hueco donde cabe la latencia.** La animación corre
+mientras el server resuelve el salto de sector, así que el viaje de ida y vuelta se paga en pantalla
+en vez de en una espera. `activar()` devuelve si arrancó y `encendido_terminado` avisa al llegar al
+final; en E3, el mapa se muestra cuando hayan terminado **los dos** — la animación y la respuesta.
+Que `activar()` devuelva `false` (portal apagado, o calidad sin atlas) no es un error: significa que
+el salto ocurre sin ceremonia y quien llama debe seguir adelante igual.
+
+Aquí el repliegue **no es el mismo portal**, y conviene saberlo: con atlas se ve dormido hasta que lo
+activas; sin atlas se ve encendido desde el principio y el salto pasa sin ceremonia. Es lo correcto
+—en calidad baja no se pagan dos segundos de espectáculo— pero no es una degradación transparente
+como en los bichos.
+
+**El color del portal está mal a sabiendas.** Lo emisivo del vídeo es 83% azul-cyan, matiz 188, a
+**2 grados** del `--cyan` `#00E5FF` que en la dirección N identifica al **jugador**; el violeta
+`#A78BFA` es el de los portales, y ahí siguen su etiqueta y su punto del minimapa. Se aceptó así a
+propósito para no frenar la integración. Si algún día se corrige, es rotar el matiz ~67° en la capa
+emisiva del atlas.
 
 ## Dos modelos de giro, y la diferencia importa
 
