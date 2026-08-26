@@ -204,7 +204,7 @@ Tres decisiones que conviene no deshacer:
   serpentea.
 - **El modulate se reaplica a mano.** Al re-muestrear la textura por nuestra cuenta se pierde el
   color de vértice — que es por donde viaja el pulso de la capa emisiva. Se captura en
-  `vertex()` en un varying.  **no existe** en `canvas_item`.
+  `vertex()` en un varying. `MODULATE` **no existe** en `canvas_item`.
 
 La onda sube al desplazarse y baja al pararse, pero nunca a cero: un bicho vivo respira aunque no
 avance. Y cada entidad lleva su fase, o un banco de gusanos ondulando al unísono canta a bucle.
