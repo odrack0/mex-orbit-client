@@ -796,7 +796,8 @@ var _at_disparos := 0
 var _at_shot_combate := false
 var _at_chat_ok := false
 var _at_reconectado := false
-var _at_camara_libre := false     # el autotest suelta la camara para retratar el portal
+var _at_camara_libre := false     # el autotest suelta la camara para retratar el mapa
+var _at_camara_t := -1.0
 
 
 func _autotest(delta: float) -> void:
@@ -909,13 +910,39 @@ func _autotest(delta: float) -> void:
 			if _autotest_t - _at_ultimo_vuelo > 1.5:
 				var img_p := get_viewport().get_texture().get_image()
 				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
-				_at_camara_libre = false
-				# una ventana que no se construyo (error de script en su .gd) pasaba
-				# desapercibida: el autotest seguia dando OK sin minimapa
-				if _minimapa == null or _chat == null or _base == null:
-					_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
-					return
-				_at_captura("AUTOTEST OK — loop completo + chat + reconexion + portal", 0)
+				_at_fase = 10
+		10, 11:
+			# retrato de cada bicho nuevo: la camara los visita sin volar hasta ellos
+			var especie := "vexor" if _at_fase == 10 else "skarn"
+			var bicho := _primero_de_especie(especie)
+			if bicho == null:
+				_at_captura("AUTOTEST FALLO — no hay ningun %s en el mapa" % especie, 1)
+				return
+			_camara.position = bicho.position
+			if _at_camara_t < 0.0:
+				_at_camara_t = _autotest_t
+			if _autotest_t - _at_camara_t > 1.2:
+				var img_b := get_viewport().get_texture().get_image()
+				img_b.save_png(Session.autotest_screenshot.replace(".png", "-%s.png" % especie))
+				_at_camara_t = -1.0
+				_at_fase += 1
+		12:
+			_at_camara_libre = false
+			# una ventana que no se construyo (error de script en su .gd) pasaba
+			# desapercibida: el autotest seguia dando OK sin minimapa
+			if _minimapa == null or _chat == null or _base == null:
+				_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
+				return
+			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal y bestiario", 0)
+
+
+## Primer NPC de una especie, para los retratos de QA del autotest.
+func _primero_de_especie(code: String) -> EntityNode:
+	for id in _entidades:
+		var e: EntityNode = _entidades[id]
+		if e.type_id == code:
+			return e
+	return null
 
 
 func _at_captura(mensaje: String, codigo: int) -> void:

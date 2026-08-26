@@ -18,6 +18,7 @@ const BARRA_ALTO := 3.0
 const BARRA_SEPARACION := 5.0
 
 var entity_id := 0
+var type_id := ""            # el code del catalogo: "vex", "vexor", "skarn", "phoenix"
 var speed := 0.0
 var objetivo := Vector2.ZERO
 var es_heroe := false
@@ -67,6 +68,7 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	entity_id = spawn.entity_id
 	es_heroe = heroe
 	es_npc = spawn.kind == MexProtocol.EntityKind.NPC
+	type_id = spawn.type_id
 	speed = float(spawn.speed)
 	position = Vector2(spawn.x, spawn.y)
 	objetivo = position
