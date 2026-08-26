@@ -858,6 +858,7 @@ var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
 const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
+var _at_primer_frame := false
 
 
 var _at_muertes := 0
@@ -868,6 +869,20 @@ func _autotest(delta: float) -> void:
 	# muerto o aun sin nave: no hay nada que pilotar este frame. Sin esta guarda,
 	# cualquier fase que use _hero reventaba en cuanto un Ferox hacia su trabajo.
 	if _muerto or (_hero == null and _at_fase > 0):
+		return
+	# modo BESTIARIO: solo los retratos. La pasada completa tarda ~3 min y para
+	# calibrar un shader eso es un peaje: se salta directo a la fase 10.
+	if Session.autotest_modo == "bestiario":
+		if _autotest_t > 60.0:
+			_at_captura("BESTIARIO TIMEOUT en el bicho %d" % _at_bicho, 1)
+			return
+		if _at_fase == 0:
+			# margen para que lleguen todos los spawns del mapa
+			if _autotest_t < 3.0 or _hero == null:
+				return
+			_at_camara_libre = true
+			_at_fase = 10
+		_autotest_bestiario()
 		return
 	if _autotest_t > 190.0:
 		_at_captura("AUTOTEST TIMEOUT en fase %d" % _at_fase, 1)
@@ -990,24 +1005,7 @@ func _autotest(delta: float) -> void:
 				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
 				_at_fase = 10
 		10:
-			# retrato de cada bicho del bestiario: la camara los visita sin volar
-			# hasta ellos. Agregar un alien = agregarlo a AT_BESTIARIO, nada mas.
-			if _at_bicho >= AT_BESTIARIO.size():
-				_at_fase = 11
-				return
-			var especie: String = AT_BESTIARIO[_at_bicho]
-			var bicho := _primero_de_especie(especie)
-			if bicho == null:
-				_at_captura("AUTOTEST FALLO — no hay ningun %s en el mapa" % especie, 1)
-				return
-			_camara.position = bicho.position
-			if _at_camara_t < 0.0:
-				_at_camara_t = _autotest_t
-			if _autotest_t - _at_camara_t > 1.2:
-				var img_b := get_viewport().get_texture().get_image()
-				img_b.save_png(Session.autotest_screenshot.replace(".png", "-%s.png" % especie))
-				_at_camara_t = -1.0
-				_at_bicho += 1
+			_autotest_bestiario()
 		11:
 			_at_camara_libre = false
 			# una ventana que no se construyo (error de script en su .gd) pasaba
@@ -1017,6 +1015,53 @@ func _autotest(delta: float) -> void:
 				return
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, bestiario (%d especies) y %d muerte(s)"
 				% [AT_BESTIARIO.size(), _at_muertes], 0)
+
+
+## Retrato de cada bicho del bestiario: la camara los visita sin volar hasta
+## ellos. Agregar un alien = agregarlo a AT_BESTIARIO, nada mas.
+## Lo comparten los dos modos: en "loop" es la ultima fase, en "bestiario" es
+## la unica.
+func _autotest_bestiario() -> void:
+	if _at_bicho >= AT_BESTIARIO.size():
+		if Session.autotest_modo == "bestiario":
+			_at_camara_libre = false
+			_at_captura("BESTIARIO OK — %d retratos" % AT_BESTIARIO.size(), 0)
+		else:
+			_at_fase = 11
+		return
+	var especie: String = AT_BESTIARIO[_at_bicho]
+	var bicho := _primero_de_especie(especie)
+	if bicho == null:
+		_at_captura("FALLO — no hay ningun %s en el mapa" % especie, 1)
+		return
+	_camara.position = bicho.position
+	if _at_camara_t < 0.0:
+		_at_camara_t = _autotest_t
+	var dt := _autotest_t - _at_camara_t
+	# En modo arte se toma un SEGUNDO fotograma casi un segundo despues del
+	# primero: una foto fija no demuestra que un shader se MUEVA, con dos se
+	# compara. En la pasada del loop sobra — ahi solo se comprueba que existan.
+	var dos_frames := Session.autotest_modo == "bestiario"
+	if not _at_primer_frame:
+		if dt <= 1.2:
+			return
+		_at_primer_frame = true
+		_retrato(especie, "")
+		if dos_frames:
+			return
+	elif dt <= 2.1:
+		return
+	else:
+		_retrato(especie, "-b")
+	# siguiente bicho
+	_at_camara_t = -1.0
+	_at_primer_frame = false
+	_at_bicho += 1
+
+
+func _retrato(especie: String, sufijo: String) -> void:
+	var img := get_viewport().get_texture().get_image()
+	img.save_png(Session.autotest_screenshot.replace(".png", "-%s%s.png" % [especie, sufijo]))
 
 
 ## Primer NPC de una especie, para los retratos de QA del autotest.

@@ -28,6 +28,6 @@ void vertex() {
 }
 
 void fragment() {
-	COLOR = muestrear(TEXTURE, undular(UV));
+	COLOR = muestrear(TEXTURE, girar_anillos(undular(UV)));
 	COLOR.rgb *= peristalsis(UV.y);
 }

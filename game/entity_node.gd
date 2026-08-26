@@ -156,13 +156,16 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 ##   con blend aditivo), o el brillo interior se quedaria recto sobre una carne
 ##   que se dobla.
 ## - `peristalsis`: una onda de luz recorriendo el interior. Solo en la emisiva.
+## - `rings`: anillos concentricos girando. Solo tiene sentido en los bichos de
+##   metal, donde la pieza ES concentrica.
 ##
 ## Se piden por separado a proposito: un Skarnox podria tener magma corriendo
 ## por sus grietas sin que la roca se menee un milimetro.
 func _montar_ondulacion(d: Dictionary) -> void:
 	var o: Dictionary = d.get("undulate", {})
 	var peri: Dictionary = d.get("peristalsis", {})
-	if o.is_empty() and peri.is_empty():
+	var anillos: Dictionary = d.get("rings", {})
+	if o.is_empty() and peri.is_empty() and anillos.is_empty():
 		return
 	_onda_idle = float(o.get("idle", 0.35))
 	_onda_gain = _onda_idle
@@ -186,6 +189,11 @@ func _montar_ondulacion(d: Dictionary) -> void:
 		mat.set_shader_parameter("peri_frequency", float(peri.get("frequency", 2.0)))
 		mat.set_shader_parameter("peri_speed", float(peri.get("speed", 2.5)))
 		mat.set_shader_parameter("peri_sharpness", float(peri.get("sharpness", 3.0)))
+		mat.set_shader_parameter("ring_speed", float(anillos.get("speed", 0.0)))
+		mat.set_shader_parameter("ring_bands", float(anillos.get("bands", 3.0)))
+		mat.set_shader_parameter("ring_inner", float(anillos.get("inner", 0.05)))
+		mat.set_shader_parameter("ring_outer", float(anillos.get("outer", 0.40)))
+		mat.set_shader_parameter("ring_falloff", float(anillos.get("falloff", 0.5)))
 		par[0].material = mat
 		if not o.is_empty():
 			_ondas.append(mat)   # solo la ondulacion se modula por frame

@@ -39,7 +39,8 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 ```powershell
 .\tools\dev-run.ps1                 # levanta lo que falte y abre el cliente
 .\tools\dev-run.ps1 -SoloServicios  # deja MySQL/api/game server listos, sin cliente
-.\tools\dev-run.ps1 -Autotest       # autotest del loop completo (+ chat y reconexión), con captura
+.\tools\dev-run.ps1 -Autotest       # pasada e2e completa del loop (~3 min): la que cierra el gate
+.\tools\dev-run.ps1 -Bestiario      # solo los retratos de los NPC (~20 s): la de trabajo de arte
 .\tools\dev-run.ps1 -Detener        # apaga cliente, api y game server
 ```
 
@@ -47,7 +48,20 @@ Es idempotente: comprueba cada puerto (**3307** MySQL de dev, **5100** api, **52
 arranca lo caído. En una sesión de Claude Code está también como `/godot [autotest|servicios|detener]`.
 
 Credenciales de dev en `dev_login.cfg` (fuera del repo). **Una sesión por cuenta**: la ventana entra con
-`odrack` y el autotest usa `testbot` — no corras el autotest mientras juegas con esa cuenta.
+`odrack` y las pruebas usan `testbot` — no las corras mientras juegas con esa cuenta.
+
+### Dos pruebas, no una
+
+`-Autotest` recorre el loop entero y es la que responde *"¿sigue funcionando el juego?"*. Tarda unos
+tres minutos, y para calibrar un shader eso es un peaje: se paga una y otra vez por mirar un bicho.
+
+`-Bestiario` solo pone la cámara sobre cada especie y sale — **veinte segundos**. Comparten el mismo
+código de retrato (`_autotest_bestiario`), así que no hay dos versiones que mantener.
+
+Y el modo de arte toma **dos fotogramas** de cada bicho (`-<especie>.png` y `-<especie>-b.png`,
+separados ~0,9 s). Una foto fija no demuestra que un shader se **mueva**; con dos se compara. Pegarlas
+lado a lado es la forma fiable de verificar una animación — medir píxeles que cambian **no sirve**,
+porque el fondo en paralaje se mueve más que el bicho y ahoga la señal.
 
 ## Definiciones en JSON (`data/`)
 
@@ -98,6 +112,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
 | `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `peristalsis.*` | `data/npcs/*.json` | Vorax: amount 1.8 | Onda de luz recorriendo el interior: cuánto brilla el bulto, cuántos hay, a qué ritmo bajan y qué tan marcados van |
+| `rings.*` | `data/npcs/*.json` | Gravit 0.9 · Gravon 0.75 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -236,6 +251,26 @@ que pasa, no un parpadeo del cuerpo entero (de eso ya se encarga el `pulse`, que
 con magma corriendo por sus grietas y la roca quieta, por ejemplo. Por eso, sin bloque `undulate`,
 la amplitud se fuerza a **cero** en vez de dejar el defecto del shader — pedir luz no puede poner a
 bailar al bicho de propina.
+
+### Anillos: metal que gira sobre sí mismo
+
+`rings` rota la UV **alrededor del centro** por bandas de radio, alternando el sentido. Sobre una
+pieza concéntrica cada banda mapea anillo sobre anillo y parece girar — por eso solo sirve para los
+bichos de metal; sobre una silueta con forma sería un remolino.
+
+**Dónde girar no se elige a ojo: se mide** con `mex-orbit-art/tools/ring-bands.py`, que da el perfil
+de asimetría angular por radio. La razón es contundente: **rotar un anillo perfectamente liso mapea
+píxeles idénticos sobre sí mismos y no se ve nada**. El Gravon lo enseñó a la mala — su banda estaba
+cortada en `r 0.24`, justo antes de donde empieza su detalle asimétrico (0.24–0.33), y el efecto era
+invisible aunque el shader funcionara perfectamente.
+
+La otra mitad de la decisión es la **proa**:
+
+- El **Gravon** tiene cabeza, así que su banda móvil se corta en `0.31` y no la roza. Gira su
+  maquinaria interna; el frente se queda quieto.
+- El **Gravit** es simétrico de revolución —cuatro pernos iguales a 90°— así que **no tiene proa que
+  romper**, y gira entero hasta el borde. Sus pernos orbitando son lo que da la lectura, porque sus
+  anillos interiores son demasiado lisos por sí solos.
 
 ## Muerte y reaparición
 

@@ -5,11 +5,13 @@
 #
 # Uso:  .\tools\dev-run.ps1              (todo y lanza el cliente)
 #       .\tools\dev-run.ps1 -SoloServicios   (deja los servicios listos, sin cliente)
-#       .\tools\dev-run.ps1 -Autotest        (corre el autotest headless con captura)
+#       .\tools\dev-run.ps1 -Autotest        (pasada e2e completa del loop, ~3 min)
+#       .\tools\dev-run.ps1 -Bestiario       (solo los retratos de los NPC, ~20 s)
 #       .\tools\dev-run.ps1 -Detener         (apaga api y game server)
 param(
     [switch]$SoloServicios,
     [switch]$Autotest,
+    [switch]$Bestiario,
     [switch]$Detener
 )
 
@@ -94,21 +96,25 @@ godot --headless --path . --import 2>&1 | Out-Null
 Pop-Location
 Write-Host 'clases globales: OK'
 
-if ($Autotest) {
-    # el autotest usa la cuenta TestBot; una sesion por cuenta, asi que no
-    # debe correr mientras el usuario juega con ella
+if ($Autotest -or $Bestiario) {
+    # ambas pruebas usan la cuenta TestBot; una sesion por cuenta, asi que no
+    # deben correr mientras el usuario juega con ella
     $captura = 'C:/Tools/autotest.png'
+    # El BESTIARIO solo retrata a cada bicho y sale: es la prueba para trabajo de
+    # arte, donde la pasada completa del loop es un peaje de tres minutos.
+    $modo = if ($Bestiario) { 'bestiario' } else { 'loop' }
+    # Holgado sobre el limite interno de cada modo (60 s / 190 s): si el lanzador
+    # mata a Godot antes, el resultado es un timeout falso que no dice nada.
+    $tope = if ($Bestiario) { 90000 } else { 300000 }
     Push-Location $cliente
-    $p = Start-Process godot -ArgumentList '--path', '.', '--', "--screenshot=$captura" `
+    $p = Start-Process godot -ArgumentList '--path', '.', '--', "--screenshot=$captura", "--modo=$modo" `
         -NoNewWindow -PassThru
-    # Holgado sobre el limite interno del autotest (190 s): si el lanzador mata
-    # a Godot antes, el resultado es un timeout falso que no dice nada.
-    if (-not $p.WaitForExit(300000)) {
+    if (-not $p.WaitForExit($tope)) {
         $p | Stop-Process -Force
-        Write-Host 'AUTOTEST: timeout'
+        Write-Host "$($modo.ToUpper()): timeout"
     }
     Pop-Location
-    Write-Host "Autotest terminado. Captura: $captura"
+    Write-Host "Prueba '$modo' terminada. Capturas junto a: $captura"
     exit 0
 }
 

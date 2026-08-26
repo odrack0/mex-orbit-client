@@ -11,6 +11,14 @@
     "steps": 0,
     "deg_per_sec": 70
   },
+  "_anillos": "Anillos giratorios. A diferencia del Gravon, aqui gira TAMBIEN el borde con los pernos (outer 0.47): el Gravit es simetrico de revolucion —cuatro pernos iguales a 90 grados— asi que no tiene proa que romper, y sus anillos interiores son tan lisos que rotarlos solo no se veia. Los pernos orbitando son lo que da la lectura.",
+  "rings": {
+    "speed": 0.9,
+    "bands": 4,
+    "inner": 0.05,
+    "outer": 0.47,
+    "falloff": 0.5
+  },
   "pulse": {
     "min_intensity": 0.18,
     "max_intensity": 2.2,
