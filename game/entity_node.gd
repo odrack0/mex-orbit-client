@@ -24,6 +24,10 @@ var objetivo := Vector2.ZERO
 var es_heroe := false
 var es_npc := false
 var click_radius := 42.0
+## Giro: pasos de cuantizacion (0 = continuo) y velocidad angular
+## (0 = duracion fija TURN_TIME, el modelo de nave del prototipo).
+var turn_steps := TURN_STEPS
+var turn_deg_per_sec := 0.0
 ## Objetivo de ataque: mientras exista GOBIERNA el rumbo (prioridad del
 ## prototipo: objetivo de ataque > destino de vuelo), incluso con la nave quieta.
 var attack_target: EntityNode = null
@@ -77,6 +81,9 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 
 	var d := AssetDefs.entidad(spawn.type_id)
 	click_radius = float(d.get("click_radius", 42))
+	var giro: Dictionary = d.get("turn", {})
+	turn_steps = int(giro.get("steps", TURN_STEPS))
+	turn_deg_per_sec = float(giro.get("deg_per_sec", 0.0))
 
 	_sprite = Sprite2D.new()
 	_sprite.texture = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
@@ -301,24 +308,45 @@ func set_objetivo(destino: Vector2) -> void:
 	_encarar(destino)
 
 
-## Giro del prototipo: cuantizado a TURN_STEPS y tweenado por el camino corto.
+## Giro. Dos modelos, y la diferencia importa:
+##
+## - NAVES (turn_deg_per_sec = 0): duracion FIJA de TURN_TIME por el camino
+##   corto, cuantizada a 32 pasos. Es el giro del prototipo, calibrado y
+##   validado: da igual que el angulo sea de 11 o de 180 grados, siempre tarda
+##   lo mismo. En una nave que persigue al cursor eso se siente responsivo.
+##
+## - BICHOS (turn_deg_per_sec > 0): velocidad ANGULAR constante y giro continuo.
+##   Con el modelo de la nave, un alien se daba media vuelta en 0,1 s y parecia
+##   un trompo. En el original esto no pasaba porque sus aliens eran animaciones
+##   en bucle y NO rotaban nunca (`rotatable=false`); los nuestros son renders
+##   con proa, asi que giran, pero a su ritmo: un Skarnox pesa y se nota.
 func _girar_a(grados: float) -> void:
-	var paso := 360.0 / TURN_STEPS
-	var destino_ang := fposmod(roundf(grados / paso) * paso, 360.0)
+	var destino_ang := fposmod(grados, 360.0)
+	if turn_steps > 0:
+		var paso := 360.0 / turn_steps
+		destino_ang = fposmod(roundf(grados / paso) * paso, 360.0)
 	var delta := fposmod(destino_ang - _visual_angle + 180.0, 360.0) - 180.0
 	if is_zero_approx(delta):
 		return
+	var duracion := TURN_TIME
+	if turn_deg_per_sec > 0.0:
+		duracion = clampf(absf(delta) / turn_deg_per_sec, 0.08, 8.0)
 	if _turn_tween != null:
 		_turn_tween.kill()
 	_turn_tween = create_tween()
-	_turn_tween.tween_method(_set_visual_angle, _visual_angle, _visual_angle + delta, TURN_TIME)
+	_turn_tween.tween_method(_set_visual_angle, _visual_angle, _visual_angle + delta, duracion)
 
 
 func _set_visual_angle(grados: float) -> void:
 	_visual_angle = fposmod(grados, 360.0)
+	if turn_steps <= 0:
+		# giro continuo: un bicho girando despacio a 32 pasos se ve a tirones,
+		# porque cada paso dura una eternidad
+		_sprite.rotation_degrees = _visual_angle
+		return
 	# el giro SALTA de posicion en posicion durante el tween, como el flip de
 	# frames del sheet original: es el look que distingue al prototipo
-	var paso := 360.0 / TURN_STEPS
+	var paso := 360.0 / turn_steps
 	_sprite.rotation_degrees = roundf(_visual_angle / paso) * paso
 
 

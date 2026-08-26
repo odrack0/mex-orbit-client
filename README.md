@@ -95,6 +95,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_REINTENTOS` | `game/world.gd` | 8 | Intentos de reconexión antes de rendirse (espera creciente 1→5 s, dentro de la gracia de 60 s del server) |
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
+| `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
 
 ## Mobiliario del mapa: portal y caja de carga
 
@@ -153,6 +154,24 @@ son del chat (izquierda) y del minimapa (derecha).
 > script recién creado revienta con *"Could not find type"*.
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
+
+## Dos modelos de giro, y la diferencia importa
+
+**Naves** (`turn_deg_per_sec = 0`): duración **fija** de `TURN_TIME` por el camino corto, cuantizada a 32 pasos.
+Es el giro del prototipo, calibrado y validado: dé igual que el ángulo sea de 11° o de 180°, siempre tarda lo
+mismo. En una nave que persigue al cursor eso se siente responsivo, y el salto entre pasos es el *look* heredado
+del sheet de 32 frames del original.
+
+**Bichos** (`turn.deg_per_sec > 0` en su JSON): velocidad **angular** constante y giro **continuo**.
+
+Aplicarles el modelo de la nave fue un error: un alien se daba media vuelta en 0,1 s y parecía un trompo. En el
+original eso no pasaba porque **sus aliens eran animaciones en bucle y no rotaban nunca** (`rotatable=false`) —
+la rotación de 32 frames era cosa de las naves de jugador. Los nuestros son renders con proa, así que sí giran,
+pero cada uno a su peso: el Ferox encara en un instante (240 °/s, acorde a sus 420 de velocidad) y al Skarnox
+media vuelta le lleva casi 6 segundos.
+
+La cuantización también se apaga en ellos (`steps: 0`): girando despacio, 32 pasos se ven a tirones porque cada
+paso dura una eternidad.
 
 ## El bestiario del 1-1
 

@@ -5,9 +5,13 @@
   "emissive": "res://assets/npcs/vex-emissive.png",
   "screen_size": 141,
   "click_radius": 46,
-
   "engines": [],
   "_pulso": "intensidad del blend aditivo: por encima de 1 sobreexpone (el nucleo se pone blanco). sharpness marca el destello: 1 = seno suave, 3+ = latido con valles largos",
+  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. la plaga: pequenio y nervioso, el mas agil de su familia",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 150
+  },
   "pulse": {
     "min_intensity": 0.2,
     "max_intensity": 2.4,

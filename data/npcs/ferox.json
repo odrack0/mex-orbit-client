@@ -5,8 +5,12 @@
   "emissive": "res://assets/npcs/ferox-emissive.png",
   "screen_size": 190,
   "click_radius": 54,
-
   "engines": [],
+  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. cazador: el que mas rapido encara, acorde a sus 420 de velocidad",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 240
+  },
   "pulse": {
     "min_intensity": 0.3,
     "max_intensity": 2.8,

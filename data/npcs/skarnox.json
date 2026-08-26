@@ -5,8 +5,12 @@
   "emissive": "res://assets/npcs/skarnox-emissive.png",
   "screen_size": 248,
   "click_radius": 84,
-
   "engines": [],
+  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. el mas pesado del 1-1; media vuelta le lleva casi 6 s",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 32
+  },
   "pulse": {
     "min_intensity": 0.2,
     "max_intensity": 2.6,

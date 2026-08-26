@@ -5,8 +5,12 @@
   "emissive": "res://assets/npcs/skarn-emissive.png",
   "screen_size": 196,
   "click_radius": 66,
-
   "engines": [],
+  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. un penasco no pivota: gira lento",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 55
+  },
   "pulse": {
     "min_intensity": 0.15,
     "max_intensity": 2.0,
