@@ -84,7 +84,10 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 Agregar una nave nueva = soltar su PNG + escribir su JSON. Cero código.
 Un JSON que apunta a una textura que todavía no existe **no tira el cliente**: cae al respaldo
 y avisa por consola — el arte y el dato pueden ir a distinto ritmo.
-Los anclajes se miden con `mex-orbit-art/tools/find-anchors.py <export.png>` en vez de estimarlos a ojo.
+Los anclajes se miden con `mex-orbit-art/tools/find-anchors.py <export.png> [emisivo|geom]` en vez de
+estimarlos a ojo. El modo **emisivo** busca las toberas por su brillo; el modo **geom** las busca por la
+silueta y encuentra tambien los cañones laterales — hace falta cuando las toberas son metal apagado,
+como en la cápsula Phoenix, que no tiene un solo píxel encendido.
 
 ## Diales
 

@@ -1,26 +1,49 @@
 {
-  "_comentario": "Particularidades de la nave. Coordenadas de anclaje en el espacio de la TEXTURA (origen en su centro, eje Y hacia la popa), independientes de la escala del export.",
+  "_comentario": "Phoenix: la nave inicial es una CAPSULA de rescate, no un caza. Cuatro toberas en la popa y dos tubos laser a los costados. Coordenadas de anclaje en el espacio de la TEXTURA (origen en su centro, eje Y hacia la popa), independientes de la escala del export.",
   "code": "phoenix",
   "texture": "res://assets/ships/phoenix.png",
   "screen_size": 141,
-  "click_radius": 42,
-
-  "_anclajes": "medidos sobre el render: los pixeles cian del tercio inferior (las toberas reales)",
+  "click_radius": 48,
+  "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
   "engines": [
-    { "x": -19, "y": 205, "scale": 1.0 },
-    { "x": 16, "y": 205, "scale": 1.0 }
+    {
+      "x": -58,
+      "y": 238,
+      "scale": 1.0
+    },
+    {
+      "x": -25,
+      "y": 238,
+      "scale": 1.0
+    },
+    {
+      "x": 24,
+      "y": 238,
+      "scale": 1.0
+    },
+    {
+      "x": 57,
+      "y": 238,
+      "scale": 1.0
+    }
   ],
+  "_estela": "Cuatro plumas en vez de dos: se acortan y se afinan respecto a la nave anterior para que se lean como CUATRO y no como una mancha unica.",
   "engine_trail": {
     "color": "00E5FF",
     "core_color": "DFFBFF",
-    "length": 96,
-    "width": 9,
-    "lifetime": 0.42
+    "length": 78,
+    "width": 7,
+    "lifetime": 0.38
   },
-
-  "_canones": "bocas de cañón a los lados del canopy (validadas sobre el render). Los disparos alternan entre ellas, como los salvos del cliente original.",
+  "_canones": "Boca de cada tubo lateral, medida en la fila donde asoman del casco (y=197, al 91% del semiancho). El filtro de 'bien afuera' del tool importa: sin el cogia los asideros curvos del domo, que estan al 64%.",
   "cannons": [
-    { "x": -35, "y": -160 },
-    { "x": 35, "y": -160 }
+    {
+      "x": -165,
+      "y": -59
+    },
+    {
+      "x": 165,
+      "y": -59
+    }
   ]
 }
