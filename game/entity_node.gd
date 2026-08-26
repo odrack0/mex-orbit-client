@@ -12,6 +12,12 @@ const TURN_TIME := 0.1
 const TURN_STEPS := 32
 const DEAD_ZONE := 2.0
 
+## Giro al EMPRENDER VUELO. Los bichos tienen su propio ritmo (el peso de su
+## especie) para el giro perezoso en reposo, pero para encarar un destino todos
+## son briosos: si no, arrancan a toda velocidad mientras siguen girando y se
+## desplazan de lado, como un cangrejo. La proa va delante SIEMPRE.
+const TURN_FLIGHT_DEG_PER_SEC := 420.0
+
 # barras de estado (dos: casco y escudo)
 const BARRA_ANCHO := 60.0
 const BARRA_ALTO := 3.0
@@ -261,7 +267,13 @@ func _process(delta: float) -> void:
 		_emissive.self_modulate = Color(k, k, k, 1.0)
 
 	if en_vuelo:
-		position = position.move_toward(objetivo, speed * delta)
+		# la punta va delante: mientras la proa no mire al destino apenas avanza,
+		# y acelera segun se alinea (coseno del error). Sin esto, un Skarnox
+		# arrancaba a 190 u/s de costado durante todo su giro.
+		var factor := 1.0
+		if turn_deg_per_sec > 0.0:
+			factor = maxf(cos(deg_to_rad(_error_de_proa(objetivo))), 0.0)
+		position = position.move_toward(objetivo, speed * factor * delta)
 
 	# atacando: el rumbo sigue al objetivo aunque se muevan los dos (o ninguno)
 	if attack_target != null:
@@ -288,7 +300,18 @@ func set_attack_target(objetivo_ataque: EntityNode) -> void:
 func _encarar(punto: Vector2) -> void:
 	var rumbo := punto - position
 	if rumbo.length() > 1.0:
-		_girar_a(rad_to_deg(rumbo.angle()) + 90.0)
+		_girar_a(_angulo_visual_hacia(punto),
+			TURN_FLIGHT_DEG_PER_SEC if turn_deg_per_sec > 0.0 else 0.0)
+
+
+## El angulo visual (proa arriba en el arte -> +90) que mira a un punto.
+func _angulo_visual_hacia(punto: Vector2) -> float:
+	return rad_to_deg((punto - position).angle()) + 90.0
+
+
+## Cuanto se desvia la proa del rumbo, en grados (0 = mirando al frente).
+func _error_de_proa(punto: Vector2) -> float:
+	return absf(fposmod(_angulo_visual_hacia(punto) - _visual_angle + 180.0, 360.0) - 180.0)
 
 
 ## Fija el destino y orienta la proa UNA vez (no cada frame, como el prototipo).
@@ -320,7 +343,7 @@ func set_objetivo(destino: Vector2) -> void:
 ##   un trompo. En el original esto no pasaba porque sus aliens eran animaciones
 ##   en bucle y NO rotaban nunca (`rotatable=false`); los nuestros son renders
 ##   con proa, asi que giran, pero a su ritmo: un Skarnox pesa y se nota.
-func _girar_a(grados: float) -> void:
+func _girar_a(grados: float, dps := 0.0) -> void:
 	var destino_ang := fposmod(grados, 360.0)
 	if turn_steps > 0:
 		var paso := 360.0 / turn_steps
@@ -329,8 +352,9 @@ func _girar_a(grados: float) -> void:
 	if is_zero_approx(delta):
 		return
 	var duracion := TURN_TIME
-	if turn_deg_per_sec > 0.0:
-		duracion = clampf(absf(delta) / turn_deg_per_sec, 0.08, 8.0)
+	var vel := dps if dps > 0.0 else turn_deg_per_sec
+	if vel > 0.0:
+		duracion = clampf(absf(delta) / vel, 0.06, 8.0)
 	if _turn_tween != null:
 		_turn_tween.kill()
 	_turn_tween = create_tween()

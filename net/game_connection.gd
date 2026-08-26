@@ -20,6 +20,7 @@ signal npc_prices(msg)
 signal station_range(msg)
 signal unload_result(msg)
 signal sell_result(msg)
+signal respawn_options(msg)
 signal chat_message(msg)
 signal resume_ok
 signal error_reply(msg)
@@ -111,6 +112,7 @@ func _despachar(frame: PackedByteArray) -> void:
 		MexProtocol.StationRange.MSG_ID: station_range.emit(MexProtocol.StationRange.decode(frame))
 		MexProtocol.UnloadResult.MSG_ID: unload_result.emit(MexProtocol.UnloadResult.decode(frame))
 		MexProtocol.SellResult.MSG_ID: sell_result.emit(MexProtocol.SellResult.decode(frame))
+		MexProtocol.RespawnOptions.MSG_ID: respawn_options.emit(MexProtocol.RespawnOptions.decode(frame))
 		MexProtocol.Ping.MSG_ID:
 			var pong := MexProtocol.Pong.new()
 			pong.nonce = MexProtocol.Ping.decode(frame).nonce

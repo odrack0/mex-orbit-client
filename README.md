@@ -95,7 +95,8 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_REINTENTOS` | `game/world.gd` | 8 | Intentos de reconexión antes de rendirse (espera creciente 1→5 s, dentro de la gracia de 60 s del server) |
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
-| `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
+| `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
+| `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
 
@@ -172,6 +173,30 @@ media vuelta le lleva casi 6 segundos.
 
 La cuantización también se apaga en ellos (`steps: 0`): girando despacio, 32 pasos se ven a tirones porque cada
 paso dura una eternidad.
+
+### La proa va delante
+
+Dar peso al giro trajo un efecto secundario feo: el bicho arrancaba **a toda velocidad mientras
+todavía estaba girando**, así que se desplazaba de lado como un cangrejo — un Skarnox llegaba a
+deslizarse 1.000 unidades de costado durante sus 5,6 s de giro. Dos correcciones:
+
+- **El giro de vuelo es brioso en todos** (`TURN_FLIGHT_DEG_PER_SEC`). El ritmo pesado de cada
+  especie es para el giro perezoso **en reposo**, que es donde cuenta su carácter; para encarar
+  un destino, todos son rápidos.
+- **La velocidad depende de la alineación**: se avanza por el coseno del error de proa, así que
+  mientras la nariz no mire al rumbo apenas se mueve, y acelera según se alinea. Pivota y luego
+  arranca, en vez de derrapar.
+
+## Muerte y reaparición
+
+`RespawnPanel` (`ui/respawn_panel.gd`) es el killscreen: velo rojo, causa de la muerte y las
+opciones que **manda el server**. El cliente no inventa ninguna — llegan en `RespawnOptions` con
+su `label_key`, su coste y si están disponibles. El texto sale de una tabla local por clave: el
+server manda claves, no frases, para que no decida el idioma (la lección de los menús con texto
+del legado).
+
+Mientras estás muerto el mundo no acepta órdenes: ni clic de vuelo, ni láser. El spawn de la
+nave reparada es lo que devuelve el control.
 
 ## El bestiario del 1-1
 

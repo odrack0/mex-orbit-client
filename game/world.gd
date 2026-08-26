@@ -35,6 +35,8 @@ var _minimapa: MinimapWindow
 # la base (E2/I6)
 var _base: StationPanel
 var _chat: ChatWindow
+var _respawn: RespawnPanel
+var _muerto := false
 var _estacion_pos := Vector2.ZERO
 var _estacion_rango := 0.0
 var _en_base := false
@@ -84,6 +86,7 @@ func _ready() -> void:
 	_conn.station_range.connect(_on_station_range)
 	_conn.unload_result.connect(_on_unload_result)
 	_conn.sell_result.connect(_on_sell_result)
+	_conn.respawn_options.connect(_on_respawn_options)
 	_conn.error_reply.connect(_on_error)
 	_conn.chat_message.connect(_on_chat)
 	_conn.resume_ok.connect(_on_resume_ok)
@@ -235,6 +238,7 @@ func _on_enter_map(em) -> void:
 	_construir_minimapa(em.map_code)
 	_construir_base()
 	_construir_chat()
+	_construir_respawn()
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
 
@@ -345,6 +349,48 @@ func _construir_chat() -> void:
 		_conn.send(msg.encode()))
 
 
+func _construir_respawn() -> void:
+	if _respawn != null:
+		return
+	var capa := CanvasLayer.new()
+	capa.layer = 20            # por encima de todo: mientras estas muerto, manda
+	add_child(capa)
+	_respawn = RespawnPanel.new()
+	capa.add_child(_respawn)
+	_respawn.option_chosen.connect(func(option_id: int):
+		var msg := MexProtocol.RespawnSelect.new()
+		msg.option_id = option_id
+		_conn.send(msg.encode()))
+
+
+## La nave fue destruida: el server manda las opciones de vuelta al juego.
+func _on_respawn_options(msg) -> void:
+	_muerto = true
+	_hold_move = false
+	_laser_on = false
+	_autopilot = Vector2.INF
+	_pending_box = 0
+	if _respawn != null:
+		_respawn.mostrar(msg)
+	if _chat != null:
+		_chat.add_system("Tu nave fue destruida por %s" % msg.killer_name, NTheme.HOSTILE)
+	_estado("Nave destruida", NTheme.HOSTILE)
+	# el autotest no tiene dedos: acepta la primera opcion y sigue con el loop
+	if Session.autotest_screenshot != "" and not msg.options.is_empty():
+		# un frame de margen para que el killscreen ya este dibujado en la captura
+		await get_tree().process_frame
+		var img_m := get_viewport().get_texture().get_image()
+		img_m.save_png(Session.autotest_screenshot.replace(".png", "-muerte.png"))
+		_at_muertes += 1
+		if _respawn != null:
+			_respawn.visible = false
+		var sel := MexProtocol.RespawnSelect.new()
+		sel.option_id = msg.options[0].option_id
+		_conn.send(sel.encode())
+		_at_fase = 0
+		_at_target = 0
+
+
 func _on_station_range(msg) -> void:
 	_en_base = msg.in_range
 	if _base != null:
@@ -410,6 +456,11 @@ func _on_spawn(sp) -> void:
 	_entidades[sp.entity_id] = nodo
 	if es_heroe:
 		_hero = nodo
+		if _muerto:
+			_muerto = false
+			_estado("Reparada en la base", NTheme.HP)
+			if _chat != null:
+				_chat.add_system("Nave reparada en la base", NTheme.HP)
 		_camara.position = nodo.position
 		_camara.make_current()
 
@@ -516,6 +567,8 @@ func _numero_flotante(sobre: EntityNode, texto: String, color: Color) -> void:
 
 func _on_destroyed(msg) -> void:
 	var nodo: EntityNode = _entidades.get(msg.entity_id)
+	if nodo != null and nodo == _hero:
+		_hero = null              # el spawn de la reaparicion lo vuelve a crear
 	if nodo != null:
 		_explotar(nodo.position)
 		nodo.queue_free()
@@ -620,6 +673,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _toggle_laser() -> void:
+	if _muerto:
+		return
 	if _seleccionada == 0 or not _entidades.has(_seleccionada):
 		return
 	_laser_on = not _laser_on
@@ -632,6 +687,8 @@ func _toggle_laser() -> void:
 
 
 func _handle_click(world_pos: Vector2) -> void:
+	if _muerto:
+		return                     # destruido: el mundo no acepta ordenes
 	# las cajas tienen prioridad (flujo del prototipo): volar hasta ella y
 	# recolectar al llegar — el server exige cercania, el cliente la procura
 	var caja_id := _box_at(world_pos)
@@ -803,8 +860,15 @@ const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox"]
 var _at_bicho := 0
 
 
+var _at_muertes := 0
+
+
 func _autotest(delta: float) -> void:
 	_autotest_t += delta
+	# muerto o aun sin nave: no hay nada que pilotar este frame. Sin esta guarda,
+	# cualquier fase que use _hero reventaba en cuanto un Ferox hacia su trabajo.
+	if _muerto or (_hero == null and _at_fase > 0):
+		return
 	if _autotest_t > 150.0:
 		_at_captura("AUTOTEST TIMEOUT en fase %d" % _at_fase, 1)
 		return
@@ -945,8 +1009,8 @@ func _autotest(delta: float) -> void:
 			if _minimapa == null or _chat == null or _base == null:
 				_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
 				return
-			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal y bestiario (%d especies)"
-				% AT_BESTIARIO.size(), 0)
+			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, bestiario (%d especies) y %d muerte(s)"
+				% [AT_BESTIARIO.size(), _at_muertes], 0)
 
 
 ## Primer NPC de una especie, para los retratos de QA del autotest.
