@@ -122,7 +122,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `peristalsis.*` | `data/npcs/*.json` | Vorax: amount 1.8 | Onda de luz recorriendo el interior: cuánto brilla el bulto, cuántos hay, a qué ritmo bajan y qué tan marcados van |
 | `peristalsis.radial` | `data/npcs/*.json` | true en las rocas | La onda sale del **centro** en vez de recorrer el cuerpo |
-| `flicker.*` | `data/npcs/*.json` | Skarn 0.35 · Skarnox 0.30 | Ruido que hace temblar el brillo: cuánto, con qué grano y a qué ritmo |
+| `flicker.*` | `data/npcs/*.json` | Skarn 0.35 · Vex 0.45 · Ferox 0.40 | Ruido que hace temblar el brillo: cuánto, con qué grano y a qué ritmo |
 | `rings.*` | `data/npcs/*.json` | Solo el Gravit: 0.9 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
@@ -355,6 +355,18 @@ piedra no se menea, así que el Skarn no lleva `undulate` — su vida entera est
 - **`flicker`**: ruido de valor que hace temblar el brillo. Sin él, el `pulse` late demasiado limpio y
   la roca parece tener un reactor dentro en vez de lava. El ruido es un hash barato con interpolación
   suave; no hace falta Perlin para que una grieta tiemble.
+
+**El grano (`scale`) va al revés de lo que parece**, y costó un intento averiguarlo: depende de cuánta
+superficie ocupe la emisiva, no del tamaño del bicho.
+
+| Emisiva | `scale` | Por qué |
+|---|---|---|
+| Grande (grietas del Skarn) | 6–7 | Celdas pequeñas dan variación **local**: unas grietas arden y otras no |
+| Delgada (vetas del Vex, costuras del Ferox) | 3–3,5 | Celdas grandes hacen que la veta **entera** suba y baje |
+
+Sobre una línea de un píxel, un grano fino produce ruido **por píxel** — se lee como suciedad, no como
+fuego. El Vex y el Ferox arrancaron con `scale` 9 y 12 y apenas se notaba; a 3,5 y 3 el núcleo y las
+costuras laten enteros.
 
 **El Skarnox los lleva para su camino FIJO**, no para el animado: en calidad alta manda su atlas, que
 ya trae su propio fuego. Pero en media y baja cae al PNG, y sin esto el hermano mayor se vería **más

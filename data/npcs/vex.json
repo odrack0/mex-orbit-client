@@ -25,5 +25,11 @@
     "max_intensity": 2.4,
     "speed": 2.6,
     "sharpness": 2.8
+  },
+  "_titileo": "Parpadeo del nucleo y las vetas. Grano GRUESO (scale 3.5) a proposito: sobre lineas delgadas un grano fino produce ruido por pixel, que se lee como suciedad. Con celdas grandes la veta entera sube y baja, que es lo que se ve.",
+  "flicker": {
+    "amount": 0.45,
+    "scale": 3.5,
+    "speed": 1.8
   }
 }

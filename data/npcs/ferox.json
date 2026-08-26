@@ -24,5 +24,11 @@
     "max_intensity": 2.8,
     "speed": 4.2,
     "sharpness": 2.0
+  },
+  "_titileo": "Parpadeo de los ojos y las costuras. Grano aun mas grueso que el del Vex: su emisiva son lineas de un pixel sobre hueso claro. Rapido (2.4) como todo lo suyo.",
+  "flicker": {
+    "amount": 0.4,
+    "scale": 3.0,
+    "speed": 2.4
   }
 }

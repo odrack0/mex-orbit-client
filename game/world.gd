@@ -939,7 +939,7 @@ var _at_reconectado := false
 var _at_camara_libre := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
-const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
+const AT_BESTIARIO := ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
 var _at_primer_frame := false
 var _at_cambio_calidad := false
