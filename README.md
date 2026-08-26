@@ -97,6 +97,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
 | `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
+| `peristalsis.*` | `data/npcs/*.json` | Vorax: amount 1.8 | Onda de luz recorriendo el interior: cuánto brilla el bulto, cuántos hay, a qué ritmo bajan y qué tan marcados van |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -220,6 +221,21 @@ por debajo, así que se desploma de 352 a 49 px.
 aguijón más rápido (4,8 frente a 4,2) y más inquieto en reposo (0,55 frente a 0,50), mientras que
 en pantalla se desplaza menos. El chico tiembla, el grande pesa — el mismo criterio que ya rige sus
 velocidades de giro y sus latidos.
+
+### Peristalsis: que se le vea digerir
+
+El mismo truco aplicado a la capa emisiva. `peristalsis` multiplica el brillo por una onda que
+**recorre** el cuerpo en vez de latir a la vez, así que se ve un bulto de luz bajando por el tracto
+del Vorax.
+
+El detalle que lo vende es el **signo menos delante de `TIME`**: con más, la onda subiría de la cola
+a la boca, que es exactamente al revés de como se traga. Y nunca baja del brillo base — es un bulto
+que pasa, no un parpadeo del cuerpo entero (de eso ya se encarga el `pulse`, que multiplica global).
+
+**Los dos efectos se piden por separado.** Un bicho puede tener peristalsis sin ondular: un Skarnox
+con magma corriendo por sus grietas y la roca quieta, por ejemplo. Por eso, sin bloque `undulate`,
+la amplitud se fuerza a **cero** en vez de dejar el defecto del shader — pedir luz no puede poner a
+bailar al bicho de propina.
 
 ## Muerte y reaparición
 

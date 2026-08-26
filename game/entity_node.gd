@@ -150,31 +150,45 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
 
 
-## Ondulacion de criatura: la cola serpentea. Sale del JSON del bicho, asi que
-## una roca no se menea y un gusano si — y calibrar es cambiar un numero.
-## El sprite y su capa emisiva llevan el MISMO shader (una con blend aditivo)
-## para que el brillo interior siga al cuerpo en vez de quedarse recto.
+## Shaders vivos de la criatura. Dos efectos INDEPENDIENTES, ambos del JSON:
+##
+## - `undulate`: el cuerpo serpentea. Va en el sprite Y en su capa emisiva (una
+##   con blend aditivo), o el brillo interior se quedaria recto sobre una carne
+##   que se dobla.
+## - `peristalsis`: una onda de luz recorriendo el interior. Solo en la emisiva.
+##
+## Se piden por separado a proposito: un Skarnox podria tener magma corriendo
+## por sus grietas sin que la roca se menee un milimetro.
 func _montar_ondulacion(d: Dictionary) -> void:
 	var o: Dictionary = d.get("undulate", {})
-	if o.is_empty():
+	var peri: Dictionary = d.get("peristalsis", {})
+	if o.is_empty() and peri.is_empty():
 		return
 	_onda_idle = float(o.get("idle", 0.35))
 	_onda_gain = _onda_idle
+	var fase := float(entity_id % 628) * 0.01
 	var objetivos := [[_sprite, "res://game/shaders/undulate.gdshader"]]
 	if _emissive != null:
 		objetivos.append([_emissive, "res://game/shaders/undulate_add.gdshader"])
 	for par in objetivos:
 		var mat := ShaderMaterial.new()
 		mat.shader = load(par[1])
-		mat.set_shader_parameter("amplitude", float(o.get("amplitude", 0.05)))
+		# sin bloque `undulate` la amplitud es CERO, no el defecto del shader:
+		# pedir solo peristalsis no puede poner a bailar al bicho de propina
+		mat.set_shader_parameter("amplitude", float(o.get("amplitude", 0.0)))
 		mat.set_shader_parameter("frequency", float(o.get("frequency", 2.0)))
 		mat.set_shader_parameter("speed", float(o.get("speed", 3.0)))
 		mat.set_shader_parameter("from_y", float(o.get("from", 0.25)))
 		# fase por entidad: un banco de gusanos al unisono canta a bucle
-		mat.set_shader_parameter("phase", float(entity_id % 628) * 0.01)
+		mat.set_shader_parameter("phase", fase)
 		mat.set_shader_parameter("gain", _onda_gain)
+		mat.set_shader_parameter("peri_amount", float(peri.get("amount", 0.0)))
+		mat.set_shader_parameter("peri_frequency", float(peri.get("frequency", 2.0)))
+		mat.set_shader_parameter("peri_speed", float(peri.get("speed", 2.5)))
+		mat.set_shader_parameter("peri_sharpness", float(peri.get("sharpness", 3.0)))
 		par[0].material = mat
-		_ondas.append(mat)
+		if not o.is_empty():
+			_ondas.append(mat)   # solo la ondulacion se modula por frame
 
 
 ## Carga una textura del JSON. Un asset que todavia no existe (arte en camino,

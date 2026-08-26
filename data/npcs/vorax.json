@@ -13,6 +13,13 @@
     "from": 0.22,
     "idle": 0.4
   },
+  "_peristalsis": "Onda de luz que BAJA por el tracto, de la boca a la cola: la direccion en la que traga. sharpness alta = un bulto marcado que pasa, no un parpadeo del cuerpo entero.",
+  "peristalsis": {
+    "amount": 1.8,
+    "frequency": 2.4,
+    "speed": 2.2,
+    "sharpness": 3.5
+  },
   "engines": [],
   "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
   "turn": {
