@@ -1018,6 +1018,7 @@ var _at_primer_frame := false
 var _at_cambio_calidad := false
 var _at_calidad_previa := "alta"
 var _at_caza_desde := 0.0
+var _at_caza_dist := 0.0
 var _at_shot_caja := false
 
 
@@ -1053,18 +1054,11 @@ func _autotest(delta: float) -> void:
 				# el Vex mas cercano, no el NPC mas cercano: con cinco especies en
 				# el mapa el vecino podia ser un Skarnox de 47 s de TTK y el
 				# autotest se comia su propio limite de tiempo peleando
-				var cercano: EntityNode = null
-				var mejor := INF
-				for id in _entidades:
-					var e: EntityNode = _entidades[id]
-					if e.type_id != "vex":
-						continue
-					if _hero.position.distance_to(e.position) < mejor:
-						mejor = _hero.position.distance_to(e.position)
-						cercano = e
+				var cercano := _mejor_presa()
 				if cercano != null:
 					_at_target = cercano.entity_id
 					_at_caza_desde = _autotest_t
+					_at_caza_dist = _hero.position.distance_to(cercano.position)
 					_volar_a(cercano.position + Vector2(120, 0))
 					_at_fase = 1
 		1:
@@ -1072,26 +1066,56 @@ func _autotest(delta: float) -> void:
 			if vex == null:
 				_at_fase = 0     # se murio o despawneo: buscar otro
 				return
+			# Techo duro de la FASE, no de la presa. Reevaluar quita el runaway en
+			# la practica, pero no lo prohibe: si ningun Vex se acercara nunca,
+			# esto correria para siempre. Y un fallo con nombre —"la caza no
+			# cerro en 45 s"— vale mil veces mas que un TIMEOUT generico, que no
+			# dice en que se atasco ni por que.
+			if _autotest_t - _at_caza_desde > 45.0:
+				_at_captura("AUTOTEST FALLO — la caza no logro ponerse a tiro en 45 s "
+					+ "(nave 320 contra Vex 270: revisa velocidades o densidad de bichos)", 1)
+				return
+
+			# LA CAZA NO SE ATA A UNA PRESA.
+			#
 			# La nave vuela a 320 y un Vex vagabundea a 270: si el bicho elige un
 			# destino que se aleja, la persecucion cierra a 50 unidades por
-			# segundo y puede durar eternamente. De ahi salio un timeout
-			# intermitente del gate. A los 20 s se abandona y se busca otro.
-			if _autotest_t - _at_caza_desde > 20.0:
-				_at_fase = 0
-				_at_target = 0
-				return
-			# Desde que los NPC tienen IA, cruzan el mapa: volar UNA vez a donde
-			# estaba dejaba al bot esperando en un hueco vacio para siempre.
-			# Hay que perseguirlo, como ya hacia la fase 2.
-			if _hero.position.distance_to(vex.position) > 450.0 					and _autotest_t - _at_ultimo_vuelo > 2.0:
+			# segundo. A 3.000 de distancia eso es un minuto — mas de lo que dura
+			# la prueba entera. Ese era el timeout intermitente del gate.
+			#
+			# Abandonar a los 20 s no lo arreglaba, solo lo repartia: cada mala
+			# eleccion costaba 20 s y dos seguidas se comian el reloj igual. Y
+			# mientras el bot perseguia a uno que huia, podia pasarle otro Vex por
+			# delante sin que se enterase, porque estaba atado a su presa.
+			#
+			# Ahora se reevalua: cada dos segundos se mira quien es el mas cercano
+			# AHORA y se cambia si compensa. Con quince Vex vagabundeando, la
+			# presa acaba viniendo sola — el bot deja de correr detras de uno y
+			# pasa a quedarse con el que se acerque.
+			if _autotest_t - _at_ultimo_vuelo > 2.0:
 				_at_ultimo_vuelo = _autotest_t
-				_volar_a(vex.position + Vector2(120, 0))
+				# `_mejor_presa` ya ordena por tiempo de intercepcion, asi que si
+				# devuelve otra es que se llega antes a esa. El margen del 20% de
+				# la version anterior sobra: no hay que evitar un baile entre
+				# equidistantes, porque dos presas equidistantes con rumbos
+				# distintos NO valen lo mismo.
+				var otro := _mejor_presa()
+				if otro != null and otro.entity_id != _at_target:
+					_at_target = otro.entity_id
+					vex = otro
+				if _hero.position.distance_to(vex.position) > 450.0:
+					_volar_a(vex.position + Vector2(120, 0))
 			if _hero.position.distance_to(vex.position) < 450.0:
 				_seleccionar(vex)
 				_laser_on = true
 				var msg := MexProtocol.LaserToggle.new()
 				msg.active = true
 				_conn.send(msg.encode())
+				# el minimo teorico es (distancia - alcance) / velocidad de la nave:
+				# si el tiempo real se le parece, no hay nada que arreglar — es viaje
+				var t_min: float = maxf(_at_caza_dist - 450.0, 0.0) / maxf(_hero.speed, 1.0)
+				print("AUTOTEST caza: %.1f s (presa inicial a %.0f u · minimo teorico %.1f s)"
+					% [_autotest_t - _at_caza_desde, _at_caza_dist, t_min])
 				_at_fase = 2
 		2:
 			# captura extra a media pelea: sirve de QA visual del combate
@@ -1308,6 +1332,61 @@ func _autotest(delta: float) -> void:
 		93:
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"
 				% [AT_BESTIARIO.size(), _at_muertes], 0)
+
+
+## Especies de caza del autotest: las dos comunes y flojas. Ampliarlo de solo
+## `vex` a `vex` + `vexor` sube la densidad de presa de 15 a 23 en el 1-1, y ya
+## no hay motivo para exigir una especie concreta — desde que la venta pregunta
+## al almacen que hay, al bot le sirve cualquier caja.
+const AT_PRESAS := ["vex", "vexor"]
+
+
+## La mejor presa NO es la mas cercana: es a la que se llega antes.
+##
+## Elegir por distancia es la peor metrica posible cuando la presa huye. La nave
+## vuela a 320 y un Vex vagabundea a 270, asi que uno que se aleja cierra a 50
+## unidades por segundo y otro un poco mas lejos que VIENE hacia ti cierra a 590
+## — once veces mas rapido. Por distancia se elige siempre al peor de los dos.
+##
+## Aqui se calcula el tiempo real de ponerse a tiro, que se puede saber porque el
+## nodo conoce su `objetivo` y su `speed`: la velocidad de acercamiento es la de
+## la nave menos la componente de la presa en la linea que las une. Si esa
+## componente iguala o supera a la nave, la presa es inalcanzable y se descarta
+## en vez de perseguirla.
+func _mejor_presa() -> EntityNode:
+	var elegida: EntityNode = null
+	var mejor := INF
+	for id in _entidades:
+		var e: EntityNode = _entidades[id]
+		if not AT_PRESAS.has(e.type_id):
+			continue
+		var hacia := e.position - _hero.position
+		var d := hacia.length()
+		if d <= 450.0:
+			return e                      # ya esta a tiro: no hay nada mejor
+		var dir := hacia / d
+		var v := Vector2.ZERO
+		if e.speed > 0.0 and e.objetivo.distance_to(e.position) > 1.0:
+			v = (e.objetivo - e.position).normalized() * e.speed
+		var cierre := _hero.speed - v.dot(dir)
+		if cierre <= 1.0:
+			continue                      # huye tan rapido como volamos: inalcanzable
+		var t := (d - 450.0) / cierre
+		if t < mejor:
+			mejor = t
+			elegida = e
+	# si todas huyen, quedarse con la mas cercana: peor plan que ninguno, y con
+	# quince vagabundos alguna cambiara de rumbo en breve
+	if elegida == null:
+		for id in _entidades:
+			var e2: EntityNode = _entidades[id]
+			if not AT_PRESAS.has(e2.type_id):
+				continue
+			var d2 := _hero.position.distance_to(e2.position)
+			if d2 < mejor:
+				mejor = d2
+				elegida = e2
+	return elegida
 
 
 ## Retrato de cada bicho del bestiario: la camara los visita sin volar hasta
