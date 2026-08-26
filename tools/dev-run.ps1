@@ -101,7 +101,9 @@ if ($Autotest) {
     Push-Location $cliente
     $p = Start-Process godot -ArgumentList '--path', '.', '--', "--screenshot=$captura" `
         -NoNewWindow -PassThru
-    if (-not $p.WaitForExit(180000)) {
+    # Holgado sobre el limite interno del autotest (190 s): si el lanzador mata
+    # a Godot antes, el resultado es un timeout falso que no dice nada.
+    if (-not $p.WaitForExit(300000)) {
         $p | Stop-Process -Force
         Write-Host 'AUTOTEST: timeout'
     }

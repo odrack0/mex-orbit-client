@@ -211,9 +211,12 @@ Cinco especies, y cada una se distingue **antes** de leer su nombre:
 | Skarnox | mineral | El Skarn crecido: corona de cristal y una **fractura abierta** con el núcleo fundido |
 | Mordax | fauces | **Es una boca**: mandíbula radial de dientes pálidos en medio de un caparazón rojo-pardo |
 | Ferox | óseo | El único **claro**: hueso marfil, hojas y cola de látigo |
+| Gravon | metal | El Gravit crecido: tres núcleos y el anillo exterior **partido por su propio peso** |
+| Vorax | carne | Una garganta con cuerpo: gusano segmentado y semitraslúcido con **las vísceras encendidas** |
 
-Cuatro familias de material —quitina, metal, roca y hueso— y una silueta que es pura anatomía
-(el Mordax). Ninguna se confunde con otra a tamaño de juego.
+Seis lecturas de material —quitina, metal, roca, hueso, caparazón dentado y carne— y ninguna se
+confunde con otra a tamaño de juego. Las dos criaturas de boca se separan por silueta: el
+**Mordax** es un disco que muerde, el **Vorax** una garganta alargada que traga.
 
 El Ferox es una decisión deliberada: las otras dos familias son oscuras, así que se separa por **valor**, no
 solo por silueta — a 150 px se distingue de un vistazo. Es también el más rápido del mapa (420, por encima de
@@ -224,6 +227,11 @@ menor**. Con dos parejas (Vex→Vexor, Skarn→Skarnox) el jugador aprende la pr
 nadie se la explique; el **Gravit** le enseña la otra, y de paso le promete que existe un
 **Gravon** más grande antes de haberlo visto nunca.
 
-Dos de los siete son agresivos, con roles distintos: el **Ferox** caza de lejos (radio 700) y el
-**Mordax** solo muerde lo que entra en su radio corto (350). Los otros cinco son pasivos — que no
-es lo mismo que inofensivos: devuelven el fuego en cuanto los golpeas.
+Tres de los nueve son agresivos, con roles distintos: el **Ferox** caza de lejos (radio 700), el
+**Mordax** solo muerde lo que entra en su radio corto (350) y el **Vorax** persigue pero **huye
+por debajo del 30% de casco** — es el primero cuyo nombre describe una conducta y no una forma.
+Los otros seis son pasivos, que no es lo mismo que inofensivos: devuelven el fuego en cuanto los
+golpeas.
+
+Las tres parejas base→mayor (Vex→Vexor, Skarn→Skarnox, Gravit→**Gravon**) dejan la regla de
+sufijos completa: **-it/-in** menor, **-on/-or/-ox** mayor.

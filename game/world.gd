@@ -896,6 +896,12 @@ func _autotest(delta: float) -> void:
 			if vex == null:
 				_at_fase = 0     # se murio o despawneo: buscar otro
 				return
+			# Desde que los NPC tienen IA, cruzan el mapa: volar UNA vez a donde
+			# estaba dejaba al bot esperando en un hueco vacio para siempre.
+			# Hay que perseguirlo, como ya hacia la fase 2.
+			if _hero.position.distance_to(vex.position) > 450.0 					and _autotest_t - _at_ultimo_vuelo > 2.0:
+				_at_ultimo_vuelo = _autotest_t
+				_volar_a(vex.position + Vector2(120, 0))
 			if _hero.position.distance_to(vex.position) < 450.0:
 				_seleccionar(vex)
 				_laser_on = true
