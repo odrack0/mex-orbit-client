@@ -7,11 +7,13 @@
 #       .\tools\dev-run.ps1 -SoloServicios   (deja los servicios listos, sin cliente)
 #       .\tools\dev-run.ps1 -Autotest        (pasada e2e completa del loop, ~3 min)
 #       .\tools\dev-run.ps1 -Bestiario       (solo los retratos de los NPC, ~20 s)
+#       .\tools\dev-run.ps1 -Bestiario -Calidad baja   (los mismos, forzando un nivel)
 #       .\tools\dev-run.ps1 -Detener         (apaga api y game server)
 param(
     [switch]$SoloServicios,
     [switch]$Autotest,
     [switch]$Bestiario,
+    [ValidateSet('', 'baja', 'media', 'alta')][string]$Calidad = '',
     [switch]$Detener
 )
 
@@ -107,8 +109,9 @@ if ($Autotest -or $Bestiario) {
     # mata a Godot antes, el resultado es un timeout falso que no dice nada.
     $tope = if ($Bestiario) { 90000 } else { 300000 }
     Push-Location $cliente
-    $p = Start-Process godot -ArgumentList '--path', '.', '--', "--screenshot=$captura", "--modo=$modo" `
-        -NoNewWindow -PassThru
+    $argumentos = @('--path', '.', '--', "--screenshot=$captura", "--modo=$modo")
+    if ($Calidad) { $argumentos += "--calidad=$Calidad" }
+    $p = Start-Process godot -ArgumentList $argumentos -NoNewWindow -PassThru
     if (-not $p.WaitForExit($tope)) {
         $p | Stop-Process -Force
         Write-Host "$($modo.ToUpper()): timeout"

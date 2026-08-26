@@ -41,6 +41,7 @@ El cliente del juego, en **Godot**: la cara de MexOrbit ante el jugador.
 .\tools\dev-run.ps1 -SoloServicios  # deja MySQL/api/game server listos, sin cliente
 .\tools\dev-run.ps1 -Autotest       # pasada e2e completa del loop (~3 min): la que cierra el gate
 .\tools\dev-run.ps1 -Bestiario      # solo los retratos de los NPC (~20 s): la de trabajo de arte
+.\tools\dev-run.ps1 -Bestiario -Calidad baja   # los mismos, forzando un nivel de calidad
 .\tools\dev-run.ps1 -Detener        # apaga cliente, api y game server
 ```
 
@@ -180,6 +181,47 @@ son del chat (izquierda) y del minimapa (derecha).
 > script recién creado revienta con *"Could not find type"*.
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
+
+## Calidad gráfica: niveles por subsistema
+
+`Quality` (autoload, `game/quality.gd`) es un puerto del prototipo, que a su vez replicaba el
+`QualitySettings` del cliente original. La idea que importa **no es el interruptor alta/media/baja**,
+sino que cada sistema pregunte por lo suyo al dibujar: `Quality.nivel("engine") > 0`. Los tres
+preajustes solo mueven ese diccionario, así que añadir un modo "personalizado" es abrir la ventana,
+no rehacer nada.
+
+| clave | 0 (Baja) | 1 (Media) | 2 (Alta) |
+|---|---|---|---|
+| `npc` | PNG fijo | PNG fijo | **atlas animado** |
+| `shader` | — | ondulación · peristalsis · anillos | ídem |
+| `emissive` | — | capa emisiva pulsando | ídem |
+| `engine` | sin llamas | llamas | llamas + chispas |
+| `collectable` | caja congelada en su fotograma 0 | ídem | caja animada |
+| `background` | solo polvo estelar | fondo y planetas | + mosaicos de paralaje |
+| `explosion` | no se dibuja | se dibuja | ídem |
+
+**El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan ~58 MB de
+VRAM. Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
+
+**El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
+fijo ni su capa emisiva; por eso los JSON de los animados declaran **los dos caminos** y el nivel
+elige cuál se monta. La excepción es la caja: su diseño cambió con el vídeo, así que su respaldo es
+el **fotograma 0 del propio atlas** (`cargo-box-still.png`) y no el PNG viejo, que mostraría una caja
+distinta al bajar la calidad.
+
+**Se persiste por cuenta, en `user://quality.cfg`.** Dos personas que comparten un PC guardan
+ajustes distintos, y a la vez el valor **no viaja con la cuenta** a otra máquina — la calidad es una
+capacidad del equipo, no una preferencia de la partida.
+
+**El cambio se aplica al instante.** `Quality.cambiada` lleva las claves que se movieron;
+`EntityNode.reconstruir()` rehace solo la parte visual (el nombre, las barras, los cañones y el rumbo
+no dependen del nivel), las cajas se recrean en su sitio y el fondo se reconstruye. La nave, su rumbo
+y el estado del mundo no se tocan.
+
+**F1** abre y cierra la ventana de Ajustes; colgará del engranaje cuando exista la barra de iconos
+del sistema N. El autotest en modo bestiario **baja la calidad con el mundo ya poblado** y retrata el
+resultado: si reconstruir rompiera algo, revienta ahí.
 
 ## Dos tipos de asset para los bichos
 

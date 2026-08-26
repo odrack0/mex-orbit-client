@@ -39,6 +39,9 @@ var turn_deg_per_sec := 0.0
 var attack_target: EntityNode = null
 
 var _sprite: Sprite2D
+## La definicion del JSON se guarda: al cambiar la calidad hay que rehacer la
+## parte visual sin volver a pedirle nada al server.
+var _def := {}
 var _nombre: Label
 # dos barras y solo dos: casco y escudo. v1 NO tiene nano-casco (la tercera
 # barra amarilla del prototipo): se decidió dejarlo fuera del juego.
@@ -106,8 +109,22 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	turn_steps = int(giro.get("steps", TURN_STEPS))
 	turn_deg_per_sec = float(giro.get("deg_per_sec", 0.0))
 
+	_def = d
+	_construir_visual()
+
+	# bocas de cañón del JSON (espacio de la textura; se alternan al disparar)
+	for canon in d.get("cannons", []):
+		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
+	_construir_etiquetas(d, heroe, spawn)
+
+
+## Todo lo que depende de la CALIDAD vive aqui, para poder rehacerlo en caliente.
+func _construir_visual() -> void:
+	var d := _def
 	_sprite = Sprite2D.new()
-	var anim: Dictionary = d.get("frames", {})
+	# ALTA monta el atlas del video; MEDIA y BAJA caen al PNG fijo, que por eso
+	# nunca se borro al convertir un bicho a atlas.
+	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("npc") >= 2 else {}
 	if anim.is_empty():
 		_sprite.texture = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
 	else:
@@ -128,7 +145,8 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 
 	# capa emisiva (si la define su JSON y su PNG existe de verdad). Un bicho de
 	# atlas no la lleva: su luz ya viene cocida en los fotogramas.
-	var tex_emisiva := _textura(d.get("emissive", ""), "") if _anim_total == 0 else null
+	var tex_emisiva := _textura(d.get("emissive", ""), "") \
+		if _anim_total == 0 and Quality.nivel("emissive") >= 1 else null
 	if tex_emisiva != null:
 		_emissive = Sprite2D.new()
 		_emissive.texture = tex_emisiva
@@ -142,16 +160,35 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 
 	_montar_ondulacion(d)
 
-	# motores en los anclajes del JSON (espacio de la textura)
+	# motores en los anclajes del JSON. Nivel 0 = sin llamas; 1 = llamas sin
+	# chispas (las particulas son lo caro); 2+ = completo.
 	var trail: Dictionary = d.get("engine_trail", {})
-	for motor in d.get("engines", []):
-		_flames.append(_crear_llama(motor, trail))
-		_trails.append(_crear_estela(motor, trail))
+	if Quality.nivel("engine") >= 1:
+		for motor in d.get("engines", []):
+			_flames.append(_crear_llama(motor, trail))
+			if Quality.nivel("engine") >= 2:
+				_trails.append(_crear_estela(motor, trail))
 
-	# bocas de cañón del JSON (espacio de la textura; se alternan al disparar)
-	for canon in d.get("cannons", []):
-		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 
+## Rehace la parte visual con la calidad actual. Lo demas —nombre, barras,
+## cañones, rumbo— no depende del nivel y se queda como esta.
+func reconstruir() -> void:
+	for n in [_sprite]:
+		if n != null:
+			n.queue_free()
+	_sprite = null
+	_emissive = null
+	_flames.clear()      # eran hijos del sprite: se van con el
+	_trails.clear()
+	_ondas.clear()
+	_anim_total = 0
+	_construir_visual()
+	# el sprite vuelve al fondo: si no, se dibujaria sobre las barras y el nombre
+	move_child(_sprite, 0)
+	_set_visual_angle(_visual_angle)
+
+
+func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 	# nombre y barra DEBAJO de la nave, como el prototipo (con contorno negro
 	# para que se lean sobre el fondo estelar). El offset sale del tamaño real.
 	var mitad: float = float(d.get("screen_size", 141)) * 0.5
@@ -187,6 +224,8 @@ func _montar_ondulacion(d: Dictionary) -> void:
 	var o: Dictionary = d.get("undulate", {})
 	var peri: Dictionary = d.get("peristalsis", {})
 	var anillos: Dictionary = d.get("rings", {})
+	if Quality.nivel("shader") < 1:
+		return          # calidad baja: ni se crea el material
 	if o.is_empty() and peri.is_empty() and anillos.is_empty():
 		return
 	_onda_idle = float(o.get("idle", 0.35))

@@ -9,6 +9,7 @@ config/features=PackedStringArray("4.4")
 
 [autoload]
 Session="*res://net/session.gd"
+Quality="*res://game/quality.gd"
 
 [display]
 ; resolucion logica 1280x720; la ventana arranca MAXIMIZADA y el lienzo se

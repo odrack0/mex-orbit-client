@@ -35,9 +35,20 @@ func _init() -> void:
 ## { main, tiles: [{tex, p_factor, scale, alpha}], planets: [{tex, pos, p_factor, scale}],
 ##   sun: {pos, p_factor}, world: Vector2 }
 func build(config: Dictionary) -> void:
+	# Niveles de `background`, calcados del original: 0 solo polvo estelar,
+	# 1 fondo base y planetas sin mosaicos, 2+ completo. Los mosaicos son lo
+	# caro — son sprites repetidos que cubren todo el mapa.
+	var nivel := Quality.nivel("background")
+	if nivel < 1:
+		_starfield = Starfield2D.new()
+		_starfield.tint = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
+		_starfield.tint_ratio = float(config.get("starfield_tint_ratio", 0.35))
+		add_child(_starfield)
+		return
 	# capa 0: mosaicos profundos primero (z por orden de insercion)
-	for t: Dictionary in config.get("tiles_far", []):
-		_add_tile(t, config.world)
+	if nivel >= 2:
+		for t: Dictionary in config.get("tiles_far", []):
+			_add_tile(t, config.world)
 	# capa 1: el fondo principal como SKYBOX — siempre cubre el viewport (el
 	# cielo no se encoge con el zoom) y deriva proporcional al recorrido del
 	# mapa. Evita el corte del fondo en las orillas y con zoom-out.
@@ -61,8 +72,9 @@ func build(config: Dictionary) -> void:
 		_layers.append({"node": planeta, "p_factor": p.p_factor, "offset": p.pos})
 		_occluders.append({"node": planeta, "radius": planeta.texture.get_width() * escala_p * 0.5})
 	# mosaicos medio y cercano encima
-	for t: Dictionary in config.get("tiles_near", []):
-		_add_tile(t, config.world)
+	if nivel >= 2:
+		for t: Dictionary in config.get("tiles_near", []):
+			_add_tile(t, config.world)
 	# el sol vive DENTRO del skybox (posicion en el espacio del fondo): se
 	# mueve y escala con el, como una estrella pintada en el cielo
 	if config.has("sun") and _main != null:

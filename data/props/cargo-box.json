@@ -11,9 +11,10 @@
   },
   "world_size": 64,
   "click_radius": 34,
-  "_sin_pulse": "Sin capa emisiva ni bloque `pulse`: la baliza va cocida en los fotogramas. Lo que desincroniza a las cajas entre si es el desfase de indice de fotograma.",
   "minimap": {
     "color": "FFC85C",
     "radius": 2.0
-  }
+  },
+  "_dos_caminos": "DOS CAMINOS. El respaldo fijo NO es el PNG viejo sino el fotograma 0 del propio atlas: el diseño de la caja cambio con el video, y usar el viejo mostraria una caja distinta al bajar la calidad.",
+  "texture": "res://assets/world/cargo-box-still.png"
 }

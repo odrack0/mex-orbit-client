@@ -15,6 +15,10 @@ var autotest_screenshot := ""
 ## trabajo de arte esa pasada es un peaje de tres minutos, asi que "bestiario"
 ## solo retrata a cada bicho y sale.
 var autotest_modo := "loop"
+## Preajuste de calidad forzado por linea de comandos (--calidad=baja|media|alta).
+## Lo usa la prueba para retratar la MISMA escena en los tres niveles; vacio =
+## se respeta lo que el jugador tenga guardado.
+var calidad_forzada := ""
 
 
 func _ready() -> void:
@@ -23,6 +27,8 @@ func _ready() -> void:
 			autotest_screenshot = arg.trim_prefix("--screenshot=")
 		elif arg.begins_with("--modo="):
 			autotest_modo = arg.trim_prefix("--modo=")
+		elif arg.begins_with("--calidad="):
+			calidad_forzada = arg.trim_prefix("--calidad=")
 
 
 ## Credenciales de dev desde dev_login.cfg (fuera del repo).

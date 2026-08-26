@@ -35,6 +35,7 @@ var _minimapa: MinimapWindow
 # la base (E2/I6)
 var _base: StationPanel
 var _chat: ChatWindow
+var _ajustes: SettingsWindow
 var _respawn: RespawnPanel
 var _muerto := false
 var _estacion_pos := Vector2.ZERO
@@ -69,6 +70,14 @@ var _autotest_t := 0.0
 
 
 func _ready() -> void:
+	# la calidad se carga antes de construir nada: es POR CUENTA, asi que hasta
+	# aqui no se sabia de quien son los ajustes
+	Quality.cargar(Session.account_id)
+	if Session.calidad_forzada != "":
+		Quality.niveles = Quality.PRESETS[Session.calidad_forzada].duplicate()
+		Quality.preset = Session.calidad_forzada
+	Quality.cambiada.connect(_on_calidad_cambiada)
+
 	_conn = GameConnection.new()
 	add_child(_conn)
 	_conn.welcome.connect(_on_welcome)
@@ -241,6 +250,7 @@ func _on_enter_map(em) -> void:
 	_construir_base()
 	_construir_chat()
 	_construir_respawn()
+	_construir_ajustes()
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
 
@@ -349,6 +359,43 @@ func _construir_chat() -> void:
 		msg.channel = canal
 		msg.text = texto
 		_conn.send(msg.encode()))
+
+
+func _construir_ajustes() -> void:
+	if _ajustes != null:
+		return
+	var capa := CanvasLayer.new()
+	capa.layer = 21               # por encima del killscreen
+	add_child(capa)
+	_ajustes = SettingsWindow.new()
+	capa.add_child(_ajustes)
+	_ajustes.preset_elegido.connect(func(nombre: String):
+		var claves := Quality.aplicar(nombre)
+		if not claves.is_empty():
+			_estado("Calidad %s" % Quality.ETIQUETAS[nombre], NTheme.CYAN))
+
+
+## El cambio de calidad se aplica AL INSTANTE: cada entidad rehace su parte
+## visual, las cajas se recrean y el fondo se reconstruye. Nada de esperar a
+## reconectar — la nave, su rumbo y el estado del mundo no se tocan.
+func _on_calidad_cambiada(claves: Array) -> void:
+	if claves.has("npc") or claves.has("emissive") or claves.has("shader") \
+			or claves.has("engine"):
+		for id in _entidades:
+			_entidades[id].reconstruir()
+	if claves.has("collectable") or claves.has("emissive"):
+		var pendientes := []
+		for id in _cajas:
+			pendientes.append([id, _cajas[id].position])
+			_cajas[id].queue_free()
+		_cajas.clear()
+		_caja_anim_total = 0
+		for par in pendientes:
+			_crear_caja(par[0], par[1])
+	if claves.has("background") and _fondo != null:
+		_fondo.queue_free()
+		_fondo = null
+		_construir_fondo(_map_code)
 
 
 func _construir_respawn() -> void:
@@ -583,6 +630,8 @@ func _on_destroyed(msg) -> void:
 
 
 func _explotar(pos: Vector2) -> void:
+	if Quality.nivel("explosion") < 1:
+		return                    # el evento sigue ocurriendo; solo no se dibuja
 	var anim := AnimatedSprite2D.new()
 	anim.sprite_frames = _frames_explosion
 	anim.position = pos
@@ -594,16 +643,22 @@ func _explotar(pos: Vector2) -> void:
 
 
 func _on_box_spawn(msg) -> void:
-	if _cajas.has(msg.box_id):
+	_crear_caja(msg.box_id, Vector2(msg.x, msg.y))
+
+
+func _crear_caja(box_id: int, pos: Vector2) -> void:
+	if _cajas.has(box_id):
 		return
 	# todas las particularidades de la caja salen de su JSON (data/props/cargo-box.json)
 	var d := AssetDefs.prop("cargo-box")
 	var caja := Sprite2D.new()
 	# Los props entienden los DOS tipos de asset, igual que los bichos: PNG con
 	# su capa emisiva, o atlas de fotogramas sacado de un video en bucle.
-	var anim: Dictionary = d.get("frames", {})
+	# ALTA anima la caja; MEDIA y BAJA la dejan congelada en su fotograma 0, que
+	# es exactamente lo que hacia el nivel 0 de `collectable` del original.
+	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
 	if anim.is_empty():
-		caja.texture = load(d.get("texture", "res://assets/world/cargo-box.png"))
+		caja.texture = load(d.get("texture", "res://assets/world/cargo-box-still.png"))
 	else:
 		caja.texture = load(anim.get("atlas", ""))
 		caja.hframes = int(anim.get("hframes", 1))
@@ -612,7 +667,7 @@ func _on_box_spawn(msg) -> void:
 		_caja_anim_fps = float(anim.get("fps", 12.0))
 		# desfase por caja: un campo de cajas parpadeando a la vez canta a bucle
 		caja.set_meta("anim_t", randf() * float(_caja_anim_total) / maxf(_caja_anim_fps, 1.0))
-	caja.position = Vector2(msg.x, msg.y)
+	caja.position = pos
 	# tamaño en unidades de MUNDO, sea cual sea la resolucion del render. Con
 	# atlas manda el ancho del FOTOGRAMA, no el de la textura entera.
 	var lado := float(caja.texture.get_width()) / maxf(float(caja.hframes), 1.0)
@@ -621,7 +676,7 @@ func _on_box_spawn(msg) -> void:
 	add_child(caja)
 	# la banda emisiva late en ALFA para llamar al jugador (fase por caja). Una
 	# caja de atlas no la lleva: su luz ya viene cocida en los fotogramas.
-	if anim.is_empty() and d.has("emissive"):
+	if anim.is_empty() and d.has("emissive") and Quality.nivel("emissive") >= 1:
 		var brillo := Sprite2D.new()
 		brillo.texture = load(d.emissive)
 		var mat := CanvasItemMaterial.new()
@@ -635,7 +690,7 @@ func _on_box_spawn(msg) -> void:
 			.set_trans(Tween.TRANS_SINE)
 		tw.tween_property(brillo, "self_modulate:a", float(p.get("max_alpha", 1.0)), medio) \
 			.set_trans(Tween.TRANS_SINE)
-	_cajas[msg.box_id] = caja
+	_cajas[box_id] = caja
 
 
 func _on_box_despawn(msg) -> void:
@@ -663,6 +718,12 @@ func _on_error(e) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# F1 abre y cierra los ajustes (la ventana colgara del engranaje cuando exista
+	# la barra de iconos del sistema N)
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.keycode == KEY_F1 and _ajustes != null:
+		_ajustes.alternar()
+		return
 	# escribiendo en el chat, el teclado es suyo (Enter lo enfoca, como el original)
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER:
 		if _chat != null and not _chat.tiene_foco():
@@ -881,6 +942,7 @@ var _at_camara_t := -1.0
 const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
 var _at_primer_frame := false
+var _at_cambio_calidad := false
 var _at_caza_desde := 0.0
 var _at_shot_caja := false
 
@@ -1065,8 +1127,20 @@ func _autotest(delta: float) -> void:
 func _autotest_bestiario() -> void:
 	if _at_bicho >= AT_BESTIARIO.size():
 		if Session.autotest_modo == "bestiario":
+			# Prueba del cambio EN CALIENTE: se baja la calidad con el mundo ya
+			# poblado y se retrata. Si reconstruir rompiera algo, revienta aqui.
+			if Session.calidad_forzada == "" and not _at_cambio_calidad:
+				_at_cambio_calidad = true
+				Quality.aplicar("baja")
+				_at_camara_t = _autotest_t
+				return
+			if _at_cambio_calidad and _autotest_t - _at_camara_t < 1.0:
+				return
+			if _at_cambio_calidad:
+				_retrato("cambio-calidad", "")
 			_at_camara_libre = false
-			_at_captura("BESTIARIO OK — %d retratos" % AT_BESTIARIO.size(), 0)
+			_at_captura("BESTIARIO OK — %d retratos%s" % [AT_BESTIARIO.size(),
+				" + cambio de calidad en caliente" if _at_cambio_calidad else ""], 0)
 		else:
 			_at_fase = 11
 		return
@@ -1102,6 +1176,8 @@ func _autotest_bestiario() -> void:
 
 func _retrato(especie: String, sufijo: String) -> void:
 	var img := get_viewport().get_texture().get_image()
+	if Session.calidad_forzada != "":
+		sufijo = "-" + Session.calidad_forzada + sufijo
 	img.save_png(Session.autotest_screenshot.replace(".png", "-%s%s.png" % [especie, sufijo]))
 
 
