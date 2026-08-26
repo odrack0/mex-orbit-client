@@ -1,0 +1,20 @@
+{
+  "_comentario": "Vorax: el devorador. Carne lustrosa y semitraslucida con las visceras encendidas, asi que su capa emisiva cubre TODO el cuerpo en vez de un nucleo. Late como una digestion: lento en el valle y con un pico marcado.",
+  "code": "vorax",
+  "texture": "res://assets/npcs/vorax-base.png",
+  "emissive": "res://assets/npcs/vorax-emissive.png",
+  "screen_size": 205,
+  "click_radius": 66,
+  "engines": [],
+  "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 210
+  },
+  "pulse": {
+    "min_intensity": 0.22,
+    "max_intensity": 2.3,
+    "speed": 2.0,
+    "sharpness": 2.6
+  }
+}
