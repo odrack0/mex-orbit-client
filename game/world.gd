@@ -33,7 +33,7 @@ var _autopilot := Vector2.INF
 var _minimapa: MinimapWindow
 
 # la base (E2/I6)
-var _base: StationPanel
+var _base: StationWindow
 var _chat: ChatWindow
 var _ajustes: SettingsWindow
 var _sysbar: SysBar
@@ -324,7 +324,7 @@ func _construir_base() -> void:
 	var capa := CanvasLayer.new()
 	capa.layer = 11
 	add_child(capa)
-	_base = StationPanel.new()
+	_base = StationWindow.crear()
 	capa.add_child(_base)
 	_base.unload_pressed.connect(func():
 		_req_id += 1
@@ -381,10 +381,13 @@ func _construir_ajustes() -> void:
 	capa.add_child(_taskbar)
 	_taskbar.agregar("nave", ShipWindow.ICONO, "Nave", func(): _alternar_ventana("nave", _nave))
 	_taskbar.separador()
+	_taskbar.agregar("estacion", StationWindow.ICONO, "Estación",
+		func(): _alternar_ventana("estacion", _base))
+	_taskbar.separador()
 	_taskbar.agregar("chat", ChatWindow.ICONO, "Chat", func(): _alternar_ventana("chat", _chat))
 	_taskbar.agregar("minimapa", MinimapWindow.ICONO, "Minimapa",
 		func(): _alternar_ventana("minimapa", _minimapa))
-	for par in [["nave", _nave], ["chat", _chat], ["minimapa", _minimapa]]:
+	for par in [["nave", _nave], ["estacion", _base], ["chat", _chat], ["minimapa", _minimapa]]:
 		if par[1] != null:
 			_taskbar.marcar(par[0], par[1].visible)
 			par[1].cerrada.connect(_taskbar.marcar.bind(par[0], false))
@@ -486,7 +489,10 @@ func _on_respawn_options(msg) -> void:
 func _on_station_range(msg) -> void:
 	_en_base = msg.in_range
 	if _base != null:
-		_base.visible = msg.in_range
+		# la cercania condiciona lo que se puede HACER; la ventana la abre y la
+		# cierra el jugador desde su icono, como todas las demas (§1.5)
+		_base.en_rango(msg.in_range)
+		_taskbar.marcar("estacion", _base.visible)
 	_estado("En la base: descarga tu bodega y vende al NPC" if msg.in_range
 		else "Sector %s" % _map_code, NTheme.CYAN if msg.in_range else NTheme.MUTED)
 
@@ -1128,6 +1134,14 @@ func _autotest(delta: float) -> void:
 			# captura del autotest sirve tambien para revisar su arte)
 			if _en_base and _hero.position.distance_to(_estacion_pos) < 420.0 \
 					and _autotest_t - _at_ultimo_vuelo > 1.0:
+				# al ENTRAR en rango la Estacion se abre sola y sus acciones se
+				# encienden; el icono de la taskbar tiene que enterarse
+				if not _base.visible or not _taskbar.esta_marcado("estacion"):
+					_at_captura("AUTOTEST FALLO — la Estacion no se abrio al llegar a la base", 1)
+					return
+				if not _base.acciones_activas():
+					_at_captura("AUTOTEST FALLO — en la base y las acciones siguen bloqueadas", 1)
+					return
 				_at_ultimo_vuelo = _autotest_t
 				_req_id += 1
 				var msg := MexProtocol.UnloadCargo.new()
@@ -1135,13 +1149,21 @@ func _autotest(delta: float) -> void:
 				_conn.send(msg.encode())
 				_at_fase = 5
 		5:
-			# almacen recibido: vender el primer material que el NPC compre
+			# almacen recibido: vender el primer material que el NPC compre DE LOS
+			# QUE HAY. Antes vendia "material_asterium" a ciegas y se colgaba la
+			# tarde que los bichos no soltaban ese: la prueba esperaba para
+			# siempre una confirmacion que no iba a llegar. Una prueba no puede
+			# depender de que la suerte reparta un material concreto.
 			if _at_descargado and _autotest_t - _at_ultimo_vuelo > 1.0:
 				_at_ultimo_vuelo = _autotest_t
+				var material := _base.primer_vendible()
+				if material == "":
+					_at_captura("AUTOTEST FALLO — el almacen quedo sin nada que el NPC compre", 1)
+					return
 				_req_id += 1
 				var venta := MexProtocol.SellToNpc.new()
 				venta.request_id = _req_id
-				venta.material_id = "material_asterium"
+				venta.material_id = material
 				venta.amount = 0            # todo
 				_conn.send(venta.encode())
 				_at_fase = 6
@@ -1233,6 +1255,21 @@ func _autotest(delta: float) -> void:
 			# si se pueden REABRIR. Se prueba el ciclo entero —cerrar, comprobar
 			# que el icono vuelve a neutro, reabrir— porque una ventana que se
 			# cierra y no vuelve es peor que una que no se cierra.
+			# Lejos de la base: la ventana se abre igual —para mirar el almacen—
+			# pero descargar y vender siguen bloqueados. Que un boton exista y
+			# este apagado ensenia que ahi hay algo; que la ventana desaparezca
+			# no ensenia nada.
+			if not _en_base:
+				if not _base.visible:
+					_alternar_ventana("estacion", _base)
+				if not _base.visible:
+					_at_captura("AUTOTEST FALLO — la Estacion no se abre lejos de la base", 1)
+					return
+				if _base.acciones_activas():
+					_at_captura("AUTOTEST FALLO — se puede vender lejos de la base", 1)
+					return
+				_alternar_ventana("estacion", _base)
+
 			_alternar_ventana("nave", _nave)
 			if _nave.visible or _taskbar.esta_marcado("nave"):
 				_at_captura("AUTOTEST FALLO — la taskbar no cerro la ventana Nave", 1)

@@ -64,6 +64,11 @@ destino que se aleja, la persecución cierra a **50 unidades por segundo** y pue
 De ahí salió un timeout intermitente del gate — el peor tipo de fallo, porque parece un bug del
 juego. Pasados 20 s el bot abandona esa presa y busca otra.
 
+**Una prueba no puede depender de la suerte.** La fase de venta vendía `material_asterium` a ciegas, y
+se colgaba la tarde que los bichos no soltaban ese material: esperaba para siempre una confirmación
+que no iba a llegar. Ahora pregunta al almacén qué hay que el NPC compre. Es el mismo defecto que el
+timeout de la caza — una prueba que a veces falla acaba haciendo que se ignoren los fallos de verdad.
+
 **Una prueba no puede heredar estado de la corrida anterior.** La del cambio de calidad en caliente
 aplicaba `baja` y no lo deshacía, y como la calidad **se persiste por cuenta**, todas las corridas
 siguientes arrancaban degradadas sin decirlo. Costó descubrirlo porque no fallaba: el portal montaba
@@ -181,6 +186,19 @@ ventanas, botones de 36×36 con hueco de 5 y margen de 8. Hoy lleva **un solo bo
 único que tiene algo detrás; ayuda, pantalla completa y salir se cuelgan con `agregar()` el día que
 existan. Un botón que no hace nada es peor que un botón que falta: el que falta se nota, el muerto se
 aprende y se deja de mirar.
+
+**La Estación era el último panel hecho a mano**, y el que peor encajaba en el §1: aparecía y
+desaparecía sola según la distancia a la base, sin icono ni forma de abrirla. Pasarla a ventana obligó
+a resolver el choque, y la respuesta no fue quitarle la automática:
+
+> **La cercanía condiciona las acciones, no la ventana** (§1.11). Se abre siempre desde su icono
+> —para mirar el almacén desde el otro lado del mapa—, pero descargar y vender solo se habilitan
+> estando en rango.
+
+Un botón apagado enseña que ahí hay algo; una ventana que desaparece no enseña nada. Y conserva la
+comodidad: al **entrar** en rango se abre sola, pero si el jugador la cierra estando atracado no se le
+vuelve a abrir hasta que salga y vuelva — una ventana que se reabre sola tras cerrarla no es cómoda,
+es terca.
 
 **El código de color del §1.3 es contrato, no decoración**, así que el autotest lo afirma: abre los
 Ajustes *por el engranaje* —no llamando a `alternar()`, que se saltaría justo el cableado que puede
