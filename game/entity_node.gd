@@ -81,6 +81,7 @@ var _onda_idle := 0.35
 # esta en el asset. Es lo que hacia el original con sus aliens (`loopPlay`),
 # salvo que los suyos por eso no rotaban y los nuestros si.
 var _anim_total := 0
+var _anim_vaiven := false
 var _anim_fps := 12.0
 var _anim_t := 0.0
 
@@ -132,10 +133,14 @@ func _construir_visual() -> void:
 		_sprite.hframes = int(anim.get("hframes", 1))
 		_sprite.vframes = int(anim.get("vframes", 1))
 		_anim_total = int(anim.get("count", _sprite.hframes * _sprite.vframes))
+		_anim_vaiven = bool(anim.get("pingpong", false))
 		_anim_fps = float(anim.get("fps", 12.0))
 		# desfase por entidad: tres Gravon animando al unisono cantan igual que
-		# cantaban los gusanos ondulando en fase
-		_anim_t = randf() * float(_anim_total) / maxf(_anim_fps, 1.0)
+		# cantaban los gusanos ondulando en fase. Con vaiven el periodo es casi el
+		# DOBLE, y repartir sobre `count` dejaria a todos los Vex en la misma mitad
+		# de la onda — abriendo el ala a la vez, que es justo lo que se evita.
+		var periodo_ := (_anim_total * 2 - 2) if _anim_vaiven else _anim_total
+		_anim_t = randf() * float(periodo_) / maxf(_anim_fps, 1.0)
 	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del
 	# export. Con atlas manda el alto del FOTOGRAMA, no el de la textura entera.
 	var alto_tex := float(_sprite.texture.get_height()) / maxf(float(_sprite.vframes), 1.0)
@@ -182,6 +187,7 @@ func reconstruir() -> void:
 	_trails.clear()
 	_ondas.clear()
 	_anim_total = 0
+	_anim_vaiven = false
 	_construir_visual()
 	# el sprite vuelve al fondo: si no, se dibujaria sobre las barras y el nombre
 	move_child(_sprite, 0)
@@ -391,7 +397,23 @@ func _process(delta: float) -> void:
 
 	if _anim_total > 0:
 		_anim_t += delta
-		_sprite.frame = int(_anim_t * _anim_fps) % _anim_total
+		var i := int(_anim_t * _anim_fps)
+		if _anim_vaiven:
+			# VAIVEN: ida y vuelta. El bucle cierra POR CONSTRUCCION —dos
+			# fotogramas seguidos son siempre vecinos— asi que no hay costura que
+			# medir ni que arreglar, y sale gratis: el atlas es el mismo.
+			#
+			# Se descarto para el Gravon y ahi estaba bien descartado: sus aros
+			# tienen rotacion NETA, y al reves se mecerian en vez de girar. Un ala
+			# que se abre no tiene ese problema — cerrarse ES su vuelta. La tecnica
+			# no era mala, era el bicho equivocado.
+			var periodo := _anim_total * 2 - 2
+			i = i % maxi(periodo, 1)
+			if i >= _anim_total:
+				i = periodo - i
+		else:
+			i = i % _anim_total
+		_sprite.frame = i
 
 	# la ondulacion sube al nadar y baja al quedarse quieto (nunca a cero: un
 	# bicho vivo respira aunque no avance)

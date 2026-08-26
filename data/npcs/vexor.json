@@ -24,5 +24,15 @@
     "max_intensity": 2.6,
     "speed": 3.2,
     "sharpness": 2.4
-  }
+  },
+  "_asset": "ATLAS ANIMADO. Celda de 320 para 178 px en pantalla. Cuesta 11,7 MB.",
+  "_bucle": "Solo la MITAD del video: su ciclo de alas se repite dos veces en los 4 s, y el tramo 0:25 (2,2 s) cierra a 1,2 veces el paso normal — igual de bien que los 48 fotogramas con la mitad de VRAM. Merece la pena mirar si un video se repite antes de exportarlo entero.",
+  "frames": {
+    "atlas": "res://assets/npcs/vexor-anim.png",
+    "hframes": 6,
+    "vframes": 5,
+    "count": 26,
+    "fps": 12
+  },
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas."
 }

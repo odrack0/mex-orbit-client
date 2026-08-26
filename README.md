@@ -258,7 +258,7 @@ no rehacer nada.
 | `explosion` | no se dibuja | se dibuja | ídem |
 
 **El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
-de VRAM (cinco bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+de VRAM (siete bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
 sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
 
 **El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
@@ -321,6 +321,8 @@ estaba en el JSON.
 | Gravon | 214 px | 384 | 49 | 27,6 MB |
 | Skarnox | 208 px | 384 | 42 | 27,6 MB |
 | Mordax | 186 px | 320 | 48 | 19,1 MB |
+| Vex | 141 px | 256 | 48 | 12,2 MB |
+| Vexor | 178 px | 320 | 26 | 11,7 MB |
 | Gravit | 124 px | 256 | 45 | 12,2 MB |
 | Vorax | 232 px | 128×512 | 49 | 12,2 MB |
 | caja | 96 px | 192 | 49 | 6,9 MB |
@@ -364,12 +366,45 @@ movimiento salta mucho en cualquier transición; lo que delata un bucle roto es 
 | caja | 0,9× | cierra por construcción: la luz da la vuelta entera |
 | Gravit | 1,1× | se pasaba de ciclo (4,12 contra 1,18); recortar 3 fotogramas lo arregló |
 | Mordax | 1,4× | entero: el mejor recorte apenas mejoraba y costaba 7 fotogramas |
+| Vexor | 1,2× | su ciclo **se repite dos veces**: media película basta |
 | Skarnox | 2,0× | 13× de crudo; recortar 6 fotogramas lo salvó |
 | Gravon | 3,0× | el vídeo **era** un ciclo entero que no cerraba: recortar solo quita movimiento |
+| Vex | 3,9× | no es un ciclo, es una **rampa** — se arregla con vaivén, no recortando |
 
 El Gravit y el Skarnox son el caso que el recorte arregla —sobra material—; el Gravon es el que no
 —falta cierre—. Por eso el script solo recorta si la mejora es grande, y si no, avisa y deja el
 vídeo entero: la discrepancia se arregla **al generar**, no componiendo en 2D.
+
+### Vaivén: cuando el vídeo no es un ciclo sino una rampa
+
+El vídeo del Vex **no vuelve al principio**: el bicho se enciende progresivamente y despliega las alas
+durante los 4 s, y ahí se queda. La costura mide **3,9 veces** el paso normal, la peor del catálogo, y
+ningún recorte la mejora — no sobra material, es que no hay ciclo.
+
+Con `"pingpong": true` se reproduce **de ida y vuelta**. El cierre es perfecto **por construcción**
+—dos fotogramas seguidos son siempre vecinos, así que no hay costura que medir— y **no cuesta un
+fotograma más**: el atlas es el mismo, solo cambia cómo se recorre. El ciclo pasa a durar 8 s y lo que
+se ve es un ala que se abre y se cierra. La rampa deja de ser un defecto y pasa a ser el movimiento.
+
+**Se había descartado, y estaba bien descartado.** El comentario de `video-atlas.py` lo dice desde el
+Gravon: sus aros tienen rotación **neta**, y al revés se mecerían en vez de girar. Pero un ala que se
+abre no tiene ese problema — **cerrarse ES su vuelta**. La técnica no era mala, era el bicho
+equivocado; lo que importa es si el movimiento tiene una dirección privilegiada.
+
+Un detalle que se escapa fácil: con vaivén el periodo es casi el **doble**, así que el desfase por
+entidad tiene que repartirse sobre `2n−2` y no sobre `count`. Repartiendo sobre `count`, los quince
+Vex caen todos en la misma mitad de la onda y abren el ala a la vez — justo lo que el desfase existe
+para evitar.
+
+### Mirar si el vídeo se repite antes de exportarlo entero
+
+El Vexor pliega y despliega las alas **dos veces** en sus 4 s. Exportar el tramo `0:25` —2,2 s, 26
+fotogramas— cierra a **1,2×**, igual de bien que los 48, con **la mitad de la VRAM**. La comprobación
+es barata: medir el salto del fotograma `k` contra el `0` para todo `k`, y buscar el primer valle.
+
+Por eso `RANGO` y `SECUENCIA` son dos cosas distintas en la herramienta, aunque nacieran juntas con el
+portal: **recortar y no-cerrar son decisiones independientes.** El portal quiere las dos; el Vexor
+quiere recortar y sigue siendo un bucle.
 
 ### Secuencia, no bucle: el tercer patrón
 
