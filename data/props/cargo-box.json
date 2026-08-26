@@ -1,16 +1,17 @@
 {
   "_comentario": "La caja de carga que sueltan los aliens (unica fuente de crudos, guidelines §8). Su posicion y su contenido son del server; esto es su arte. La banda emisiva late en ALFA (no en intensidad como el nucleo de un alien): es una luz de baliza, no un reactor.",
   "code": "cargo-box",
-  "texture": "res://assets/world/cargo-box.png",
-  "emissive": "res://assets/world/cargo-box-emissive.png",
-  "world_size": 48,
-  "click_radius": 34,
-
-  "pulse": {
-    "min_alpha": 0.25,
-    "max_alpha": 1.0,
-    "half_period": 0.9
+  "_asset": "ATLAS ANIMADO. Su luz recorre el contorno de la tapa y cierra el ciclo por construccion: la costura mide 0,9 veces un paso normal entre fotogramas, o sea que el bucle es mejor que invisible. A 192 px por fotograma cuesta 6,9 MB de VRAM.",
+  "frames": {
+    "atlas": "res://assets/world/cargo-box-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 48,
+    "fps": 12
   },
+  "world_size": 64,
+  "click_radius": 34,
+  "_sin_pulse": "Sin capa emisiva ni bloque `pulse`: la baliza va cocida en los fotogramas. Lo que desincroniza a las cajas entre si es el desfase de indice de fotograma.",
   "minimap": {
     "color": "FFC85C",
     "radius": 2.0

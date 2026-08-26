@@ -58,6 +58,11 @@ tres minutos, y para calibrar un shader eso es un peaje: se paga una y otra vez 
 `-Bestiario` solo pone la cámara sobre cada especie y sale — **veinte segundos**. Comparten el mismo
 código de retrato (`_autotest_bestiario`), así que no hay dos versiones que mantener.
 
+**La caza tiene límite de 20 s.** La nave vuela a 320 y un Vex vagabundea a 270: si el bicho elige un
+destino que se aleja, la persecución cierra a **50 unidades por segundo** y puede durar eternamente.
+De ahí salió un timeout intermitente del gate — el peor tipo de fallo, porque parece un bug del
+juego. Pasados 20 s el bot abandona esa presa y busca otra.
+
 Y el modo de arte toma **dos fotogramas** de cada bicho (`-<especie>.png` y `-<especie>-b.png`,
 separados ~0,9 s). Una foto fija no demuestra que un shader se **mueva**; con dos se compara. Pegarlas
 lado a lado es la forma fiable de verificar una animación — medir píxeles que cambian **no sirve**,
@@ -204,6 +209,13 @@ Tres cosas que conviene no olvidar:
 Es lo que hacía el cliente original con sus aliens (`loopPlay`), con una diferencia que importa: los
 suyos **por eso no rotaban**. Los nuestros sí — en Godot el bucle es contenido y el rumbo lo pone el
 nodo, así que el Gravon gira hacia donde vuela mientras sus engranajes se destapan.
+
+**Los props también entienden los dos tipos.** La caja de carga es la primera: su JSON declara
+`frames` y `_on_box_spawn` monta el atlas igual que `EntityNode`, con desfase por caja para que un
+campo de ellas no parpadee al unísono. Su bucle es el mejor del catálogo — la costura mide **0,9
+veces** un paso normal entre fotogramas, es decir que salta menos que avanzar un fotograma. No es
+suerte: su luz **da la vuelta completa** al contorno de la tapa, así que el ciclo cierra por
+construcción. Es la forma de pedir una animación que loopee sin depender de que el modelo acierte.
 
 ## Dos modelos de giro, y la diferencia importa
 

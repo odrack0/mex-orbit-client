@@ -48,6 +48,8 @@ var _reactor_speed := 1.1
 var _reactor_sharp := 1.6
 var _laser_on := false
 var _cajas := {}                  # box_id -> Sprite2D
+var _caja_anim_total := 0         # >0 = la caja es un atlas animado
+var _caja_anim_fps := 12.0
 var _portales := {}               # portal_id -> PortalNode
 var _pending_box := 0             # flujo del prototipo: volar a la caja y recoger al llegar
 var _pending_box_pos := Vector2.ZERO
@@ -597,15 +599,29 @@ func _on_box_spawn(msg) -> void:
 	# todas las particularidades de la caja salen de su JSON (data/props/cargo-box.json)
 	var d := AssetDefs.prop("cargo-box")
 	var caja := Sprite2D.new()
-	caja.texture = load(d.get("texture", "res://assets/world/cargo-box.png"))
+	# Los props entienden los DOS tipos de asset, igual que los bichos: PNG con
+	# su capa emisiva, o atlas de fotogramas sacado de un video en bucle.
+	var anim: Dictionary = d.get("frames", {})
+	if anim.is_empty():
+		caja.texture = load(d.get("texture", "res://assets/world/cargo-box.png"))
+	else:
+		caja.texture = load(anim.get("atlas", ""))
+		caja.hframes = int(anim.get("hframes", 1))
+		caja.vframes = int(anim.get("vframes", 1))
+		_caja_anim_total = int(anim.get("count", caja.hframes * caja.vframes))
+		_caja_anim_fps = float(anim.get("fps", 12.0))
+		# desfase por caja: un campo de cajas parpadeando a la vez canta a bucle
+		caja.set_meta("anim_t", randf() * float(_caja_anim_total) / maxf(_caja_anim_fps, 1.0))
 	caja.position = Vector2(msg.x, msg.y)
-	# tamaño en unidades de MUNDO, sea cual sea la resolucion del render
-	var lado := float(caja.texture.get_width())
+	# tamaño en unidades de MUNDO, sea cual sea la resolucion del render. Con
+	# atlas manda el ancho del FOTOGRAMA, no el de la textura entera.
+	var lado := float(caja.texture.get_width()) / maxf(float(caja.hframes), 1.0)
 	caja.scale = Vector2.ONE * (float(d.get("world_size", 48)) / lado)
 	caja.z_index = 1
 	add_child(caja)
-	# la banda emisiva late en ALFA para llamar al jugador (fase por caja)
-	if d.has("emissive"):
+	# la banda emisiva late en ALFA para llamar al jugador (fase por caja). Una
+	# caja de atlas no la lleva: su luz ya viene cocida en los fotogramas.
+	if anim.is_empty() and d.has("emissive"):
 		var brillo := Sprite2D.new()
 		brillo.texture = load(d.emissive)
 		var mat := CanvasItemMaterial.new()
@@ -822,6 +838,12 @@ func _process(delta: float) -> void:
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
 
+	if _caja_anim_total > 0:
+		for caja in _cajas.values():
+			var t: float = float(caja.get_meta("anim_t", 0.0)) + delta
+			caja.set_meta("anim_t", t)
+			caja.frame = int(t * _caja_anim_fps) % _caja_anim_total
+
 	if Session.autotest_screenshot != "":
 		_autotest(delta)
 
@@ -859,6 +881,8 @@ var _at_camara_t := -1.0
 const AT_BESTIARIO := ["vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
 var _at_primer_frame := false
+var _at_caza_desde := 0.0
+var _at_shot_caja := false
 
 
 var _at_muertes := 0
@@ -904,12 +928,21 @@ func _autotest(delta: float) -> void:
 						cercano = e
 				if cercano != null:
 					_at_target = cercano.entity_id
+					_at_caza_desde = _autotest_t
 					_volar_a(cercano.position + Vector2(120, 0))
 					_at_fase = 1
 		1:
 			var vex: EntityNode = _entidades.get(_at_target)
 			if vex == null:
 				_at_fase = 0     # se murio o despawneo: buscar otro
+				return
+			# La nave vuela a 320 y un Vex vagabundea a 270: si el bicho elige un
+			# destino que se aleja, la persecucion cierra a 50 unidades por
+			# segundo y puede durar eternamente. De ahi salio un timeout
+			# intermitente del gate. A los 20 s se abandona y se busca otro.
+			if _autotest_t - _at_caza_desde > 20.0:
+				_at_fase = 0
+				_at_target = 0
 				return
 			# Desde que los NPC tienen IA, cruzan el mapa: volar UNA vez a donde
 			# estaba dejaba al bot esperando en un hueco vacio para siempre.
@@ -948,6 +981,14 @@ func _autotest(delta: float) -> void:
 					_at_fase = 3
 					return
 		3:
+			# retrato de la caja al llegar a su lado, ANTES de recogerla: es el
+			# unico momento en que se la puede fotografiar. Se dispara a 520 y no
+			# pegado: al llegar encima, la nave la tapa entera.
+			if not _at_shot_caja and _pending_box != 0 \
+					and _hero.position.distance_to(_pending_box_pos) < 520.0:
+				_at_shot_caja = true
+				var img_k := get_viewport().get_texture().get_image()
+				img_k.save_png(Session.autotest_screenshot.replace(".png", "-caja.png"))
 			# recogida hecha: volver a la base
 			if _at_recogido:
 				_volar_a(_estacion_pos + Vector2(330, 60))
