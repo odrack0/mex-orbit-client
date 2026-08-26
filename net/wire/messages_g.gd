@@ -1896,6 +1896,46 @@ class StationRange:
 		assert(id == 161, "msg_id inesperado")
 		return decode_from(b, pos)
 
+class JumpRequest:
+	const MSG_ID := 162
+	var request_id: int = 0
+	var portal_id: int = 0
+
+	func validate() -> void:
+		pass
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, request_id)
+		Wire.write_tag(buf, 2, 0)
+		Wire.write_varint(buf, portal_id)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> JumpRequest:
+		var m := JumpRequest.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.request_id = Wire.read_varint(b, pos)
+				2: m.portal_id = Wire.read_varint(b, pos)
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 162)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> JumpRequest:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 162, "msg_id inesperado")
+		return decode_from(b, pos)
+
 class ChatSend:
 	const MSG_ID := 200
 	var request_id: int = 0

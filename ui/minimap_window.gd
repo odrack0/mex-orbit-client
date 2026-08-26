@@ -40,6 +40,14 @@ func setup(world: Node, map_code: String) -> void:
 	_reposicionar()
 
 
+## Al saltar de sector el minimapa NO se rehace: solo cambia de nombre. Volver a
+## llamar a `setup` le montaba un segundo chrome y un segundo lienzo encima del
+## primero, y el lienzo viejo seguia intentando dibujarse fuera de su `_draw`.
+func renombrar(map_code: String) -> void:
+	if _titulo != null:
+		_titulo.text = "SECTOR %s" % map_code
+
+
 func _zoom(delta: int) -> void:
 	_wi = clampi(_wi + delta, 0, WIDTHS.size() - 1)
 	_aplicar_zoom()

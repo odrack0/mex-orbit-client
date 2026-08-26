@@ -503,6 +503,34 @@ Por eso `RANGO` y `SECUENCIA` son dos cosas distintas en la herramienta, aunque 
 portal: **recortar y no-cerrar son decisiones independientes.** El portal quiere las dos; el Vexor
 quiere recortar y sigue siendo un bucle.
 
+## El salto de sector
+
+**La petición sale cuando ARRANCA el encendido, no cuando termina.** Los 2,1 s de animación son
+exactamente el hueco donde cabe el viaje al server: si contesta antes, el mapa aparece al cerrarse el
+encendido; si tarda más, la animación ya terminó y solo se espera lo justo. Pedirlo al final habría
+sumado los dos tiempos en vez de solaparlos.
+
+**El éxito no tiene mensaje propio**: se anuncia con un `EnterMap` nuevo, que es exactamente lo que el
+cliente necesita recibir y ya sabía procesar. Un `JumpOk` sería un mensaje que no aporta estado. El
+rechazo va por `ErrorReply` — nunca silencio.
+
+`EnterMap` llega ahora por **tres** motivos distintos: entrar, reconectar y saltar. Los dos primeros
+traen el mismo mapa y todo se conserva; el tercero trae otro, y lo que sobrevive es solo lo que **no
+pertenece al mapa** — las ventanas, el chat, los ajustes. El mobiliario, las entidades y el fondo son
+del mapa viejo y se van con él.
+
+**Un código de error dice de qué FAMILIA es el fallo, no de qué iba.** El manejador traducía `TOO_FAR`
+a un texto fijo —*"Demasiado lejos de la caja"*— y en cuanto el salto empezó a usar ese mismo código,
+ese texto pasó a mentir. Ahora manda el `detail` que envía quien lo emite, que es el único que sabe.
+
+**`-Salto` es su propia prueba.** El portal del `1-1` está a ~19.000 unidades de la base y llegar
+cuesta un minuto: meterlo en la puerta rápida la doblaría de largo. La puerta sí comprueba, gratis, que
+un salto pedido **desde lejos se rechaza** — eso prueba el cableado entero (mensaje, ruta, validación y
+`ErrorReply` de vuelta) sin volar a ningún sitio.
+
+Y llegar no basta: `-Salto` comprueba que se llega **entero** — con nave, con portales, y con uno que
+vuelva a casa. Un mapa sin puerta de vuelta es una trampa, no un destino.
+
 ### Secuencia, no bucle: el tercer patrón
 
 Un bicho animado repite su ciclo para siempre. El portal **no**: reposa en su primer fotograma y

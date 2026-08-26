@@ -249,9 +249,11 @@ func cargar_posicion() -> bool:
 	var cfg := ConfigFile.new()
 	if cfg.load(RUTA_ESTADO) != OK:
 		return false
-	var guardado: Variant = cfg.get_value(str(Session.account_id), clave, null)
-	if guardado == null:
+	# `get_value` con null por defecto no devuelve null: ERRORA si la clave no
+	# existe. Hay que preguntar antes.
+	if not cfg.has_section_key(str(Session.account_id), clave):
 		return false
+	var guardado: Variant = cfg.get_value(str(Session.account_id), clave)
 	position = _dentro(guardado)
 	return true
 

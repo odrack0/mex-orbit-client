@@ -13,6 +13,7 @@ param(
     [switch]$SoloServicios,
     [switch]$Autotest,
     [switch]$Bestiario,
+    [switch]$Salto,
     [ValidateSet('', 'baja', 'media', 'alta')][string]$Calidad = '',
     [switch]$Detener
 )
@@ -98,16 +99,16 @@ godot --headless --path . --import 2>&1 | Out-Null
 Pop-Location
 Write-Host 'clases globales: OK'
 
-if ($Autotest -or $Bestiario) {
+if ($Autotest -or $Bestiario -or $Salto) {
     # ambas pruebas usan la cuenta TestBot; una sesion por cuenta, asi que no
     # deben correr mientras el usuario juega con ella
     $captura = 'C:/Tools/autotest.png'
     # El BESTIARIO solo retrata a cada bicho y sale: es la prueba para trabajo de
     # arte, donde la pasada completa del loop es un peaje de tres minutos.
-    $modo = if ($Bestiario) { 'bestiario' } else { 'loop' }
+    $modo = if ($Bestiario) { 'bestiario' } elseif ($Salto) { 'salto' } else { 'loop' }
     # Holgado sobre el limite interno de cada modo (60 s / 190 s): si el lanzador
     # mata a Godot antes, el resultado es un timeout falso que no dice nada.
-    $tope = if ($Bestiario) { 90000 } else { 300000 }
+    $tope = if ($Bestiario) { 90000 } elseif ($Salto) { 200000 } else { 300000 }
     Push-Location $cliente
     $argumentos = @('--path', '.', '--', "--screenshot=$captura", "--modo=$modo")
     if ($Calidad) { $argumentos += "--calidad=$Calidad" }

@@ -235,6 +235,13 @@ var _map_code := ""
 
 
 func _on_enter_map(em) -> void:
+	# EnterMap llega tres veces por motivos distintos: al entrar, al reconectar y
+	# al SALTAR de sector. Las dos primeras traen el mismo mapa y todo se conserva;
+	# la tercera trae otro, y lo que sobrevive es solo lo que no pertenece al mapa
+	# —las ventanas, el chat, los ajustes—. El mobiliario, las entidades y el fondo
+	# son del mapa viejo y se van con el.
+	if _map_code != "" and _map_code != em.map_code:
+		_desmontar_mapa()
 	_limites = Vector2(em.limits_x, em.limits_y)
 	_map_code = em.map_code
 	_estacion_pos = Vector2(em.station_x, em.station_y)
@@ -247,8 +254,35 @@ func _on_enter_map(em) -> void:
 	_construir_chat()
 	_construir_respawn()
 	_construir_ajustes()
+	if _minimapa != null:
+		_minimapa.renombrar(em.map_code)
 	_estado("Sector %s (%dx%d) · riesgo de carga %d%%"
 		% [em.map_code, em.limits_x, em.limits_y, em.cargo_risk_pct], NTheme.MUTED)
+
+
+## Tira todo lo que pertenecia al mapa anterior. Se llama SOLO al saltar: en una
+## reconexion el mapa es el mismo y rehacerlo tiraria el fondo y las entidades
+## para volver a construir lo idéntico.
+func _desmontar_mapa() -> void:
+	for id in _entidades:
+		_entidades[id].queue_free()
+	_entidades.clear()
+	for id in _cajas:
+		_cajas[id].queue_free()
+	_cajas.clear()
+	for id in _portales:
+		_portales[id].queue_free()
+	_portales.clear()
+	if _estacion != null:
+		_estacion.queue_free()
+		_estacion = null
+	if _fondo != null:
+		_fondo.queue_free()
+		_fondo = null
+	_hero = null
+	_at_target = 0
+	_pending_box = 0
+	_caja_anim_total = 0
 
 
 func _construir_minimapa(map_code: String) -> void:
@@ -758,12 +792,20 @@ func _on_collect_result(res) -> void:
 	_at_recogido = true
 
 
+## El `detail` del server manda cuando lo trae. Antes se traducia el CODIGO a un
+## texto fijo —"Demasiado lejos de la caja"— y en cuanto el salto de sector
+## empezo a usar el mismo TOO_FAR, ese texto pasaba a mentir. Un codigo dice de
+## que FAMILIA es el fallo; solo quien lo emite sabe de que iba.
 func _on_error(e) -> void:
+	_at_salto_rechazado = _at_salto_rechazado or e.code == MexProtocol.ErrorCode.TOO_FAR
+	if e.detail != "":
+		_estado(e.detail, NTheme.HOSTILE if e.code != MexProtocol.ErrorCode.GONE else NTheme.MUTED)
+		return
 	match e.code:
-		MexProtocol.ErrorCode.TOO_FAR: _estado("Demasiado lejos de la caja", NTheme.HOSTILE)
-		MexProtocol.ErrorCode.GONE: _estado("La caja ya no está", NTheme.MUTED)
+		MexProtocol.ErrorCode.TOO_FAR: _estado("Demasiado lejos", NTheme.HOSTILE)
+		MexProtocol.ErrorCode.GONE: _estado("Ya no está", NTheme.MUTED)
 		MexProtocol.ErrorCode.INSUFFICIENT: _estado("Bodega llena", NTheme.HOSTILE)
-		_: _estado("ErrorReply %d: %s" % [e.code, e.detail], NTheme.HOSTILE)
+		_: _estado("ErrorReply %d" % e.code, NTheme.HOSTILE)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -842,11 +884,15 @@ func _handle_click(world_pos: Vector2) -> void:
 			return
 		var encima := _hero != null and _hero.position.distance_to(portal.position) <= portal.click_radius
 		if encima and portal.activar():
-			# los 2,1 s del encendido son el hueco donde cabe la latencia: en E3
-			# la peticion de salto sale AQUI y el mapa se muestra cuando hayan
-			# terminado los dos. Hoy no hay salto, asi que solo se ve el encendido.
-			if not portal.encendido_terminado.is_connected(_on_portal_encendido):
-				portal.encendido_terminado.connect(_on_portal_encendido)
+			# La peticion sale AHORA, no al terminar la animacion: los 2,1 s del
+			# encendido son exactamente el hueco donde cabe el viaje al server.
+			# Si el server contesta antes, el mapa aparece al cerrar el encendido;
+			# si tarda mas, la animacion ya termino y solo se espera lo justo.
+			_req_id += 1
+			var salto := MexProtocol.JumpRequest.new()
+			salto.request_id = _req_id
+			salto.portal_id = portal.portal_id
+			_conn.send(salto.encode())
 			_estado("Abriendo portal · sector %s" % portal.target_map_code, NTheme.VIOLET)
 			return
 		_autopilot = portal.position
@@ -860,15 +906,6 @@ func _handle_click(world_pos: Vector2) -> void:
 	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
-
-
-## El encendido ha llegado a su ultimo fotograma. En E3 aqui se muestra el mapa
-## destino si el server ya respondio; hoy solo se dice que el portal esta abierto.
-func _on_portal_encendido(portal_id: int) -> void:
-	var p: PortalNode = _portales.get(portal_id)
-	if p == null:
-		return
-	_estado("Portal abierto · el salto al sector %s llega en E3" % p.target_map_code, NTheme.VIOLET)
 
 
 func _portal_at(world_pos: Vector2) -> PortalNode:
@@ -1009,7 +1046,12 @@ var _at_shot_combate := false
 var _at_chat_ok := false
 var _at_reconectado := false
 var _at_camara_libre := false
-var _at_portal_animado := false     # el autotest suelta la camara para retratar el mapa
+var _at_portal_animado := false
+var _at_salto_pedido := false
+var _at_salto_origen := ""
+var _at_salto_destino := ""
+var _at_salto_portal: PortalNode = null
+var _at_salto_rechazado := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
 const AT_BESTIARIO := ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
@@ -1031,6 +1073,13 @@ func _autotest(delta: float) -> void:
 	# cualquier fase que use _hero reventaba en cuanto un Ferox hacia su trabajo.
 	if _muerto or (_hero == null and _at_fase > 0):
 		return
+	# modo SALTO: volar hasta el portal y cruzarlo de verdad. Va aparte de la
+	# pasada del loop porque el portal del 1-1 esta a ~19.000 unidades de la base
+	# y llegar cuesta un minuto: meterlo en la puerta rapida la doblaria de largo.
+	if Session.autotest_modo == "salto":
+		_autotest_salto()
+		return
+
 	# modo BESTIARIO: solo los retratos. La pasada completa tarda ~3 min y para
 	# calibrar un shader eso es un peaje: se salta directo a la fase 10.
 	if Session.autotest_modo == "bestiario":
@@ -1279,6 +1328,18 @@ func _autotest(delta: float) -> void:
 			# si se pueden REABRIR. Se prueba el ciclo entero —cerrar, comprobar
 			# que el icono vuelve a neutro, reabrir— porque una ventana que se
 			# cierra y no vuelve es peor que una que no se cierra.
+			# El salto pedido de LEJOS tiene que ser rechazado por el server. Es
+			# barato —no hay que volar 19.000 unidades— y prueba el cableado
+			# entero: mensaje, ruta, validacion y ErrorReply de vuelta. El salto
+			# que SI funciona se prueba en el modo -Salto, que si vuela.
+			if not _at_salto_pedido and not _portales.is_empty():
+				_at_salto_pedido = true
+				_req_id += 1
+				var lejos := MexProtocol.JumpRequest.new()
+				lejos.request_id = _req_id
+				lejos.portal_id = _portales.values()[0].portal_id
+				_conn.send(lejos.encode())
+
 			# Lejos de la base: la ventana se abre igual —para mirar el almacen—
 			# pero descargar y vender siguen bloqueados. Que un boton exista y
 			# este apagado ensenia que ahi hay algo; que la ventana desaparezca
@@ -1322,6 +1383,9 @@ func _autotest(delta: float) -> void:
 			_at_fase = 95
 		95:
 			if _autotest_t - _at_ultimo_vuelo > 0.5:
+				if not _at_salto_rechazado:
+					_at_captura("AUTOTEST FALLO — el server no rechazo un salto desde lejos", 1)
+					return
 				# ya hubo fotogramas de sobra para que el layout se asiente
 				if not _minimapa.canvas_cuadra():
 					_at_captura("AUTOTEST FALLO — el canvas del minimapa no mide lo que dice", 1)
@@ -1387,6 +1451,70 @@ func _mejor_presa() -> EntityNode:
 				mejor = d2
 				elegida = e2
 	return elegida
+
+
+## El salto de sector, de punta a punta: volar al portal, cruzarlo, y comprobar
+## que se llego a OTRO mapa con la nave entera.
+func _autotest_salto() -> void:
+	if _autotest_t > 150.0:
+		_at_captura("SALTO TIMEOUT en la fase %d (mapa %s)" % [_at_fase, _map_code], 1)
+		return
+	match _at_fase:
+		0:
+			if _portales.is_empty() or _hero == null:
+				return
+			_at_salto_origen = _map_code
+			_at_salto_portal = _portales.values()[0]
+			_at_salto_destino = _at_salto_portal.target_map_code
+			_volar_a(_at_salto_portal.position)
+			_at_ultimo_vuelo = _autotest_t
+			_at_fase = 1
+		1:
+			# reencaminar cada 2 s: el clamp del server y la deriva hacen que un
+			# solo `volar_a` se quede corto en un viaje tan largo
+			if _autotest_t - _at_ultimo_vuelo > 2.0:
+				_at_ultimo_vuelo = _autotest_t
+				_volar_a(_at_salto_portal.position)
+			if _hero.position.distance_to(_at_salto_portal.position) < 400.0:
+				var img := get_viewport().get_texture().get_image()
+				img.save_png(Session.autotest_screenshot.replace(".png", "-salto-antes.png"))
+				_at_salto_portal.activar()
+				_req_id += 1
+				var msg := MexProtocol.JumpRequest.new()
+				msg.request_id = _req_id
+				msg.portal_id = _at_salto_portal.portal_id
+				_conn.send(msg.encode())
+				_at_ultimo_vuelo = _autotest_t
+				_at_fase = 2
+		2:
+			if _map_code == _at_salto_destino:
+				_at_ultimo_vuelo = _autotest_t
+				_at_fase = 3
+			elif _autotest_t - _at_ultimo_vuelo > 15.0:
+				_at_captura("SALTO FALLO — se pidio el salto y el mapa sigue siendo %s" % _map_code, 1)
+		3:
+			if _autotest_t - _at_ultimo_vuelo < 1.5:
+				return
+			var img2 := get_viewport().get_texture().get_image()
+			img2.save_png(Session.autotest_screenshot.replace(".png", "-salto-despues.png"))
+			# llegar a otro mapa no basta: hay que llegar ENTERO y en su sitio
+			if _hero == null:
+				_at_captura("SALTO FALLO — se llego a %s sin nave" % _map_code, 1)
+				return
+			if _portales.is_empty():
+				_at_captura("SALTO FALLO — %s llego sin portales: no habria vuelta" % _map_code, 1)
+				return
+			var vuelta := false
+			for id in _portales:
+				if _portales[id].target_map_code == _at_salto_origen:
+					vuelta = true
+			if not vuelta:
+				_at_captura("SALTO FALLO — %s no tiene portal de vuelta a %s"
+					% [_map_code, _at_salto_origen], 1)
+				return
+			_at_captura("SALTO OK — %s -> %s, nave en (%d, %d), %d portales y vuelta a casa"
+				% [_at_salto_origen, _map_code, _hero.position.x, _hero.position.y,
+				   _portales.size()], 0)
 
 
 ## Retrato de cada bicho del bestiario: la camara los visita sin volar hasta
