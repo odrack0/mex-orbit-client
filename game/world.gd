@@ -36,6 +36,7 @@ var _minimapa: MinimapWindow
 var _base: StationPanel
 var _chat: ChatWindow
 var _ajustes: SettingsWindow
+var _sysbar: SysBar
 var _respawn: RespawnPanel
 var _muerto := false
 var _estacion_pos := Vector2.ZERO
@@ -375,12 +376,30 @@ func _construir_ajustes() -> void:
 	var capa := CanvasLayer.new()
 	capa.layer = 21               # por encima del killscreen
 	add_child(capa)
-	_ajustes = SettingsWindow.new()
+
+	_ajustes = SettingsWindow.crear()
 	capa.add_child(_ajustes)
 	_ajustes.preset_elegido.connect(func(nombre: String):
 		var claves := Quality.aplicar(nombre)
 		if not claves.is_empty():
 			_estado("Calidad %s" % Quality.ETIQUETAS[nombre], NTheme.CYAN))
+
+	# §1.9: la sysbar va arriba a la derecha y FUERA del menu de ventanas. Hoy
+	# lleva un solo boton porque es el unico que tiene algo detras; ayuda,
+	# pantalla completa y salir se cuelgan con `agregar()` cuando existan.
+	_sysbar = SysBar.new()
+	capa.add_child(_sysbar)
+	_sysbar.agregar("ajustes", SettingsWindow.ICONO, "Ajustes", _alternar_ajustes)
+	# §1.3: el icono se pone ambar cuando su ventana esta abierta, y vuelve a
+	# neutro tanto si se cierra desde el icono como desde la `×` de la ventana.
+	_ajustes.cerrada.connect(func(): _sysbar.marcar("ajustes", false))
+
+
+func _alternar_ajustes() -> void:
+	if _ajustes == null:
+		return
+	_ajustes.alternar()
+	_sysbar.marcar("ajustes", _ajustes.visible)
 
 
 ## El cambio de calidad se aplica AL INSTANTE: cada entidad rehace su parte
@@ -729,11 +748,14 @@ func _on_error(e) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	# F1 abre y cierra los ajustes (la ventana colgara del engranaje cuando exista
-	# la barra de iconos del sistema N)
+	# Los ajustes se abren por su ENGRANAJE de la sysbar. Estuvieron en F1 y esa
+	# tecla no era suya: el §6 reserva F1-F10 para la barra de accion II, asi que
+	# el atajo se habria comido un slot en cuanto existan las barras. Escape los
+	# cierra, que es la unica tecla que el documento no reparte.
 	if event is InputEventKey and event.pressed and not event.echo \
-			and event.keycode == KEY_F1 and _ajustes != null:
-		_ajustes.alternar()
+			and event.keycode == KEY_ESCAPE and _ajustes != null and _ajustes.visible:
+		_alternar_ajustes()
+		get_viewport().set_input_as_handled()
 		return
 	# escribiendo en el chat, el teclado es suyo (Enter lo enfoca, como el original)
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ENTER:
@@ -1168,10 +1190,33 @@ func _autotest(delta: float) -> void:
 			_at_camara_libre = false
 			# una ventana que no se construyo (error de script en su .gd) pasaba
 			# desapercibida: el autotest seguia dando OK sin minimapa
-			if _minimapa == null or _chat == null or _base == null:
-				_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base)", 1)
+			if _minimapa == null or _chat == null or _base == null or _sysbar == null:
+				_at_captura("AUTOTEST FALLO — falta una ventana (minimapa/chat/base/sysbar)", 1)
 				return
-			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, bestiario (%d especies) y %d muerte(s)"
+			# la ventana de Ajustes se abre COMO LA ABRE EL JUGADOR, por el
+			# engranaje: probar `alternar()` a pelo se saltaria justo el cableado
+			# que puede romperse (el boton, la senial y el estado ambar)
+			_alternar_ajustes()
+			_at_ultimo_vuelo = _autotest_t
+			_at_fase = 92
+		92:
+			if _autotest_t - _at_ultimo_vuelo > 0.6:
+				var img_c := get_viewport().get_texture().get_image()
+				img_c.save_png(Session.autotest_screenshot.replace(".png", "-ajustes.png"))
+				if not _ajustes.visible:
+					_at_captura("AUTOTEST FALLO — el engranaje no abrio los Ajustes", 1)
+					return
+				# el codigo de color del §1.3 es contrato, no adorno
+				if not _sysbar.esta_marcado("ajustes"):
+					_at_captura("AUTOTEST FALLO — el engranaje no se puso ambar", 1)
+					return
+				_alternar_ajustes()
+				if _ajustes.visible:
+					_at_captura("AUTOTEST FALLO — el engranaje no cierra los Ajustes", 1)
+					return
+				_at_fase = 93
+		93:
+			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, bestiario (%d especies) y %d muerte(s)"
 				% [AT_BESTIARIO.size(), _at_muertes], 0)
 
 

@@ -156,6 +156,51 @@ solo pone el arte, y ese arte sale de `data/props/`.
   forma distinta de los círculos de naves y cajas, para que el mobiliario fijo no
   se confunda con lo que se mueve.
 
+## Chrome de ventana y sysbar (sistema N)
+
+Dos piezas nuevas, y las dos son **reutilizables a propósito**: el chat, el minimapa y la ventana
+Nave traen hoy tres cabeceras distintas hechas a mano, y esa es justo la forma de que un sistema de
+diseño se disperse — cada ventana copia a la anterior y el spec se queda solo en el documento.
+
+**`NWindow`** (`ui/n_window.gd`) es el `.fp` del prototipo llevado a Godot medida por medida:
+esquinas en L de 13 px, cabecera de 26 px con franja cian de 3 px y degradado cian→violeta→nada,
+chip de icono, botones `–` y `×` de 17 px, arrastre por la cabecera con clamp al viewport y grip
+diagonal. Una ventana se construye diciendo qué icono y qué título lleva; el spec está en un sitio.
+
+**`SysBar`** (`ui/sysbar.gd`) es el `#sysbar` del §1.9: arriba a la derecha y **fuera** del menú de
+ventanas, botones de 36×36 con hueco de 5 y margen de 8. Hoy lleva **un solo botón** porque es el
+único que tiene algo detrás; ayuda, pantalla completa y salir se cuelgan con `agregar()` el día que
+existan. Un botón que no hace nada es peor que un botón que falta: el que falta se nota, el muerto se
+aprende y se deja de mirar.
+
+**El código de color del §1.3 es contrato, no decoración**, así que el autotest lo afirma: abre los
+Ajustes *por el engranaje* —no llamando a `alternar()`, que se saltaría justo el cableado que puede
+romperse—, comprueba que la ventana aparece **y** que el icono se puso ámbar, y luego que el segundo
+clic cierra.
+
+Tres cosas que costaron un intento cada una y no son obvias:
+
+- **`set_anchors_preset` recalcula los offsets que no toques** para conservar el rect anterior. La
+  sysbar arrancaba midiendo 0×0 en el origen, así que el preset le dejó `offset_left` en menos el
+  ancho de la pantalla: la barra ocupaba todo el ancho con el botón pegado a la **izquierda**. Se
+  ponen los cuatro anclajes y los cuatro offsets a mano, y el crecimiento (`grow_horizontal =
+  BEGIN`) hace que la barra se reajuste sola al agregar un botón.
+- **`PRESET_MODE_MINSIZE` no sirve en el mismo fotograma** en que se agrega un hijo: un contenedor
+  todavía no ha calculado su mínimo ahí, y salen offsets de ancho cero. Anclar en vez de medir evita
+  la carrera entera.
+- **El degradado va con `draw_polygon` y un color por vértice**, que interpola solo. La primera
+  versión usó un `GradientTexture2D` y salió una **banda blanca opaca** que tapaba el título y los
+  botones — el degradado no llegaba a la textura y quedaba el negro→blanco por defecto. Dos
+  triángulos con color por vértice no tienen ese intermediario que puede fallar en silencio.
+
+**El cristal no lleva desenfoque.** El `--glass` del §2 va con `backdrop-filter: blur(12px)` en el
+prototipo, y Godot no lo da gratis: haría falta un `BackBufferCopy` con shader por ventana. Sin él,
+el color es el correcto pero el fondo se transparenta **nítido**, así que sobre una nave o un planeta
+la ventana se lee más ruidosa que en el prototipo. Es la única desviación conocida del §4.
+
+**Iconos**: SVG del §10 en `assets/ui/icons/`, con el trazo en **blanco puro** — el color lo pone
+`modulate`, y un icono ya coloreado no se podría teñir de ámbar al abrir su ventana.
+
 ## Dos barras de estado, no tres
 
 **v1 no tiene nano-casco.** El original apilaba tres barras sobre la nave (vida,
@@ -231,8 +276,10 @@ capacidad del equipo, no una preferencia de la partida.
 no dependen del nivel), las cajas se recrean en su sitio y el fondo se reconstruye. La nave, su rumbo
 y el estado del mundo no se tocan.
 
-**F1** abre y cierra la ventana de Ajustes; colgará del engranaje cuando exista la barra de iconos
-del sistema N. El autotest en modo bestiario **baja la calidad con el mundo ya poblado** y retrata el
+**Los Ajustes se abren por el engranaje de la sysbar** (arriba a la derecha), y **Escape** los cierra.
+Estuvieron en **F1**, y esa tecla no era suya: el §6 del sistema de diseño reserva **F1–F10** para la
+barra de acción II, así que el atajo se habría comido un slot en cuanto existan las barras. Escape es
+la única tecla que el documento no reparte. El autotest en modo bestiario **baja la calidad con el mundo ya poblado** y retrata el
 resultado: si reconstruir rompiera algo, revienta ahí.
 
 ## Dos tipos de asset para los bichos

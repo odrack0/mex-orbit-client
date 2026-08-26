@@ -1,106 +1,160 @@
-# AJUSTES — ventana del sistema N. Por ahora solo calidad grafica.
+# AJUSTES — la ventana del engranaje de la sysbar. Por ahora, solo calidad.
 #
 # Tres preajustes, no un slider de cuatro como el prototipo: el usuario pidio
 # alta/media/baja. Por debajo siguen siendo NIVELES POR SUBSISTEMA, asi que
 # anadir un modo "personalizado" luego es abrir esta ventana, no rehacer nada.
+#
+# El prototipo le pone cuatro pestanias (Pantalla, Jugabilidad, Sonido, Teclado)
+# y aqui no hay ninguna: una sola pestania no es una barra de pestanias, es un
+# adorno que promete tres secciones que no existen. Se agregan cuando haya que
+# poner debajo.
 class_name SettingsWindow
-extends Control
+extends NWindow
 
 signal preset_elegido(nombre: String)
 
-const ORDEN := ["alta", "media", "baja"]
+const ICONO := "res://assets/ui/icons/gear.svg"
+const ANCHO := 344                # el ancho del `#w-cfg` del prototipo
+const ORDEN := ["baja", "media", "alta"]
 const DETALLE := {
-	"alta": "Aliens y cajas con animación completa · fondo con todas sus capas",
-	"media": "Arte fijo con sus efectos · libera ~58 MB de memoria de vídeo",
 	"baja": "Sin efectos ni capas emisivas · lo mínimo para volar",
+	"media": "Arte fijo con sus efectos · sin los atlas animados",
+	"alta": "Aliens, caja y portal animados · fondo con todas sus capas",
 }
 
-var _panel: PanelContainer
-var _botones := {}
+var _segmentos := {}
+var _detalle: Label
+var _fps: Label
+var _vram: Label
+
+
+static func crear() -> SettingsWindow:
+	var v := SettingsWindow.new()
+	v.clave = "ajustes"
+	v._construir("Ajustes", ICONO)
+	v._cuerpo()
+	return v
 
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	custom_minimum_size = Vector2(ANCHO, 0)
 	visible = false
 
-	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", NTheme.glass_panel())
-	_panel.custom_minimum_size = Vector2(420, 0)
-	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	add_child(_panel)
 
-	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 10)
-	_panel.add_child(col)
+func _cuerpo() -> void:
+	contenido.add_child(_fila_calidad())
 
-	var titulo := NTheme.label("AJUSTES", NTheme.michroma(), 10, NTheme.CYAN)
-	titulo.mouse_filter = Control.MOUSE_FILTER_STOP
-	titulo.mouse_default_cursor_shape = Control.CURSOR_MOVE
-	titulo.gui_input.connect(_drag)
-	col.add_child(titulo)
+	_detalle = NTheme.label("", NTheme.exo2(), 11, NTheme.FAINT)
+	_detalle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detalle.custom_minimum_size = Vector2(ANCHO - 20, 0)
+	contenido.add_child(_detalle)
 
-	col.add_child(NTheme.label("CALIDAD GRÁFICA", NTheme.michroma(), 7, NTheme.MUTED))
+	var sep := HSeparator.new()
+	var linea := StyleBoxLine.new()
+	linea.color = NTheme.EDGE_SOFT
+	sep.add_theme_stylebox_override("separator", linea)
+	contenido.add_child(sep)
 
-	for nombre in ORDEN:
-		var fila := VBoxContainer.new()
-		fila.add_theme_constant_override("separation", 2)
-		var b := _boton(nombre)
-		_botones[nombre] = b
-		fila.add_child(b)
-		var d := NTheme.label(DETALLE[nombre], NTheme.exo2(), 11, NTheme.FAINT)
-		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		d.custom_minimum_size = Vector2(390, 0)
-		fila.add_child(d)
-		col.add_child(fila)
+	# Los dos numeros que hacen falta para ELEGIR un preajuste, no para adornar:
+	# cuantos fotogramas da la maquina y cuanta textura hay cargada. La memoria
+	# baja de golpe al pasar de alta a media —ahi es donde se sueltan los atlas—,
+	# asi que el efecto del ajuste se ve en el propio ajuste.
+	_fps = _fila_numero("Fotogramas por segundo")
+	_vram = _fila_numero("Memoria de textura")
 
-	col.add_child(NTheme.label("El cambio se aplica al instante · F1 cierra",
+	contenido.add_child(NTheme.label("El cambio se aplica al instante",
 		NTheme.exo2(), 11, NTheme.MUTED))
 	_refrescar()
-	_centrar.call_deferred()
 
 
-func _boton(nombre: String) -> Button:
+## §7: fila de `.r` — etiqueta fria a la izquierda, valor a la derecha.
+func _fila_calidad() -> Control:
+	var fila := HBoxContainer.new()
+	fila.add_theme_constant_override("separation", 7)
+	var k := NTheme.label("Calidad", NTheme.exo2(), 11, NTheme.MUTED)
+	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	fila.add_child(k)
+	var seg := HBoxContainer.new()
+	seg.add_theme_constant_override("separation", 3)
+	for nombre in ORDEN:
+		var b := _segmento(nombre)
+		_segmentos[nombre] = b
+		seg.add_child(b)
+	fila.add_child(seg)
+	return fila
+
+
+func _fila_numero(etiqueta: String) -> Label:
+	var fila := HBoxContainer.new()
+	fila.add_theme_constant_override("separation", 7)
+	var k := NTheme.label(etiqueta, NTheme.exo2(), 11, NTheme.MUTED)
+	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fila.add_child(k)
+	# la firma del sistema: etiqueta fria + numero ambar en JetBrains Mono
+	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
+	fila.add_child(v)
+	contenido.add_child(fila)
+	return v
+
+
+## Estilo `.ltab` del prototipo: Michroma 7px, y el elegido en CIAN.
+##
+## En cian y no en ambar a proposito, aunque la version anterior de esta ventana
+## usaba ambar: el ambar del §1.3 significa "esta ventana esta abierta" y es un
+## codigo de estado que no se comparte. Un segmento elegido es lo mismo que una
+## pestania activa, y el prototipo las pinta en cian (`.ltab.on`).
+func _segmento(nombre: String) -> Button:
 	var b := Button.new()
 	b.text = Quality.ETIQUETAS[nombre]
-	b.custom_minimum_size = Vector2(0, 30)
+	b.custom_minimum_size = Vector2(0, 22)
+	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_override("font", NTheme.michroma())
-	b.add_theme_font_size_override("font_size", 9)
+	b.add_theme_font_size_override("font_size", 7)
 	b.pressed.connect(func():
 		preset_elegido.emit(nombre)
 		_refrescar())
 	return b
 
 
-## El preajuste activo va en ámbar, que es el estado "abierto/activo" del
-## sistema N; los demás en cian de reposo.
 func _refrescar() -> void:
-	for nombre in _botones:
+	for nombre in _segmentos:
 		var activo: bool = Quality.preset == nombre
-		var b: Button = _botones[nombre]
-		b.add_theme_color_override("font_color", NTheme.WARN if activo else NTheme.CYAN)
+		var b: Button = _segmentos[nombre]
+		b.add_theme_color_override("font_color", NTheme.CYAN if activo else NTheme.MUTED)
+		b.add_theme_color_override("font_hover_color", NTheme.CYAN)
 		var caja := StyleBoxFlat.new()
-		caja.bg_color = Color(NTheme.WARN, 0.14) if activo else NTheme.GLASS_2
-		caja.border_color = NTheme.WARN if activo else NTheme.EDGE_SOFT
+		caja.bg_color = Color(NTheme.CYAN, 0.12 if activo else 0.04)
+		caja.border_color = NTheme.EDGE if activo else NTheme.EDGE_SOFT
 		caja.set_border_width_all(1)
+		caja.content_margin_left = 10
+		caja.content_margin_right = 10
 		b.add_theme_stylebox_override("normal", caja)
 		var hover := caja.duplicate()
 		hover.bg_color = Color(NTheme.CYAN, 0.16)
 		b.add_theme_stylebox_override("hover", hover)
 		b.add_theme_stylebox_override("pressed", hover)
+	if _detalle != null:
+		_detalle.text = DETALLE.get(Quality.preset, "")
 
 
 func alternar() -> void:
 	visible = not visible
 	if visible:
-		_centrar()
+		_refrescar()
+		if not cargar_posicion():
+			centrar()
 
 
-func _drag(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
-		_panel.position += event.relative
+func _process(_delta: float) -> void:
+	if not visible or _fps == null:
+		return
+	_fps.text = str(int(Engine.get_frames_per_second()))
+	var bytes := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)
+	_vram.text = "%s MB" % _con_coma(bytes / 1048576.0)
 
 
-func _centrar() -> void:
-	await get_tree().process_frame
-	_panel.position = (get_viewport_rect().size - _panel.size) * 0.5
+## Decimal con COMA, como se escribe en espaniol. El separador de miles con punto
+## del §3 no aplica aqui porque el numero no llega a mil.
+static func _con_coma(v: float) -> String:
+	return ("%.1f" % v).replace(".", ",")
