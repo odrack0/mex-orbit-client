@@ -6,7 +6,7 @@
     "atlas": "res://assets/npcs/skarnox-anim.png",
     "hframes": 7,
     "vframes": 7,
-    "count": 48,
+    "count": 43,
     "fps": 12
   },
   "screen_size": 248,
