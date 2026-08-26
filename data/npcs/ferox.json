@@ -25,10 +25,21 @@
     "speed": 4.2,
     "sharpness": 2.0
   },
-  "_titileo": "Parpadeo de los ojos y las costuras. Grano aun mas grueso que el del Vex: su emisiva son lineas de un pixel sobre hueso claro. Rapido (2.4) como todo lo suyo.",
+  "_titileo": "El `flicker` es ahora SOLO para el camino fijo: con atlas no se monta ningun shader de cuerpo, porque la luz ya viene cocida en los fotogramas. En media y baja las costuras siguen latiendo con su grano grueso.",
   "flicker": {
     "amount": 0.4,
     "scale": 3.0,
     "speed": 2.4
-  }
+  },
+  "_asset": "ATLAS ANIMADO. Celda de 320 para 190 px en pantalla. Cuesta 19,1 MB.",
+  "_bucle": "El mejor cierre del catalogo: 0,5 veces el paso normal — la costura salta MENOS que avanzar un fotograma cualquiera. El video ya venia a 1,11x entero; recortando dos fotogramas al mejor cierre baja a 0,5. No hay nada que arreglar aqui.",
+  "_no_recortar_mas": "Hay un valle secundario en 0:29 (1,49x) que ahorraria 7 MB, y NO se usa. Un sub-bucle solo vale si cierra IGUAL DE BIEN que el entero —asi se sabe que el ciclo de verdad se repite, como en el Vexor—; si cierra peor, no es un ciclo repetido sino un parecido, y recortar ahi quita movimiento real. Es la leccion del Gravon aplicada al reves.",
+  "frames": {
+    "atlas": "res://assets/npcs/ferox-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 46,
+    "fps": 12
+  },
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad."
 }

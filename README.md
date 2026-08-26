@@ -258,7 +258,7 @@ no rehacer nada.
 | `explosion` | no se dibuja | se dibuja | ídem |
 
 **El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
-de VRAM (siete bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+de VRAM (ocho bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
 sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
 
 **El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
@@ -320,6 +320,7 @@ estaba en el JSON.
 |---|---|---|---|---|
 | Gravon | 214 px | 384 | 49 | 27,6 MB |
 | Skarnox | 208 px | 384 | 42 | 27,6 MB |
+| Ferox | 190 px | 320 | 46 | 19,1 MB |
 | Mordax | 186 px | 320 | 48 | 19,1 MB |
 | Vex | 141 px | 256 | 48 | 12,2 MB |
 | Vexor | 178 px | 320 | 26 | 11,7 MB |
@@ -363,6 +364,7 @@ movimiento salta mucho en cualquier transición; lo que delata un bucle roto es 
 
 | asset | costura | qué pasó |
 |---|---|---|
+| Ferox | **0,5×** | salta **menos** que avanzar un fotograma: no hay nada que arreglar |
 | caja | 0,9× | cierra por construcción: la luz da la vuelta entera |
 | Gravit | 1,1× | se pasaba de ciclo (4,12 contra 1,18); recortar 3 fotogramas lo arregló |
 | Mordax | 1,4× | entero: el mejor recorte apenas mejoraba y costaba 7 fotogramas |
@@ -401,6 +403,12 @@ para evitar.
 El Vexor pliega y despliega las alas **dos veces** en sus 4 s. Exportar el tramo `0:25` —2,2 s, 26
 fotogramas— cierra a **1,2×**, igual de bien que los 48, con **la mitad de la VRAM**. La comprobación
 es barata: medir el salto del fotograma `k` contra el `0` para todo `k`, y buscar el primer valle.
+
+**Pero un valle no basta: tiene que cerrar IGUAL DE BIEN que el vídeo entero.** El Ferox tiene un
+valle en `0:29` que ahorraría 7 MB, y no se usa — porque cierra a 1,49× cuando el entero cierra a
+0,5×. Un sub-bucle que cierra *peor* no es un ciclo que se repite, es un **parecido**, y recortar ahí
+quita movimiento real. Es la lección del Gravon vista desde el otro lado: el Vexor podía recortarse
+porque su valle empataba con el total (0,95 contra 0,99); el Ferox no.
 
 Por eso `RANGO` y `SECUENCIA` son dos cosas distintas en la herramienta, aunque nacieran juntas con el
 portal: **recortar y no-cerrar son decisiones independientes.** El portal quiere las dos; el Vexor
