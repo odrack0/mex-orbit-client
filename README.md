@@ -59,10 +59,41 @@ tres minutos, y para calibrar un shader eso es un peaje: se paga una y otra vez 
 `-Bestiario` solo pone la cámara sobre cada especie y sale — **veinte segundos**. Comparten el mismo
 código de retrato (`_autotest_bestiario`), así que no hay dos versiones que mantener.
 
-**La caza tiene límite de 20 s.** La nave vuela a 320 y un Vex vagabundea a 270: si el bicho elige un
-destino que se aleja, la persecución cierra a **50 unidades por segundo** y puede durar eternamente.
-De ahí salió un timeout intermitente del gate — el peor tipo de fallo, porque parece un bug del
-juego. Pasados 20 s el bot abandona esa presa y busca otra.
+### La caza: elegir presa por distancia era el error
+
+La nave vuela a 320 y un Vex vagabundea a 270. Uno que **huye** cierra a 50 unidades por segundo; otro
+un poco más lejos que **viene** cierra a 590 — once veces más rápido. Elegir por distancia escoge
+sistemáticamente al peor de los dos, y de ahí salía el timeout intermitente del gate: el peor tipo de
+fallo, porque parece un bug del juego.
+
+Abandonar a los 20 s no lo arreglaba, solo lo repartía: cada mala elección costaba 20 s y dos seguidas
+se comían el reloj igual. Y mientras el bot perseguía a uno que huía, podía pasarle otro por delante
+sin enterarse, porque estaba atado a su presa.
+
+**Ahora se elige por tiempo de intercepción**, que se puede calcular porque el nodo conoce su
+`objetivo` y su `speed`: la velocidad de acercamiento es la de la nave menos la componente de la presa
+en la línea que las une. Si esa componente iguala a la nave, la presa se descarta en vez de
+perseguirla. Y se reevalúa cada dos segundos, así que el bot deja de correr detrás de uno y se queda
+con el que se acerque.
+
+De paso la presa deja de ser solo `vex` y pasa a ser `vex` + `vexor`: **densidad de 15 a 23** en el
+1-1. Ya no hay motivo para exigir una especie, porque desde que la venta pregunta al almacén qué hay,
+al bot le sirve cualquier caja.
+
+**Y se puede comprobar que está arreglado**, que es lo que distingue esto de "parece que va mejor". El
+autotest imprime el tiempo de caza junto al **mínimo teórico** —`(distancia − alcance) / velocidad`—:
+
+| caza real | mínimo | |
+|---|---|---|
+| 5,9 s | 4,4 s | |
+| 7,9 s | 7,8 s | |
+| 14,9 s | 16,3 s | más rápido que el mínimo: la presa vino hacia la nave |
+| 3,7 s | 3,6 s | |
+
+Va al límite geométrico. Lo que queda de variación **no es un fallo, es la distancia** a la que caiga
+la presa. Antes del cambio, ocho corridas dieron una cola de 40 s; el techo de 45 s sigue ahí como
+red, pero ahora **falla con nombre** —"la caza no logró ponerse a tiro en 45 s"— en vez de con un
+TIMEOUT genérico que no dice en qué se atascó.
 
 **Una prueba no puede depender de la suerte.** La fase de venta vendía `material_asterium` a ciegas, y
 se colgaba la tarde que los bichos no soltaban ese material: esperaba para siempre una confirmación
