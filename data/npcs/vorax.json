@@ -5,6 +5,14 @@
   "emissive": "res://assets/npcs/vorax-emissive.png",
   "screen_size": 205,
   "click_radius": 66,
+  "_onda": "Ondulacion por shader (game/shaders/undulate.gdshader). amplitude en UV, from = desde donde empieza a doblarse (0 nariz, 1 cola), idle = cuanto ondula parado.",
+  "undulate": {
+    "amplitude": 0.055,
+    "frequency": 1.8,
+    "speed": 3.2,
+    "from": 0.22,
+    "idle": 0.4
+  },
   "engines": [],
   "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
   "turn": {

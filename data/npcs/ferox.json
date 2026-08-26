@@ -5,6 +5,14 @@
   "emissive": "res://assets/npcs/ferox-emissive.png",
   "screen_size": 190,
   "click_radius": 54,
+  "_onda": "Ondulacion por shader (game/shaders/undulate.gdshader). amplitude en UV, from = desde donde empieza a doblarse (0 nariz, 1 cola), idle = cuanto ondula parado.",
+  "undulate": {
+    "amplitude": 0.03,
+    "frequency": 2.6,
+    "speed": 4.0,
+    "from": 0.55,
+    "idle": 0.25
+  },
   "engines": [],
   "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. cazador: el que mas rapido encara, acorde a sus 420 de velocidad",
   "turn": {

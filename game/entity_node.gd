@@ -66,6 +66,12 @@ var _canon_actual := 0
 var _impactos_casco := 0        # tope del prototipo: 5 simultáneos
 var _impactos_escudo := 0       # tope del prototipo: 9
 
+# ondulacion (solo los bichos que la definen en su JSON): el cuerpo serpentea
+# y la capa emisiva serpentea CON el, o las visceras se quedarian rectas
+var _ondas: Array[ShaderMaterial] = []
+var _onda_gain := 0.0
+var _onda_idle := 0.35
+
 # capa emisiva pulsante (nucleo y venas del Vex)
 var _emissive: Sprite2D
 var _pulse_min := 0.2          # intensidad del blend aditivo (>1 sobreexpone)
@@ -112,6 +118,8 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 		_pulse_speed = float(p.get("speed", 2.6))
 		_pulse_sharp = float(p.get("sharpness", 2.8))
 
+	_montar_ondulacion(d)
+
 	# motores en los anclajes del JSON (espacio de la textura)
 	var trail: Dictionary = d.get("engine_trail", {})
 	for motor in d.get("engines", []):
@@ -140,6 +148,33 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	var barra_y := -mitad - 14.0
 	_escudo = _crear_barra(barra_y - BARRA_SEPARACION, NTheme.SHIELD, _shield_pct)
 	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
+
+
+## Ondulacion de criatura: la cola serpentea. Sale del JSON del bicho, asi que
+## una roca no se menea y un gusano si — y calibrar es cambiar un numero.
+## El sprite y su capa emisiva llevan el MISMO shader (una con blend aditivo)
+## para que el brillo interior siga al cuerpo en vez de quedarse recto.
+func _montar_ondulacion(d: Dictionary) -> void:
+	var o: Dictionary = d.get("undulate", {})
+	if o.is_empty():
+		return
+	_onda_idle = float(o.get("idle", 0.35))
+	_onda_gain = _onda_idle
+	var objetivos := [[_sprite, "res://game/shaders/undulate.gdshader"]]
+	if _emissive != null:
+		objetivos.append([_emissive, "res://game/shaders/undulate_add.gdshader"])
+	for par in objetivos:
+		var mat := ShaderMaterial.new()
+		mat.shader = load(par[1])
+		mat.set_shader_parameter("amplitude", float(o.get("amplitude", 0.05)))
+		mat.set_shader_parameter("frequency", float(o.get("frequency", 2.0)))
+		mat.set_shader_parameter("speed", float(o.get("speed", 3.0)))
+		mat.set_shader_parameter("from_y", float(o.get("from", 0.25)))
+		# fase por entidad: un banco de gusanos al unisono canta a bucle
+		mat.set_shader_parameter("phase", float(entity_id % 628) * 0.01)
+		mat.set_shader_parameter("gain", _onda_gain)
+		par[0].material = mat
+		_ondas.append(mat)
 
 
 ## Carga una textura del JSON. Un asset que todavia no existe (arte en camino,
@@ -256,6 +291,14 @@ func _process(delta: float) -> void:
 		for t in _trails:
 			t.emitting = _thrust > 0.15
 			t.self_modulate.a = _thrust
+
+	# la ondulacion sube al nadar y baja al quedarse quieto (nunca a cero: un
+	# bicho vivo respira aunque no avance)
+	if not _ondas.is_empty():
+		var objetivo := 1.0 if en_vuelo else _onda_idle
+		_onda_gain = move_toward(_onda_gain, objetivo, 1.5 * delta)
+		for mat in _ondas:
+			mat.set_shader_parameter("gain", _onda_gain)
 
 	# el latido de la capa emisiva (fase por entidad: no laten al unisono).
 	# Se modula la INTENSIDAD del blend aditivo, no solo el alfa: por encima de

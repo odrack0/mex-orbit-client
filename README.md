@@ -96,6 +96,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `MAX_LINEAS` | `ui/chat_window.gd` | 120 | Párrafos que guarda el historial de COMMS antes de recortar por arriba |
 | `BARRA_ANCHO` / `BARRA_ALTO` / `BARRA_SEPARACION` | `game/entity_node.gd` | 60 / 3 / 5 px | Geometría de las barras de estado sobre la nave |
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
+| `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -186,6 +187,27 @@ deslizarse 1.000 unidades de costado durante sus 5,6 s de giro. Dos correcciones
 - **La velocidad depende de la alineación**: se avanza por el coseno del error de proa, así que
   mientras la nariz no mire al rumbo apenas se mueve, y acelera según se alinea. Pivota y luego
   arranca, en vez de derrapar.
+
+## Ondulación: que la cola se menee
+
+`game/shaders/undulate.gdshader` deforma el cuerpo con una onda seno que crece hacia la cola.
+Solo la llevan los bichos que declaran un bloque `undulate` en su JSON — una roca no se menea,
+un gusano sí, y calibrarlo es cambiar un número.
+
+Tres decisiones que conviene no deshacer:
+
+- **Va en el fragment, no en el vertex.** Un `Sprite2D` es un quad de cuatro vértices: deformar
+  vértices daría un alabeo bilineal, no una onda. Desplazando la muestra de textura
+  (`UV.x += sin(UV.y …)`) sale la onda completa **sin geometría extra**.
+- **El sprite y su capa emisiva llevan el MISMO shader**, uno en mezcla normal y otro en aditivo.
+  Si solo ondulara el cuerpo, las vísceras del Vorax se quedarían rectas sobre una carne que
+  serpentea.
+- **El modulate se reaplica a mano.** Al re-muestrear la textura por nuestra cuenta se pierde el
+  color de vértice — que es por donde viaja el pulso de la capa emisiva. Se captura en
+  `vertex()` en un varying.  **no existe** en `canvas_item`.
+
+La onda sube al desplazarse y baja al pararse, pero nunca a cero: un bicho vivo respira aunque no
+avance. Y cada entidad lleva su fase, o un banco de gusanos ondulando al unísono canta a bucle.
 
 ## Muerte y reaparición
 
