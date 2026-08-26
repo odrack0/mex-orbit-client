@@ -1,0 +1,16 @@
+{
+  "_comentario": "Vexor: la forma mayor del Vex (misma especie, sufijo -or). El parentesco se cuenta con masa, no con color: el acento sigue siendo rojo hostil. Dos nucleos en vez de uno, asi que su latido es mas rapido que el del Vex.",
+  "code": "vexor",
+  "texture": "res://assets/npcs/vexor-base.png",
+  "emissive": "res://assets/npcs/vexor-emissive.png",
+  "screen_size": 178,
+  "click_radius": 58,
+
+  "engines": [],
+  "pulse": {
+    "min_intensity": 0.25,
+    "max_intensity": 2.6,
+    "speed": 3.2,
+    "sharpness": 2.4
+  }
+}

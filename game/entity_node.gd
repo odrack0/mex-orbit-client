@@ -77,17 +77,18 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	click_radius = float(d.get("click_radius", 42))
 
 	_sprite = Sprite2D.new()
-	_sprite.texture = load(d.get("texture", "res://assets/npcs/vex-base.png"))
+	_sprite.texture = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
 	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del export
 	var alto_tex := float(_sprite.texture.get_height())
 	var factor: float = float(d.get("screen_size", 141)) / alto_tex
 	_sprite.scale = Vector2.ONE * factor
 	add_child(_sprite)
 
-	# capa emisiva (si la define su JSON)
-	if d.has("emissive"):
+	# capa emisiva (si la define su JSON y su PNG existe de verdad)
+	var tex_emisiva := _textura(d.get("emissive", ""), "")
+	if tex_emisiva != null:
 		_emissive = Sprite2D.new()
-		_emissive.texture = load(d.emissive)
+		_emissive.texture = tex_emisiva
 		_emissive.material = _material_add()
 		_sprite.add_child(_emissive)
 		var p: Dictionary = d.get("pulse", {})
@@ -124,6 +125,20 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	var barra_y := -mitad - 14.0
 	_escudo = _crear_barra(barra_y - BARRA_SEPARACION, NTheme.SHIELD, _shield_pct)
 	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
+
+
+## Carga una textura del JSON. Un asset que todavia no existe (arte en camino,
+## ruta mal escrita) NO puede tirar el cliente: cae al respaldo, o a null si no
+## lo hay, y se avisa por consola.
+static func _textura(ruta: Variant, respaldo: String) -> Texture2D:
+	var r := str(ruta)
+	if not r.is_empty() and ResourceLoader.exists(r):
+		return load(r)
+	if not r.is_empty():
+		push_warning("textura ausente en el JSON: " + r)
+	if respaldo.is_empty():
+		return null
+	return load(respaldo)
 
 
 ## Una barra sobre su pista negra, del ancho del prototipo.

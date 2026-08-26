@@ -63,6 +63,8 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 | `data/ammo/<code>.json` | **el aspecto de cada arma**: color, largo, grosor y duración del haz, con su variante `beam_skilled` (el disparo potenciado del perfil de piloto: más grueso y brillante) |
 
 Agregar una nave nueva = soltar su PNG + escribir su JSON. Cero código.
+Un JSON que apunta a una textura que todavía no existe **no tira el cliente**: cae al respaldo
+y avisa por consola — el arte y el dato pueden ir a distinto ritmo.
 Los anclajes se miden con `mex-orbit-art/tools/find-anchors.py <export.png>` en vez de estimarlos a ojo.
 
 ## Diales
