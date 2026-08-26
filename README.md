@@ -71,7 +71,7 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 | Archivo | Define |
 |---|---|
 | `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y estilo de la estela (color, largo, ancho, vida) |
-| `data/npcs/<code>.json` | textura, capa emisiva y su pulso (rango de alfa y velocidad), radio de click |
+| `data/npcs/<code>.json` | textura **o** atlas animado, capa emisiva y su pulso, radio de click, giro y efectos de shader |
 | `data/maps/<code>.json` | el stack de capas: fondo principal, mosaicos con su `p_factor`/escala/alfa, planetas con posición y profundidad, sol con su giro, tinte del polvo estelar |
 | `data/props/<code>.json` | props del mundo (**estación**, **portal**, **caja de carga**): textura, emisiva, tamaño en unidades de mundo, pulso, radio de click y color en el minimapa |
 | `data/ammo/<code>.json` | **el aspecto de cada arma**: color, largo, grosor y duración del haz, con su variante `beam_skilled` (el disparo potenciado del perfil de piloto: más grueso y brillante) |
@@ -172,6 +172,38 @@ son del chat (izquierda) y del minimapa (derecha).
 > script recién creado revienta con *"Could not find type"*.
 
 Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
+
+## Dos tipos de asset para los bichos
+
+**PNG + shaders** es el caso normal: una textura, su capa emisiva y los efectos declarados en el
+JSON (`undulate`, `peristalsis`, `rings`). Barato, y en el 1-1 hay quince Vex.
+
+**Atlas animado** es el segundo tipo, para los de arriba de la escalera. Una rejilla de fotogramas
+sacada de un vídeo en bucle con `mex-orbit-art/tools/video-atlas.py`; el JSON declara `frames` en
+lugar de `texture` y `EntityNode` monta un `Sprite2D` con `hframes`/`vframes` que avanza solo.
+
+```json
+"frames": { "atlas": "res://assets/npcs/gravon-anim.png",
+            "hframes": 7, "vframes": 7, "count": 49, "fps": 12 }
+```
+
+**El coste se controla solo con la jerarquía del bestiario**: el atlas del Gravon son 27 MB de VRAM,
+pero en el mapa hay **tres** Gravon frente a quince Vex. Lo caro recae sobre lo que casi no se
+repite.
+
+Tres cosas que conviene no olvidar:
+
+- **La luz va cocida** en los fotogramas, así que estos bichos **no llevan capa emisiva ni shaders**
+  — su vida ya está en el asset. El `pulse` no les aplica.
+- Lo que evita que tres Gravon animen al unísono es un **desfase del índice de fotograma** por
+  entidad, no la fase del pulso. Es el mismo problema de los gusanos ondulando en fase, resuelto en
+  otro sitio.
+- Con atlas, el tamaño en pantalla se calcula sobre el alto del **fotograma**, no el de la textura
+  entera. Olvidarlo hace al bicho siete veces más pequeño.
+
+Es lo que hacía el cliente original con sus aliens (`loopPlay`), con una diferencia que importa: los
+suyos **por eso no rotaban**. Los nuestros sí — en Godot el bucle es contenido y el rumbo lo pone el
+nodo, así que el Gravon gira hacia donde vuela mientras sus engranajes se destapan.
 
 ## Dos modelos de giro, y la diferencia importa
 

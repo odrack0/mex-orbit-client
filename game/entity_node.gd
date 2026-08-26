@@ -72,6 +72,15 @@ var _ondas: Array[ShaderMaterial] = []
 var _onda_gain := 0.0
 var _onda_idle := 0.35
 
+# ATLAS ANIMADO (segundo tipo de asset): en vez de un PNG con shaders encima,
+# una rejilla de fotogramas sacada de un video en bucle. La luz va COCIDA en
+# ellos, asi que estos bichos no llevan capa emisiva ni shaders — su vida ya
+# esta en el asset. Es lo que hacia el original con sus aliens (`loopPlay`),
+# salvo que los suyos por eso no rotaban y los nuestros si.
+var _anim_total := 0
+var _anim_fps := 12.0
+var _anim_t := 0.0
+
 # capa emisiva pulsante (nucleo y venas del Vex)
 var _emissive: Sprite2D
 var _pulse_min := 0.2          # intensidad del blend aditivo (>1 sobreexpone)
@@ -98,15 +107,28 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	turn_deg_per_sec = float(giro.get("deg_per_sec", 0.0))
 
 	_sprite = Sprite2D.new()
-	_sprite.texture = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
-	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del export
-	var alto_tex := float(_sprite.texture.get_height())
+	var anim: Dictionary = d.get("frames", {})
+	if anim.is_empty():
+		_sprite.texture = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
+	else:
+		_sprite.texture = _textura(anim.get("atlas", ""), "res://assets/npcs/vex-base.png")
+		_sprite.hframes = int(anim.get("hframes", 1))
+		_sprite.vframes = int(anim.get("vframes", 1))
+		_anim_total = int(anim.get("count", _sprite.hframes * _sprite.vframes))
+		_anim_fps = float(anim.get("fps", 12.0))
+		# desfase por entidad: tres Gravon animando al unisono cantan igual que
+		# cantaban los gusanos ondulando en fase
+		_anim_t = randf() * float(_anim_total) / maxf(_anim_fps, 1.0)
+	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del
+	# export. Con atlas manda el alto del FOTOGRAMA, no el de la textura entera.
+	var alto_tex := float(_sprite.texture.get_height()) / maxf(float(_sprite.vframes), 1.0)
 	var factor: float = float(d.get("screen_size", 141)) / alto_tex
 	_sprite.scale = Vector2.ONE * factor
 	add_child(_sprite)
 
-	# capa emisiva (si la define su JSON y su PNG existe de verdad)
-	var tex_emisiva := _textura(d.get("emissive", ""), "")
+	# capa emisiva (si la define su JSON y su PNG existe de verdad). Un bicho de
+	# atlas no la lleva: su luz ya viene cocida en los fotogramas.
+	var tex_emisiva := _textura(d.get("emissive", ""), "") if _anim_total == 0 else null
 	if tex_emisiva != null:
 		_emissive = Sprite2D.new()
 		_emissive.texture = tex_emisiva
@@ -313,6 +335,10 @@ func _process(delta: float) -> void:
 		for t in _trails:
 			t.emitting = _thrust > 0.15
 			t.self_modulate.a = _thrust
+
+	if _anim_total > 0:
+		_anim_t += delta
+		_sprite.frame = int(_anim_t * _anim_fps) % _anim_total
 
 	# la ondulacion sube al nadar y baja al quedarse quieto (nunca a cero: un
 	# bicho vivo respira aunque no avance)

@@ -1,8 +1,14 @@
 {
   "_comentario": "Gravon: la forma MAYOR del Gravit (sufijo -on) y la tercera pareja base->mayor del mapa. Mismo hierro pulido, tres nucleos en vez de uno y el anillo exterior fracturado. Gira aun mas lento que el Gravit: es lo mas pesado que hay tras el Skarnox.",
   "code": "gravon",
-  "texture": "res://assets/npcs/gravon-base.png",
-  "emissive": "res://assets/npcs/gravon-emissive.png",
+  "_asset": "ATLAS ANIMADO, no PNG. Es el segundo tipo de asset del catalogo y va a los bichos de arriba de la escalera: cuesta 27 MB de VRAM, pero en el 1-1 solo hay TRES Gravon frente a quince Vex. La jerarquia del bestiario decide sola quien lo merece.",
+  "frames": {
+    "atlas": "res://assets/npcs/gravon-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 49,
+    "fps": 12
+  },
   "screen_size": 214,
   "click_radius": 72,
   "engines": [],
@@ -11,11 +17,5 @@
     "steps": 0,
     "deg_per_sec": 45
   },
-  "pulse": {
-    "min_intensity": 0.16,
-    "max_intensity": 2.4,
-    "speed": 1.1,
-    "sharpness": 3.2
-  },
-  "_sin_anillos": "SIN anillos giratorios, a proposito. Su detalle asimetrico son piezas de maquinaria que CRUZAN de un aro a otro: rotar una banda las cizalla en vez de hacerlas girar. El truco pide detalle que pertenezca a UN anillo (los pernos sueltos del Gravit), no estructura soldada entre varios. Su vida la da el pulso de sus tres nucleos."
+  "_sin_pulse": "Sin bloque `pulse` ni capa emisiva a proposito: la luz de este bicho va cocida en los fotogramas. Lo que lo desincroniza de sus hermanos es el desfase de indice de fotograma, no la fase del pulso."
 }
