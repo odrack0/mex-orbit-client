@@ -112,7 +112,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
 | `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `peristalsis.*` | `data/npcs/*.json` | Vorax: amount 1.8 | Onda de luz recorriendo el interior: cuánto brilla el bulto, cuántos hay, a qué ritmo bajan y qué tan marcados van |
-| `rings.*` | `data/npcs/*.json` | Gravit 0.9 · Gravon 0.75 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
+| `rings.*` | `data/npcs/*.json` | Solo el Gravit: 0.9 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
 ## Mobiliario del mapa: portal y caja de carga
@@ -264,13 +264,19 @@ píxeles idénticos sobre sí mismos y no se ve nada**. El Gravon lo enseñó a 
 cortada en `r 0.24`, justo antes de donde empieza su detalle asimétrico (0.24–0.33), y el efecto era
 invisible aunque el shader funcionara perfectamente.
 
-La otra mitad de la decisión es la **proa**:
+Pero la asimetría es **necesaria y no suficiente**, y esa es la lección cara: el detalle tiene que
+**pertenecer a un anillo**, no cruzar entre varios.
 
-- El **Gravon** tiene cabeza, así que su banda móvil se corta en `0.31` y no la roza. Gira su
-  maquinaria interna; el frente se queda quieto.
-- El **Gravit** es simétrico de revolución —cuatro pernos iguales a 90°— así que **no tiene proa que
-  romper**, y gira entero hasta el borde. Sus pernos orbitando son lo que da la lectura, porque sus
-  anillos interiores son demasiado lisos por sí solos.
+- El **Gravit** lleva anillos y gira entero hasta el borde. Sus cuatro pernos están **sueltos en el
+  aro exterior**, así que orbitan limpiamente — y al ser simétrico de revolución **no tiene proa que
+  romper**. Sus anillos interiores, demasiado lisos, no darían lectura por sí solos.
+- El **Gravon NO lleva anillos**. Su detalle asimétrico son piezas de maquinaria **soldadas de un aro
+  a otro**: rotar una banda no las hace girar, las **cizalla**. El perfil de asimetría decía que ahí
+  se vería algo, y se veía — pero se veía mal. Su vida la da el pulso de sus tres núcleos.
+
+Regla para el siguiente: mirar si lo asimétrico es una pieza **sobre** un anillo o una estructura
+**entre** anillos.  encuentra dónde hay detalle; que ese detalle pueda girar lo dice
+el ojo.
 
 ## Muerte y reaparición
 

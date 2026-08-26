@@ -11,18 +11,11 @@
     "steps": 0,
     "deg_per_sec": 45
   },
-  "_anillos": "Anillos giratorios. La banda esta MEDIDA con art/tools/ring-bands.py: el detalle asimetrico del Gravon vive en r 0.24-0.33 y fuera de ahi sus anillos son tan lisos que rotarlos no se ve. Se corta en 0.31 para no rozar la cabeza, que es su proa.",
-  "rings": {
-    "speed": 0.75,
-    "bands": 2,
-    "inner": 0.24,
-    "outer": 0.31,
-    "falloff": 0.4
-  },
   "pulse": {
     "min_intensity": 0.16,
     "max_intensity": 2.4,
     "speed": 1.1,
     "sharpness": 3.2
-  }
+  },
+  "_sin_anillos": "SIN anillos giratorios, a proposito. Su detalle asimetrico son piezas de maquinaria que CRUZAN de un aro a otro: rotar una banda las cizalla en vez de hacerlas girar. El truco pide detalle que pertenezca a UN anillo (los pernos sueltos del Gravit), no estructura soldada entre varios. Su vida la da el pulso de sus tres nucleos."
 }
