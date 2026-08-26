@@ -1,35 +1,21 @@
 {
   "_comentario": "Vorax: el devorador. Carne lustrosa y semitraslucida con las visceras encendidas, asi que su capa emisiva cubre TODO el cuerpo en vez de un nucleo. Late como una digestion: lento en el valle y con un pico marcado.",
   "code": "vorax",
-  "texture": "res://assets/npcs/vorax-base.png",
-  "emissive": "res://assets/npcs/vorax-emissive.png",
+  "_asset": "ATLAS ANIMADO de celda RECTANGULAR (128x512). Cuadrarla habria desperdiciado el 80% de cada celda: el bicho mide 125x638. Asi cuesta 12,2 MB en vez de 27,6.",
+  "frames": {
+    "atlas": "res://assets/npcs/vorax-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 45,
+    "fps": 12
+  },
   "screen_size": 205,
   "click_radius": 66,
-  "_onda": "Ondulacion por shader (game/shaders/undulate.gdshader). amplitude en UV, from = desde donde empieza a doblarse (0 nariz, 1 cola), idle = cuanto ondula parado.",
-  "undulate": {
-    "amplitude": 0.055,
-    "frequency": 1.8,
-    "speed": 3.2,
-    "from": 0.22,
-    "idle": 0.4
-  },
-  "_peristalsis": "Onda de luz que BAJA por el tracto, de la boca a la cola: la direccion en la que traga. sharpness alta = un bulto marcado que pasa, no un parpadeo del cuerpo entero.",
-  "peristalsis": {
-    "amount": 1.8,
-    "frequency": 2.4,
-    "speed": 2.2,
-    "sharpness": 3.5
-  },
   "engines": [],
   "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 210
   },
-  "pulse": {
-    "min_intensity": 0.22,
-    "max_intensity": 2.3,
-    "speed": 2.0,
-    "sharpness": 2.6
-  }
+  "_sin_shaders": "Sin `undulate` ni `peristalsis`: el video las trae cocidas y mucho mejor hechas — deformacion 3D real, fauces que se abren y una onda que recorre el cuerpo entero. Los shaders siguen sirviendo para los bichos que no tienen video (Vex, Vexor, Ferox)."
 }
