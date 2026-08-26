@@ -1,0 +1,16 @@
+{
+  "_comentario": "Skarnox: la forma mayor del Skarn (sufijo -ox) y el bicho mas grande del 1-1. Late aun mas lento que el Skarn y llega mas alto en el pico: sus fracturas abiertas dejan ver el nucleo fundido, asi que el destello tiene que sobreexponer.",
+  "code": "skarnox",
+  "texture": "res://assets/npcs/skarnox-base.png",
+  "emissive": "res://assets/npcs/skarnox-emissive.png",
+  "screen_size": 248,
+  "click_radius": 84,
+
+  "engines": [],
+  "pulse": {
+    "min_intensity": 0.2,
+    "max_intensity": 2.6,
+    "speed": 0.8,
+    "sharpness": 3.4
+  }
+}
