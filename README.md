@@ -121,6 +121,8 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `turn.deg_per_sec` / `turn.steps` | `data/npcs/*.json` | 32–240 °/s · steps 0 | Giro **en reposo** de cada bicho: velocidad angular propia y sin cuantizar (ver abajo) |
 | `undulate.*` | `data/npcs/*.json` | Vorax 0.055 · Vexor 0.045 · Vex 0.040 · Ferox 0.030 | Ondulación del cuerpo por shader: amplitud, frecuencia, desde dónde dobla y cuánto se menea parado |
 | `peristalsis.*` | `data/npcs/*.json` | Vorax: amount 1.8 | Onda de luz recorriendo el interior: cuánto brilla el bulto, cuántos hay, a qué ritmo bajan y qué tan marcados van |
+| `peristalsis.radial` | `data/npcs/*.json` | true en las rocas | La onda sale del **centro** en vez de recorrer el cuerpo |
+| `flicker.*` | `data/npcs/*.json` | Skarn 0.35 · Skarnox 0.30 | Ruido que hace temblar el brillo: cuánto, con qué grano y a qué ritmo |
 | `rings.*` | `data/npcs/*.json` | Solo el Gravit: 0.9 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
 
@@ -340,6 +342,24 @@ que pasa, no un parpadeo del cuerpo entero (de eso ya se encarga el `pulse`, que
 con magma corriendo por sus grietas y la roca quieta, por ejemplo. Por eso, sin bloque `undulate`,
 la amplitud se fuerza a **cero** en vez de dejar el defecto del shader — pedir luz no puede poner a
 bailar al bicho de propina.
+
+### Fuego: que el magma no lata como un reactor
+
+Dos efectos para las rocas, y los dos van **solo sobre la capa emisiva**. La regla se sostiene: una
+piedra no se menea, así que el Skarn no lleva `undulate` — su vida entera está en el magma.
+
+- **`peristalsis` en modo `radial`**: la misma onda del Vorax, pero medida sobre el **radio** en vez
+  de a lo largo del cuerpo. El calor sale del núcleo hacia fuera por las grietas, que es como irradia
+  algo fundido. Un carácter en el shader —`length(uv - 0.5)` en lugar de `uv.y`— separa a un gusano
+  de una brasa.
+- **`flicker`**: ruido de valor que hace temblar el brillo. Sin él, el `pulse` late demasiado limpio y
+  la roca parece tener un reactor dentro en vez de lava. El ruido es un hash barato con interpolación
+  suave; no hace falta Perlin para que una grieta tiemble.
+
+**El Skarnox los lleva para su camino FIJO**, no para el animado: en calidad alta manda su atlas, que
+ya trae su propio fuego. Pero en media y baja cae al PNG, y sin esto el hermano mayor se vería **más
+muerto que el pequeño**. Cada vez que un bicho gana atlas, conviene preguntarse cómo queda su
+repliegue.
 
 ### Anillos: metal que gira sobre sí mismo
 

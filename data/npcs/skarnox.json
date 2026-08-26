@@ -25,5 +25,18 @@
     "max_intensity": 2.6,
     "speed": 0.8,
     "sharpness": 3.4
+  },
+  "_fuego": "Estos efectos son para el camino FIJO (calidad media y baja): en alta manda el atlas del video, que ya trae su propio fuego. Sin ellos, el hermano mayor se veria mas muerto que el Skarn al bajar la calidad.",
+  "peristalsis": {
+    "amount": 1.3,
+    "frequency": 1.4,
+    "speed": 1.1,
+    "sharpness": 2.4,
+    "radial": true
+  },
+  "flicker": {
+    "amount": 0.3,
+    "scale": 6.0,
+    "speed": 0.7
   }
 }

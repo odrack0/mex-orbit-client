@@ -217,6 +217,8 @@ func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 ## - `peristalsis`: una onda de luz recorriendo el interior. Solo en la emisiva.
 ## - `rings`: anillos concentricos girando. Solo tiene sentido en los bichos de
 ##   metal, donde la pieza ES concentrica.
+## - `flicker`: ruido que hace temblar el brillo. El magma no late limpio como
+##   un reactor; arde desigual.
 ##
 ## Se piden por separado a proposito: un Skarnox podria tener magma corriendo
 ## por sus grietas sin que la roca se menee un milimetro.
@@ -224,9 +226,10 @@ func _montar_ondulacion(d: Dictionary) -> void:
 	var o: Dictionary = d.get("undulate", {})
 	var peri: Dictionary = d.get("peristalsis", {})
 	var anillos: Dictionary = d.get("rings", {})
+	var titileo: Dictionary = d.get("flicker", {})
 	if Quality.nivel("shader") < 1:
 		return          # calidad baja: ni se crea el material
-	if o.is_empty() and peri.is_empty() and anillos.is_empty():
+	if o.is_empty() and peri.is_empty() and anillos.is_empty() and titileo.is_empty():
 		return
 	_onda_idle = float(o.get("idle", 0.35))
 	_onda_gain = _onda_idle
@@ -250,6 +253,12 @@ func _montar_ondulacion(d: Dictionary) -> void:
 		mat.set_shader_parameter("peri_frequency", float(peri.get("frequency", 2.0)))
 		mat.set_shader_parameter("peri_speed", float(peri.get("speed", 2.5)))
 		mat.set_shader_parameter("peri_sharpness", float(peri.get("sharpness", 3.0)))
+		# radial = la onda sale del centro en vez de recorrer el cuerpo: es como
+		# irradia un nucleo fundido, y es lo que separa una roca de un gusano
+		mat.set_shader_parameter("peri_radial", 1.0 if peri.get("radial", false) else 0.0)
+		mat.set_shader_parameter("flicker_amount", float(titileo.get("amount", 0.0)))
+		mat.set_shader_parameter("flicker_scale", float(titileo.get("scale", 6.0)))
+		mat.set_shader_parameter("flicker_speed", float(titileo.get("speed", 1.0)))
 		mat.set_shader_parameter("ring_speed", float(anillos.get("speed", 0.0)))
 		mat.set_shader_parameter("ring_bands", float(anillos.get("bands", 3.0)))
 		mat.set_shader_parameter("ring_inner", float(anillos.get("inner", 0.05)))

@@ -16,5 +16,18 @@
     "max_intensity": 2.0,
     "speed": 1.1,
     "sharpness": 3.4
+  },
+  "_fuego": "Una roca NO se menea: no lleva `undulate`. Su vida es el magma, y va toda en la capa emisiva. `peristalsis` en modo RADIAL manda el calor del nucleo hacia fuera por las grietas, y `flicker` le quita la limpieza de reactor — el magma arde desigual.",
+  "peristalsis": {
+    "amount": 1.1,
+    "frequency": 1.6,
+    "speed": 1.4,
+    "sharpness": 2.2,
+    "radial": true
+  },
+  "flicker": {
+    "amount": 0.35,
+    "scale": 7.0,
+    "speed": 0.9
   }
 }
