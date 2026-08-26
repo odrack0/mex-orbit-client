@@ -275,7 +275,7 @@ Pero la asimetría es **necesaria y no suficiente**, y esa es la lección cara: 
   se vería algo, y se veía — pero se veía mal. Su vida la da el pulso de sus tres núcleos.
 
 Regla para el siguiente: mirar si lo asimétrico es una pieza **sobre** un anillo o una estructura
-**entre** anillos.  encuentra dónde hay detalle; que ese detalle pueda girar lo dice
+**entre** anillos. `ring-bands.py` encuentra dónde hay detalle; que ese detalle pueda girar lo dice
 el ojo.
 
 ## Muerte y reaparición
