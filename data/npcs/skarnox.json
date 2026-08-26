@@ -1,8 +1,14 @@
 {
   "_comentario": "Skarnox: la forma mayor del Skarn (sufijo -ox) y el bicho mas grande del 1-1. Late aun mas lento que el Skarn y llega mas alto en el pico: sus fracturas abiertas dejan ver el nucleo fundido, asi que el destello tiene que sobreexponer.",
   "code": "skarnox",
-  "texture": "res://assets/npcs/skarnox-base.png",
-  "emissive": "res://assets/npcs/skarnox-emissive.png",
+  "_asset": "ATLAS ANIMADO, no PNG. Segundo tipo de asset del catalogo, reservado a los bichos de arriba de la escalera: cuesta 27 MB de VRAM, pero en el 1-1 solo hay DOS Skarnox — es el que menos se repite de las nueve especies. La jerarquia del bestiario decide sola quien lo merece.",
+  "frames": {
+    "atlas": "res://assets/npcs/skarnox-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 48,
+    "fps": 12
+  },
   "screen_size": 248,
   "click_radius": 84,
   "engines": [],
@@ -11,10 +17,5 @@
     "steps": 0,
     "deg_per_sec": 32
   },
-  "pulse": {
-    "min_intensity": 0.2,
-    "max_intensity": 2.6,
-    "speed": 0.8,
-    "sharpness": 3.4
-  }
+  "_sin_pulse": "Sin bloque `pulse` ni capa emisiva a proposito: el magma de sus grietas va cocido en los fotogramas. Lo que lo desincroniza de su hermano es el desfase de indice de fotograma, no la fase del pulso."
 }
