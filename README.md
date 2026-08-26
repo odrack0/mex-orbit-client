@@ -206,13 +206,24 @@ Cinco especies, y cada una se distingue **antes** de leer su nombre:
 |---|---|---|
 | Vex | quitina | La plaga: pequeño, angular, un núcleo rojo |
 | Vexor | quitina | El mismo bicho **crecido**: dos núcleos y venas ramificadas |
+| Gravit | metal | El más pequeño y aun así el más denso: anillos de hierro pulido y un núcleo hundido |
 | Skarn | mineral | Peñasco de basalto con magma en las grietas |
 | Skarnox | mineral | El Skarn crecido: corona de cristal y una **fractura abierta** con el núcleo fundido |
+| Mordax | fauces | **Es una boca**: mandíbula radial de dientes pálidos en medio de un caparazón rojo-pardo |
 | Ferox | óseo | El único **claro**: hueso marfil, hojas y cola de látigo |
+
+Cuatro familias de material —quitina, metal, roca y hueso— y una silueta que es pura anatomía
+(el Mordax). Ninguna se confunde con otra a tamaño de juego.
 
 El Ferox es una decisión deliberada: las otras dos familias son oscuras, así que se separa por **valor**, no
 solo por silueta — a 150 px se distingue de un vistazo. Es también el más rápido del mapa (420, por encima de
 la Phoenix), porque su identidad es alcanzarte, no aguantar.
 
-Los sufijos son la regla de la taxonomía, no adorno: **-or/-ox = forma mayor**. Con dos parejas
-(Vex→Vexor, Skarn→Skarnox) el jugador la aprende sin que nadie se la explique.
+Los sufijos son la regla de la taxonomía, no adorno: **-or/-ox = forma mayor**, **-it/-in = forma
+menor**. Con dos parejas (Vex→Vexor, Skarn→Skarnox) el jugador aprende la primera mitad sin que
+nadie se la explique; el **Gravit** le enseña la otra, y de paso le promete que existe un
+**Gravon** más grande antes de haberlo visto nunca.
+
+Dos de los siete son agresivos, con roles distintos: el **Ferox** caza de lejos (radio 700) y el
+**Mordax** solo muerde lo que entra en su radio corto (350). Los otros cinco son pasivos — que no
+es lo mismo que inofensivos: devuelven el fuego en cuanto los golpeas.
