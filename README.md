@@ -95,6 +95,12 @@ la presa. Antes del cambio, ocho corridas dieron una cola de 40 s; el techo de 4
 red, pero ahora **falla con nombre** —"la caza no logró ponerse a tiro en 45 s"— en vez de con un
 TIMEOUT genérico que no dice en qué se atascó.
 
+**Una prueba no puede heredar el MAPA de la anterior.** Desde que hay salto, la nave se queda donde la
+dejó la corrida previa —correcto para el juego, veneno para una prueba—. El loop caza Vex y el
+bestiario retrata a los nueve bichos, y los NPC solo viven en el `1-1`: arrancar en el `2-2` dejaba al
+bot buscando presas en un mapa vacío hasta agotar el reloj. `dev-run` devuelve a TestBot al `1-1` antes
+de esas dos. `-Salto` **no** se resetea: encadenar saltos entre corridas es información, no ruido.
+
 **Una prueba no puede depender de la suerte.** La fase de venta vendía `material_asterium` a ciegas, y
 se colgaba la tarde que los bichos no soltaban ese material: esperaba para siempre una confirmación
 que no iba a llegar. Ahora pregunta al almacén qué hay que el NPC compre. Es el mismo defecto que el
@@ -504,6 +510,31 @@ portal: **recortar y no-cerrar son decisiones independientes.** El portal quiere
 quiere recortar y sigue siendo un bucle.
 
 ## El salto de sector
+
+**Se salta con la tecla `J`, no con el clic.** El clic sobre un portal solo pone rumbo. Y no es una
+preferencia: como ahora se aterriza **encima** del portal de vuelta, con el salto en el clic el
+aterrizaje lo re-dispararía solo. La tecla y llegar encima son la misma decisión.
+
+**El salto negocia SIEMPRE con el servidor del destino**, aunque hoy lo sirva el mismo proceso. Podría
+haber un atajo —si el mapa es mío, muevo al jugador en memoria— y sería más rápido; pero entonces el
+camino del handoff no se ejecutaría nunca hasta el día que se parta la carga, que es el peor momento
+posible para descubrir que no funciona. Sin atajo, **partir mañana es cambiar filas de `map_server`**.
+
+**Y no hace falta credencial nueva.** El origen persiste la nave **ya en el mapa destino** y avisa al
+cliente de a dónde reconectar; el cliente vuelve con el token de reconexión que ya tenía. El estado
+nunca pasa por manos del cliente —va por BD, que es por donde ya iba— y no hay canal nuevo entre
+servidores que desplegar y vigilar. El diseño con ticket firmado que se barajó primero era correcto y
+resultó innecesario.
+
+Eso obligó a generalizar `Resume`, y la generalización es la parte bonita: **hay dos formas de volver
+y ahora las dos entran por la misma puerta.** Se cayó el socket y la nave sigue aquí en gracia, o se
+llega de otro mapa y este servidor no te ha visto nunca. Lo segundo **no es un error** — es
+exactamente lo que pasa al cruzar un portal. Antes respondía `RESUME_EXPIRED`, así que el salto llegaba
+al server, persistía, y dejaba al jugador fuera de todo mapa.
+
+**Se entra donde se dejó el juego.** Era un fallo que ya existía y que no se podía ver con un solo
+mapa: al entrar siempre se iba al inicial. Con dos mapas, eso teletransporta a quien cerró sesión en
+otro sitio.
 
 **La petición sale cuando ARRANCA el encendido, no cuando termina.** Los 2,1 s de animación son
 exactamente el hueco donde cabe el viaje al server: si contesta antes, el mapa aparece al cerrarse el

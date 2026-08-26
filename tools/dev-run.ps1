@@ -103,6 +103,28 @@ if ($Autotest -or $Bestiario -or $Salto) {
     # ambas pruebas usan la cuenta TestBot; una sesion por cuenta, asi que no
     # deben correr mientras el usuario juega con ella
     $captura = 'C:/Tools/autotest.png'
+
+    # Devolver a TestBot al 1-1 antes de las pruebas que lo dan por hecho.
+    #
+    # Desde que existe el salto de sector, la nave se queda DONDE la dejo la
+    # corrida anterior — que es lo correcto para el juego y veneno para una
+    # prueba. El loop caza Vex y el bestiario retrata a los nueve bichos, y los
+    # NPC solo viven en el 1-1: arrancar en el 2-2 dejaba al bot buscando presas
+    # en un mapa vacio hasta agotar el reloj. Es la misma leccion que la calidad
+    # persistida: una prueba no hereda estado de la anterior.
+    #
+    # -Salto NO se resetea: puede empezar donde sea, y encadenar saltos entre
+    # corridas es informacion, no ruido.
+    if (-not $Salto) {
+        $mysql = 'C:\Tools\mysql8\bin\mysql.exe'
+        if (Test-Path $mysql) {
+            $sql = "UPDATE player_ship_state st JOIN account a ON a.id = st.account_id " +
+                   "SET st.map_id = (SELECT id FROM map WHERE code = '1-1'), st.pos_x = 2600, st.pos_y = 2600 " +
+                   "WHERE a.pilot_name = 'TestBot';"
+            & $mysql -u root --port=3307 --protocol=TCP mexorbit_dev -e $sql
+            Write-Host 'TestBot devuelto al 1-1.'
+        }
+    }
     # El BESTIARIO solo retrata a cada bicho y sale: es la prueba para trabajo de
     # arte, donde la pasada completa del loop es un peaje de tres minutos.
     $modo = if ($Bestiario) { 'bestiario' } elseif ($Salto) { 'salto' } else { 'loop' }

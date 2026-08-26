@@ -104,6 +104,7 @@ func _ready() -> void:
 	_conn.unload_result.connect(_on_unload_result)
 	_conn.sell_result.connect(_on_sell_result)
 	_conn.respawn_options.connect(_on_respawn_options)
+	_conn.jump_handoff.connect(_on_jump_handoff)
 	_conn.error_reply.connect(_on_error)
 	_conn.chat_message.connect(_on_chat)
 	_conn.resume_ok.connect(_on_resume_ok)
@@ -809,6 +810,12 @@ func _on_error(e) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# J: saltar de sector. Es tecla y no clic a proposito — ver `_handle_click`.
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J \
+			and (_chat == null or not _chat.tiene_foco()):
+		_intentar_salto()
+		get_viewport().set_input_as_handled()
+		return
 	# Los ajustes se abren por su ENGRANAJE de la sysbar. Estuvieron en F1 y esa
 	# tecla no era suya: el §6 reserva F1-F10 para la barra de accion II, asi que
 	# el atajo se habria comido un slot en cuanto existan las barras. Escape los
@@ -882,22 +889,12 @@ func _handle_click(world_pos: Vector2) -> void:
 		if not portal.is_working:
 			_estado("Ese portal está inactivo", NTheme.VIOLET)
 			return
-		var encima := _hero != null and _hero.position.distance_to(portal.position) <= portal.click_radius
-		if encima and portal.activar():
-			# La peticion sale AHORA, no al terminar la animacion: los 2,1 s del
-			# encendido son exactamente el hueco donde cabe el viaje al server.
-			# Si el server contesta antes, el mapa aparece al cerrar el encendido;
-			# si tarda mas, la animacion ya termino y solo se espera lo justo.
-			_req_id += 1
-			var salto := MexProtocol.JumpRequest.new()
-			salto.request_id = _req_id
-			salto.portal_id = portal.portal_id
-			_conn.send(salto.encode())
-			_estado("Abriendo portal · sector %s" % portal.target_map_code, NTheme.VIOLET)
-			return
+		# El clic solo pone rumbo. Saltar es de la TECLA (J): con el salto en el
+		# clic, aterrizar encima del portal de vuelta lo re-disparaba solo.
 		_autopilot = portal.position
 		_volar_a(portal.position)
-		_estado("Rumbo al portal · sector %s" % portal.target_map_code, NTheme.VIOLET)
+		_estado("Rumbo al portal · sector %s · pulsa J para saltar"
+			% portal.target_map_code, NTheme.VIOLET)
 		return
 	# click en vacio: volar; mientras siga presionado, _process persigue al cursor
 	# (el vuelo manual cancela el autopiloto, como en el prototipo)
@@ -906,6 +903,46 @@ func _handle_click(world_pos: Vector2) -> void:
 	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
+
+
+## El portal al alcance del salto, si lo hay. El server valida el rango otra vez:
+## el cliente propone, el server dispone.
+func _portal_al_alcance() -> PortalNode:
+	if _hero == null:
+		return null
+	for id in _portales:
+		var p: PortalNode = _portales[id]
+		if p.is_working and _hero.position.distance_to(p.position) <= p.click_radius:
+			return p
+	return null
+
+
+## Saltar. La peticion sale cuando ARRANCA el encendido, no cuando termina: los
+## 2,1 s de animacion son exactamente el hueco donde cabe el viaje al server.
+func _intentar_salto() -> void:
+	var portal := _portal_al_alcance()
+	if portal == null:
+		_estado("No hay ningún portal al alcance", NTheme.MUTED)
+		return
+	if not portal.activar():
+		return
+	_req_id += 1
+	var salto := MexProtocol.JumpRequest.new()
+	salto.request_id = _req_id
+	salto.portal_id = portal.portal_id
+	_conn.send(salto.encode())
+	_estado("Saltando al sector %s…" % portal.target_map_code, NTheme.VIOLET)
+
+
+## El destino lo sirve otro servidor — o el mismo, que el cliente ni lo mira. Se
+## reconecta con el token que ya tiene: el estado de la nave quedo persistido en
+## el mapa destino antes de que el server cerrara, asi que reconectar aterriza
+## donde toca.
+func _on_jump_handoff(msg) -> void:
+	var esquema := "wss" if msg.is_tls else "ws"
+	var url := "%s://%s:%d/ws" % [esquema, msg.host, msg.port]
+	_estado("Enlazando con el sector %s…" % msg.map_code, NTheme.VIOLET)
+	_conn.saltar_a(url)
 
 
 func _portal_at(world_pos: Vector2) -> PortalNode:

@@ -1936,6 +1936,60 @@ class JumpRequest:
 		assert(id == 162, "msg_id inesperado")
 		return decode_from(b, pos)
 
+class JumpHandoff:
+	const MSG_ID := 163
+	var request_id: int = 0
+	var map_code: String = ""
+	var host: String = ""
+	var port: int = 0
+	var is_tls: bool = false
+
+	func validate() -> void:
+		assert(map_code.length() <= 16, "JumpHandoff.map_code demasiado largo")
+		assert(host.length() <= 128, "JumpHandoff.host demasiado largo")
+		assert(port <= 65535, "JumpHandoff.port > 65535")
+
+	func encode_fields(buf: PackedByteArray) -> void:
+		Wire.write_tag(buf, 1, 0)
+		Wire.write_varint(buf, request_id)
+		Wire.write_tag(buf, 2, 2)
+		Wire.write_string(buf, map_code)
+		Wire.write_tag(buf, 3, 2)
+		Wire.write_string(buf, host)
+		Wire.write_tag(buf, 4, 0)
+		Wire.write_varint(buf, port)
+		Wire.write_tag(buf, 5, 0)
+		Wire.write_varint(buf, 1 if is_tls else 0)
+
+	static func decode_from(b: PackedByteArray, pos: Array) -> JumpHandoff:
+		var m := JumpHandoff.new()
+		while pos[0] < b.size():
+			var key := Wire.read_varint(b, pos)
+			var tag := key >> 3
+			var wt := key & 7
+			match tag:
+				1: m.request_id = Wire.read_varint(b, pos)
+				2: m.map_code = Wire.read_string(b, pos)
+				3: m.host = Wire.read_string(b, pos)
+				4: m.port = Wire.read_varint(b, pos)
+				5: m.is_tls = Wire.read_varint(b, pos) != 0
+				_: Wire.skip(b, pos, wt)
+		m.validate()
+		return m
+
+	func encode() -> PackedByteArray:
+		validate()
+		var buf := PackedByteArray()
+		Wire.write_varint(buf, 163)
+		encode_fields(buf)
+		return buf
+
+	static func decode(b: PackedByteArray) -> JumpHandoff:
+		var pos := [0]
+		var id := Wire.read_varint(b, pos)
+		assert(id == 163, "msg_id inesperado")
+		return decode_from(b, pos)
+
 class ChatSend:
 	const MSG_ID := 200
 	var request_id: int = 0

@@ -23,6 +23,7 @@ signal sell_result(msg)
 signal respawn_options(msg)
 signal chat_message(msg)
 signal resume_ok
+signal jump_handoff(msg)
 signal error_reply(msg)
 signal session_replaced
 signal disconnected
@@ -56,6 +57,20 @@ func reconnect() -> void:
 	_ws = WebSocketPeer.new()
 	_ws.connect_to_url(_url)
 	set_process(true)
+
+
+## Reconecta contra OTRA direccion: es el salto de sector.
+##
+## No hace falta credencial nueva. El token de reconexion ya identifica la
+## sesion y vale contra cualquier game server —la sesion vive en BD, no en la
+## memoria de un proceso—, y el estado de la nave ya quedo persistido EN EL MAPA
+## DESTINO antes de que el server cerrara el socket. Reconectar, por tanto,
+## aterriza donde toca sin que el cliente tenga que decir a donde va.
+func saltar_a(url: String) -> void:
+	if reconnect_token == "":
+		return
+	_url = url
+	reconnect()
 
 
 ## Corta el socket como si se cayera la red (autotest de reconexion).
@@ -119,6 +134,7 @@ func _despachar(frame: PackedByteArray) -> void:
 			send(pong.encode())
 		MexProtocol.ChatMessage.MSG_ID: chat_message.emit(MexProtocol.ChatMessage.decode(frame))
 		MexProtocol.ResumeOk.MSG_ID: resume_ok.emit()
+		MexProtocol.JumpHandoff.MSG_ID: jump_handoff.emit(MexProtocol.JumpHandoff.decode(frame))
 		MexProtocol.ErrorReply.MSG_ID: error_reply.emit(MexProtocol.ErrorReply.decode(frame))
 		MexProtocol.SessionReplaced.MSG_ID: session_replaced.emit()
 		_: pass   # mensaje desconocido: se ignora (el contrato es saltable)
