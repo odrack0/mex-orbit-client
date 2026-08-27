@@ -9,6 +9,23 @@ const CLICK_RADIUS := 34.0        # radio de click sobre entidades (escalado por
 const HOLD_RESEND_SEC := 0.25     # cadencia del reenvio con el boton sostenido
 const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para reenviar
 
+# Rango de zoom, CALIBRADO volando con una lectura en pantalla, no supuesto. Los
+# limites anteriores (0,1 a 3,0) eran los del primer dia: a 0,1 la nave son
+# treinta pixeles y el mapa una sopa de puntos, y a 3,0 se ve el poro de la
+# textura y se pierde de vista todo lo que importa.
+#
+# 0,621 es exactamente cinco pasos de rueda por debajo de 1,0 (1,1^-5 = 0,6209),
+# asi que el limite de alejar cae justo en un peldanio. El de acercar no: desde
+# 1,10 el siguiente paso seria 1,21, o sea que el ultimo click se queda corto
+# contra el tope. Se deja asi a proposito — el tope lo pone el encuadre que se
+# quiere, no la escalera de la rueda.
+const ZOOM_MIN := 0.621
+const ZOOM_MAX := 1.157
+const ZOOM_PASO := 1.1
+# Se entra en el extremo alejado, no en medio: ese es el encuadre con el que se
+# juega, y acercar es algo que el jugador hace a proposito para mirar algo.
+const ZOOM_DEFECTO := ZOOM_MIN
+
 var _conn: GameConnection
 var _entidades := {}          # entity_id -> EntityNode
 var _hero: EntityNode
@@ -131,6 +148,11 @@ func _ready() -> void:
 		_frames_explosion.add_frame("boom", frame)
 
 	_camara = Camera2D.new()
+	# se entra SIEMPRE en el zoom mas alejado: es el que da el encuadre de juego,
+	# y acercar es una decision del jugador para mirar algo concreto. No se sujeta
+	# al rango con un clamp, se FIJA — un clamp dejaria pasar el 1,0 por defecto
+	# de Godot solo porque cae dentro.
+	_camara.zoom = Vector2(ZOOM_DEFECTO, ZOOM_DEFECTO)
 	add_child(_camara)
 	_construir_hud()
 	_estado("Abriendo enlace con %s..." % Session.game_host, NTheme.MUTED)
@@ -889,9 +911,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				_handle_click(get_global_mouse_position())
 			MOUSE_BUTTON_WHEEL_UP:
-				_camara.zoom = (_camara.zoom * 1.1).clamp(Vector2(0.1, 0.1), Vector2(3, 3))
+				_camara.zoom = (_camara.zoom * ZOOM_PASO).clamp(
+					Vector2(ZOOM_MIN, ZOOM_MIN), Vector2(ZOOM_MAX, ZOOM_MAX))
 			MOUSE_BUTTON_WHEEL_DOWN:
-				_camara.zoom = (_camara.zoom / 1.1).clamp(Vector2(0.1, 0.1), Vector2(3, 3))
+				_camara.zoom = (_camara.zoom / ZOOM_PASO).clamp(
+					Vector2(ZOOM_MIN, ZOOM_MIN), Vector2(ZOOM_MAX, ZOOM_MAX))
 	elif event is InputEventKey and event.pressed and not event.echo:
 		# Ctrl = laser (el atajo por defecto del prototipo)
 		if event.keycode == KEY_CTRL:
@@ -1555,20 +1579,24 @@ func _autotest(delta: float) -> void:
 					return
 				var img_t := get_viewport().get_texture().get_image()
 				img_t.save_png(Session.autotest_screenshot.replace(".png", "-ventanas.png"))
-				# ZOOM LEJANO. La prueba miraba siempre la nave a tamanio de
-				# crucero, y el sitio donde el arte se cae es el otro: alejado,
-				# la nave son treinta pixeles sacados de una textura de 512. Sin
-				# esta foto, juzgar si un render nuevo "se ve bien de lejos" es
-				# de oido. Misma leccion que el minimapa: un mapa estirado
-				# tambien parece un mapa.
-				_camara.zoom = Vector2(0.35, 0.35)
-				_at_ultimo_vuelo = _autotest_t
+				# ZOOM CERCANO. Nacio como zoom LEJANO, para ver si un render
+				# aguanta de lejos; ahora el lejano es el zoom por defecto, asi
+				# que TODAS las capturas ya son esa foto y esta se quedaba sin
+				# decir nada. Se reapunta al otro extremo del rango calibrado,
+				# que es el que ninguna otra prueba mira.
+				#
+				# Va en ZOOM_MAX y no en un numero suelto: la foto tiene que ser
+				# del sitio mas cercano al que el jugador PUEDE llegar. Con un
+				# valor a mano, el dia que se recalibre el rango la prueba
+				# retrataria un encuadre que ya no existe, que es peor que no
+				# retratar nada.
+				_camara.zoom = Vector2(ZOOM_MAX, ZOOM_MAX)
 				_at_fase = 96
 		96:
 			if _autotest_t - _at_ultimo_vuelo > 0.4:
 				var img_z := get_viewport().get_texture().get_image()
 				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
-				_camara.zoom = Vector2.ONE
+				_camara.zoom = Vector2(ZOOM_DEFECTO, ZOOM_DEFECTO)
 				_at_fase = 93
 		93:
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"

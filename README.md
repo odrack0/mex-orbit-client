@@ -154,7 +154,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `HOLD_MIN_DELTA` | `game/world.gd` | 60 px | El destino debe moverse al menos esto para reenviar |
 | `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, escalado por el zoom |
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
-| Zoom de cámara | `game/world.gd` | ×1.1, clamp 0.1–3 | Rueda del mouse, calcado del prototipo |
+| Zoom de cámara | `game/world.gd` | paso ×1.1, rango **0.621–1.157**, entra en 0.621 | **Calibrado volando**, no heredado: los 0.1–3 del prototipo daban una sopa de puntos por abajo y el poro de la textura por arriba. Se entra en el extremo alejado porque ese es el encuadre de juego; acercar es del jugador |
 | Acelerador de llamas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las llamas al volar/frenar (su color viene del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
@@ -395,8 +395,8 @@ resultado: si reconstruir rompiera algo, revienta ahí.
 
 ## Filtrado de textura: mipmaps sí, pero no en los atlas
 
-La nave se dibuja a 141 px desde una textura de 512, y el zoom de cámara baja hasta 0,1: ahí son unos
-treinta píxeles sacados de quinientos. **Sin mipmaps la GPU muestrea la textura entera con un filtro
+La nave se dibuja a 141 px desde una textura de 512 y el zoom de cámara entra en 0,621: ahí son unos
+noventa píxeles sacados de quinientos. **Sin mipmaps la GPU muestrea la textura entera con un filtro
 de 2×2 téxeles**, así que el detalle fino no se promedia — se aliasa. El síntoma es un contorno
 punteado que hierve al moverse, y era la mitad técnica de «de lejos no se ve bien». La otra mitad es
 cuánto detalle trae el render, y está en el README de `mex-orbit-art`.
@@ -436,9 +436,13 @@ campos de arriba. **Los anclajes no son intercambiables**: cada render tiene los
 cuatro toberas y la v2 tres con boca visible—, y mezclarlos pone la estela y los láseres donde no hay
 tobera ni cañón.
 
-**El autotest saca esa captura** (`autotest-zoom.png`, fase 96, zoom 0,35). Antes miraba siempre la
-nave a tamaño de crucero, que es donde el arte nunca falla; el sitio donde se cae es el otro. Misma
-lección que el minimapa: un mapa estirado también parece un mapa.
+**El autotest saca una captura del extremo del rango** (`autotest-zoom.png`, fase 96). Nació mirando
+el zoom LEJANO, porque la prueba solo veía la nave a tamaño de crucero y ahí el arte nunca falla. Al
+calibrarse el rango, el lejano pasó a ser el zoom por defecto —o sea, lo que ya retratan todas las
+demás capturas— así que la fase apunta ahora al **cercano** (`ZOOM_MAX`), que es el extremo que
+ninguna otra prueba mira. Va por la constante y no por un número a mano: con un valor suelto, el día
+que se recalibre el rango la prueba retrataría un encuadre que ya no existe, que es peor que no
+retratar nada.
 
 ## Dos tipos de asset para los bichos
 
