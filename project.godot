@@ -22,21 +22,15 @@ window/stretch/aspect="expand"
 
 [mexorbit]
 
-; A donde apunta el cliente. La clave con sufijo `.web` es una ANULACION POR
-; FEATURE de Godot: en una exportacion Web gana la de abajo y en escritorio la de
-; arriba, sin un `if` en el codigo y sin tocar nada al exportar.
-;
-; Estaba escrita a mano en `session.gd` como 127.0.0.1, que en el navegador de un
-; tester apunta a SU maquina, no al servidor. Es el tipo de fallo que en dev es
-; invisible por definicion.
-;
-; Y apunta al MISMO ORIGEN que el juego (`/api` de astrion.turname.mx), no al
-; subdominio astrion-api: la API no tiene CORS configurado, asi que un navegador
-; que cargue el juego en un dominio y llame a otro se lo bloquea. Mismo origen es
-; la solucion que no necesita codigo. El subdominio sigue existiendo para
-; herramientas.
+; A donde llama el cliente EN ESCRITORIO. En el navegador no se usa: alli la URL
+; se deduce del origen de la pagina (ver `net/session.gd::_resolver_api`), que no
+; puede quedarse desactualizado el dia que cambie el dominio.
 api_base="http://127.0.0.1:5100"
-api_base.web="https://astrion.turname.mx/api"
+
+; La ruta de la api DENTRO del mismo origen, en web. Es `/api` porque asi lo
+; sirve nginx, y se sirve en el mismo origen a proposito: la api no tiene CORS
+; configurado y un navegador bloquearia la llamada entre dominios.
+api_path="/api"
 
 [importer_defaults]
 

@@ -22,10 +22,7 @@ var calidad_forzada := ""
 
 
 func _ready() -> void:
-	# De project.godot, con la anulacion `.web` que Godot aplica sola al exportar.
-	# Un `--api=` por linea de comandos lo pisa: sirve para apuntar un cliente de
-	# escritorio a produccion sin reexportar nada.
-	api_base = str(ProjectSettings.get_setting("mexorbit/api_base", "http://127.0.0.1:5100"))
+	api_base = _resolver_api()
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--api="):
 			api_base = arg.trim_prefix("--api=")
@@ -35,6 +32,34 @@ func _ready() -> void:
 			autotest_modo = arg.trim_prefix("--modo=")
 		elif arg.begins_with("--calidad="):
 			calidad_forzada = arg.trim_prefix("--calidad=")
+
+
+## A donde llama el cliente.
+##
+## EN EL NAVEGADOR se deduce del ORIGEN DE LA PAGINA, no de un ajuste. La
+## primera version usaba la anulacion por feature de project.godot
+## (`api_base.web`) y no funcionaba, por dos motivos que conviene no repetir:
+##
+##   1. `ProjectSettings.get_setting()` NO aplica las anulaciones. Devuelve el
+##      valor crudo. La que las aplica es `get_setting_with_override()`, y la
+##      diferencia no se nota en escritorio —donde no hay anulacion que aplicar—
+##      asi que el fallo solo existia en la unica plataforma que lo necesitaba.
+##   2. Aun arreglado, seguiria siendo una URL escrita a mano en un sitio que
+##      hay que acordarse de cambiar el dia que cambie el dominio.
+##
+## Deducirla del origen no puede equivocarse: la api se sirve en `/api` del mismo
+## host que sirvio el juego, que es exactamente la razon por la que se monto en
+## el mismo origen —evitar CORS—. Si el juego carga, la api esta donde se dice.
+##
+## En escritorio manda `project.godot`, y un `--api=` por linea de comandos pisa
+## las dos: sirve para apuntar un cliente de escritorio a produccion.
+func _resolver_api() -> String:
+	if OS.has_feature("web"):
+		var origen := str(JavaScriptBridge.eval("location.origin", true))
+		var ruta := str(ProjectSettings.get_setting("mexorbit/api_path", "/api"))
+		if origen != "":
+			return origen + ruta
+	return str(ProjectSettings.get_setting("mexorbit/api_base", "http://127.0.0.1:5100"))
 
 
 ## Credenciales de dev desde dev_login.cfg (fuera del repo).
