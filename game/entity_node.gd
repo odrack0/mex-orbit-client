@@ -143,6 +143,20 @@ func _construir_visual() -> void:
 		_anim_t = randf() * float(periodo_) / maxf(_anim_fps, 1.0)
 	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del
 	# export. Con atlas manda el alto del FOTOGRAMA, no el de la textura entera.
+	# MIPMAPS, y solo cuando NO es atlas.
+	#
+	# La nave se dibuja a 141 px desde una textura de 512, y el zoom baja hasta
+	# 0,1: ahi son treinta pixeles de una textura de quinientos. Sin mipmaps la
+	# GPU muestrea la textura entera con un filtro de 2x2 texeles, asi que el
+	# detalle fino no se promedia, se ALIASA — hierve al moverse y se lee como
+	# ruido. Es la mitad tecnica de "de lejos no se ve bien"; la otra mitad es
+	# cuanto detalle trae el render.
+	#
+	# Con ATLAS no: los mipmaps promedian a ciegas y en los niveles bajos mezclan
+	# celdas vecinas, o sea un fotograma con el siguiente. Esa distincion ya
+	# estaba calculada aqui arriba, que es la razon de ponerlo en este punto.
+	_sprite.texture_filter = (CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if anim.is_empty()
+		else CanvasItem.TEXTURE_FILTER_LINEAR)
 	var alto_tex := float(_sprite.texture.get_height()) / maxf(float(_sprite.vframes), 1.0)
 	var factor: float = float(d.get("screen_size", 141)) / alto_tex
 	_sprite.scale = Vector2.ONE * factor

@@ -377,6 +377,37 @@ barra de acción II, así que el atajo se habría comido un slot en cuanto exist
 la única tecla que el documento no reparte. El autotest en modo bestiario **baja la calidad con el mundo ya poblado** y retrata el
 resultado: si reconstruir rompiera algo, revienta ahí.
 
+## Filtrado de textura: mipmaps sí, pero no en los atlas
+
+La nave se dibuja a 141 px desde una textura de 512, y el zoom de cámara baja hasta 0,1: ahí son unos
+treinta píxeles sacados de quinientos. **Sin mipmaps la GPU muestrea la textura entera con un filtro
+de 2×2 téxeles**, así que el detalle fino no se promedia — se aliasa. El síntoma es un contorno
+punteado que hierve al moverse, y era la mitad técnica de «de lejos no se ve bien». La otra mitad es
+cuánto detalle trae el render, y está en el README de `mex-orbit-art`.
+
+En `EntityNode._construir_visual`, el filtro se elige por **tipo de textura**:
+
+| textura | filtro | por qué |
+|---|---|---|
+| PNG suelto | `LINEAR_WITH_MIPMAPS` | se reduce mucho; los mipmaps son justo para eso |
+| atlas de fotogramas | `LINEAR` | los mipmaps promedian a ciegas y en los niveles bajos **mezclan celdas vecinas**, o sea un fotograma con el siguiente |
+
+Esa distinción ya estaba calculada unas líneas más arriba (`anim.is_empty()`), que es la razón de
+ponerlo ahí y no en un ajuste global del proyecto: `default_texture_filter` no sabe distinguir un
+atlas de un PNG.
+
+Hay que activarlo **en los dos sitios**: el filtro en el nodo y `mipmaps/generate=true` en el
+`.import` de la textura. Solo con el filtro no hay niveles que muestrear y Godot cae al nivel 0 sin
+avisar. Están activados en las texturas sueltas de `assets/ships` y `assets/npcs`; los `*-anim.png`
+se quedan fuera a propósito.
+
+Medido sobre la captura de zoom lejano del autotest: la energía de alta frecuencia baja de 15,54 a
+14,42, y a ojo los tubos de los cañones pasan de línea de puntos a tubo sólido.
+
+**El autotest saca esa captura** (`autotest-zoom.png`, fase 96, zoom 0,35). Antes miraba siempre la
+nave a tamaño de crucero, que es donde el arte nunca falla; el sitio donde se cae es el otro. Misma
+lección que el minimapa: un mapa estirado también parece un mapa.
+
 ## Dos tipos de asset para los bichos
 
 **PNG + shaders** es el caso normal: una textura, su capa emisiva y los efectos declarados en el

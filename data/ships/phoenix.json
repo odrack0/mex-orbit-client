@@ -7,27 +7,22 @@
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
   "engines": [
     {
-      "x": -58,
-      "y": 238,
+      "x": -43,
+      "y": 234,
       "scale": 1.0
     },
     {
-      "x": -25,
-      "y": 238,
+      "x": -1,
+      "y": 234,
       "scale": 1.0
     },
     {
-      "x": 24,
-      "y": 238,
-      "scale": 1.0
-    },
-    {
-      "x": 57,
-      "y": 238,
+      "x": 42,
+      "y": 234,
       "scale": 1.0
     }
   ],
-  "_estela": "Cuatro plumas en vez de dos: se acortan y se afinan respecto a la nave anterior para que se lean como CUATRO y no como una mancha unica.",
+  "_estela": "TRES plumas: el render v2 tiene cuatro toberas pero solo tres con boca visible —la cuarta queda detras—, y la estela se ancla en lo que se VE. Se acortan y se afinan para que se lean como tres y no como una mancha unica.",
   "engine_trail": {
     "color": "00E5FF",
     "core_color": "DFFBFF",
@@ -38,12 +33,14 @@
   "_canones": "Boca de cada tubo lateral, medida en la fila donde asoman del casco (y=197, al 91% del semiancho). El filtro de 'bien afuera' del tool importa: sin el cogia los asideros curvos del domo, que estan al 64%.",
   "cannons": [
     {
-      "x": -165,
-      "y": -59
+      "x": -202,
+      "y": -138
     },
     {
-      "x": 165,
-      "y": -59
+      "x": 202,
+      "y": -138
     }
-  ]
+  ],
+  "_render": "v2 (source/renders/Phoenix-v2.jpeg): render limpio, sin la suciedad ni los rotulos de la v1. El motivo no es gusto: la nave se dibuja a 141 px y el zoom baja hasta 0,1, asi que los rotulos de 5 px de la v1 no eran detalle, eran ruido. Medido a tamanio de juego, la v2 tiene 43,6 de contraste contra 31,1 y a 35 px sigue leyendose como nave.",
+  "_pendiente": "La v2 es un render de arcilla: gris neutro, SIN un solo acento de faccion. El cian solo entra por la estela de motores. Falta decidir si el casco lleva acento cian propio."
 }

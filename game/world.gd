@@ -1555,6 +1555,20 @@ func _autotest(delta: float) -> void:
 					return
 				var img_t := get_viewport().get_texture().get_image()
 				img_t.save_png(Session.autotest_screenshot.replace(".png", "-ventanas.png"))
+				# ZOOM LEJANO. La prueba miraba siempre la nave a tamanio de
+				# crucero, y el sitio donde el arte se cae es el otro: alejado,
+				# la nave son treinta pixeles sacados de una textura de 512. Sin
+				# esta foto, juzgar si un render nuevo "se ve bien de lejos" es
+				# de oido. Misma leccion que el minimapa: un mapa estirado
+				# tambien parece un mapa.
+				_camara.zoom = Vector2(0.35, 0.35)
+				_at_ultimo_vuelo = _autotest_t
+				_at_fase = 96
+		96:
+			if _autotest_t - _at_ultimo_vuelo > 0.4:
+				var img_z := get_viewport().get_texture().get_image()
+				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
+				_camara.zoom = Vector2.ONE
 				_at_fase = 93
 		93:
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"
