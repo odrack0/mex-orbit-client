@@ -27,13 +27,9 @@
       "scale": 1.0
     }
   ],
-  "_estela": "Cuatro plumas con la v1 (cuatro toberas), tres con la v2 (la cuarta queda detras). La estela se ancla en las bocas que se VEN, asi que el numero cambia con el render.",
+  "_estela": "Solo LLAMA por tobera. La estela de chispas se quito: se soltaban al mundo con 0,38 s de vida y la nave las adelantaba, asi que no se leian por detras sino como motas encima del casco. De `engine_trail` solo queda `color`, que es lo unico que usa la llama; length, width, lifetime y core_color eran de las chispas y se fueron con ellas.",
   "engine_trail": {
-    "color": "00E5FF",
-    "core_color": "DFFBFF",
-    "length": 78,
-    "width": 7,
-    "lifetime": 0.38
+    "color": "00E5FF"
   },
   "_canones": "Boca de cada tubo lateral, medida en la fila donde asoman del casco (y=197, al 91% del semiancho). El filtro de 'bien afuera' del tool importa: sin el cogia los asideros curvos del domo, que estan al 64%.",
   "cannons": [

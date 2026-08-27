@@ -127,7 +127,7 @@ directos del `maps-config.xml` y la tabla de anclajes de llamas del cliente orig
 
 | Archivo | Define |
 |---|---|
-| `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y estilo de la estela (color, largo, ancho, vida) |
+| `data/ships/<code>.json` | textura, tamaño en pantalla, radio de click, **anclajes de toberas** y color de la llama |
 | `data/npcs/<code>.json` | textura **o** atlas animado, capa emisiva y su pulso, radio de click, giro y efectos de shader |
 | `data/maps/<code>.json` | el stack de capas: fondo principal, mosaicos con su `p_factor`/escala/alfa, planetas con posición y profundidad, sol con su giro, tinte del polvo estelar |
 | `data/props/<code>.json` | props del mundo (**estación**, **portal**, **caja de carga**): textura, emisiva, tamaño en unidades de mundo, pulso, radio de click y color en el minimapa |
@@ -155,7 +155,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, escalado por el zoom |
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
 | Zoom de cámara | `game/world.gd` | ×1.1, clamp 0.1–3 | Rueda del mouse, calcado del prototipo |
-| Acelerador de estelas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las estelas al volar/frenar (su forma y color vienen del JSON de la nave) |
+| Acelerador de llamas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las llamas al volar/frenar (su color viene del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
 | Disparos | `data/ammo/*.json` + `projectile_2d.gd` | duración 0.15 s | Proyectil que **viaja** con duración fija (no velocidad), como el prototipo; sale alternando por las bocas de `cannons` de la nave |
@@ -296,6 +296,22 @@ la ventana se lee más ruidosa que en el prototipo. Es la única desviación con
 **Iconos**: SVG del §10 en `assets/ui/icons/`, con el trazo en **blanco puro** — el color lo pone
 `modulate`, y un icono ya coloreado no se podría teñir de ámbar al abrir su ventana.
 
+## La estela de chispas, y por qué se fue
+
+Cada tobera soltaba además una estela de chispas **al mundo** (`local_coords = false`), para que el
+rastro se quedara atrás como el humo de motor del prototipo. La idea es buena y la ejecución no
+llegaba: con 0,38 s de vida la nave **adelantaba a sus propias chispas**, así que no se leían por
+detrás sino como motas de colores encima del casco. Una estela que se ve como suciedad no es una
+estela.
+
+Con ella se fue el nivel 2 del dial `engine` —era lo único que había ahí— y las claves `length`,
+`width`, `lifetime` y `core_color` de `engine_trail`, que solo usaban las chispas. La llama se queda:
+esa sí dice algo, porque crece con el empuje.
+
+Si algún día vuelve, el problema a resolver primero es el de siempre en una estela soltada al mundo:
+**la vida de la partícula tiene que ser larga comparada con lo que tarda la nave en recorrer su
+propia eslora**, o el rastro nace ya pisado.
+
 ## Dos barras de estado, no tres
 
 **v1 no tiene nano-casco.** El original apilaba tres barras sobre la nave (vida,
@@ -347,7 +363,7 @@ no rehacer nada.
 | `npc` | PNG fijo | PNG fijo | **atlas animado** |
 | `shader` | — | ondulación · peristalsis · anillos | ídem |
 | `emissive` | — | capa emisiva pulsando | ídem |
-| `engine` | sin llamas | llamas | llamas + chispas |
+| `engine` | sin llamas | llamas | llamas |
 | `collectable` | caja congelada en su fotograma 0 | ídem | caja animada |
 | `background` | solo polvo estelar | fondo y planetas | + mosaicos de paralaje |
 | `explosion` | no se dibuja | se dibuja | ídem |

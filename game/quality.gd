@@ -20,12 +20,12 @@ const RUTA := "user://quality.cfg"
 ##  - npc:         0-1 PNG fijo · 2+ atlas animado (los videos en bucle)
 ##  - shader:      0 sin ondulacion/peristalsis/anillos · 1+ con ellos
 ##  - emissive:    0 capa emisiva apagada · 1+ encendida y pulsando
-##  - engine:      0 sin llamas ni chispas · 1 llamas · 2+ llamas y chispas
+##  - engine:      0 sin llamas · 1+ llamas (el nivel 2 era las chispas, que se quitaron)
 ##  - collectable: 0-1 caja congelada en su primer fotograma · 2+ animada
 ##  - background:  0 solo estrellas · 1 fondo sin mosaicos · 2+ completo
 ##  - explosion:   0 sin animacion de explosion · 1+ con ella
 var niveles := {
-	"npc": 2, "shader": 1, "emissive": 1, "engine": 2,
+	"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
 	"collectable": 2, "background": 2, "explosion": 1,
 }
 
@@ -39,7 +39,7 @@ const PRESETS := {
 			  "collectable": 0, "background": 0, "explosion": 0},
 	"media": {"npc": 1, "shader": 1, "emissive": 1, "engine": 1,
 			  "collectable": 1, "background": 1, "explosion": 1},
-	"alta":  {"npc": 2, "shader": 1, "emissive": 1, "engine": 2,
+	"alta":  {"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
 			  "collectable": 2, "background": 2, "explosion": 1},
 }
 

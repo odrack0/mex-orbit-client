@@ -57,10 +57,13 @@ var _visual_angle := 0.0          # grados de pantalla de la proa
 var _turn_tween: Tween
 var _idle_timer := 0.0
 
-# motores (modelo del prototipo): una LLAMA por tobera anclada a la nave que
-# crece con el empuje, mas una estela de CHISPAS soltadas al mundo
+# motores: una LLAMA por tobera, anclada a la nave y creciendo con el empuje.
+#
+# Hubo ademas una estela de CHISPAS soltadas al mundo (`local_coords = false`) y
+# se quito: con 0,38 s de vida la nave las adelantaba, asi que el rastro no se
+# leia por detras sino como motas encima del casco. Una estela que se ve como
+# suciedad no cuenta como estela.
 var _flames: Array[Sprite2D] = []
-var _trails: Array[GPUParticles2D] = []
 var _thrust := 0.0
 
 # bocas de cañón (espacio de la textura) y a cuál toca disparar
@@ -179,14 +182,11 @@ func _construir_visual() -> void:
 
 	_montar_ondulacion(d)
 
-	# motores en los anclajes del JSON. Nivel 0 = sin llamas; 1 = llamas sin
-	# chispas (las particulas son lo caro); 2+ = completo.
+	# motores en los anclajes del JSON. Nivel 0 = sin llamas; 1 = llamas.
 	var trail: Dictionary = d.get("engine_trail", {})
 	if Quality.nivel("engine") >= 1:
 		for motor in d.get("engines", []):
 			_flames.append(_crear_llama(motor, trail))
-			if Quality.nivel("engine") >= 2:
-				_trails.append(_crear_estela(motor, trail))
 
 
 ## Rehace la parte visual con la calidad actual. Lo demas —nombre, barras,
@@ -198,7 +198,6 @@ func reconstruir() -> void:
 	_sprite = null
 	_emissive = null
 	_flames.clear()      # eran hijos del sprite: se van con el
-	_trails.clear()
 	_ondas.clear()
 	_anim_total = 0
 	_anim_vaiven = false
@@ -339,54 +338,6 @@ func _crear_llama(motor: Dictionary, trail: Dictionary) -> Sprite2D:
 	return llama
 
 
-## Estela de chispas soltadas AL MUNDO (no siguen a la nave): el rastro que
-## queda atras, como el humo de motor del prototipo.
-func _crear_estela(motor: Dictionary, trail: Dictionary) -> GPUParticles2D:
-	var p := GPUParticles2D.new()
-	p.position = Vector2(float(motor.get("x", 0)), float(motor.get("y", 0)))
-	p.amount = 96                   # densas: la estela debe leerse continua
-	p.lifetime = float(trail.get("lifetime", 0.42))
-	p.local_coords = false          # se quedan en el mundo: se ve el rastro
-	p.texture = load("res://assets/fx/spark.png")
-
-	var mat := ParticleProcessMaterial.new()
-	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	mat.emission_sphere_radius = float(trail.get("width", 9)) * 0.3
-	mat.direction = Vector3(0, 1, 0)     # hacia la popa (+Y de la textura)
-	mat.spread = 5.0
-	mat.gravity = Vector3.ZERO
-	var largo: float = float(trail.get("length", 96))
-	mat.initial_velocity_min = largo * 0.15
-	mat.initial_velocity_max = largo * 0.35
-	mat.damping_min = largo * 1.0
-	mat.damping_max = largo * 1.6
-	mat.scale_min = 0.04            # finas: chispas, no bolas
-	mat.scale_max = 0.10
-	# las chispas se encogen al apagarse
-	var curva := Curve.new()
-	curva.add_point(Vector2(0, 1.0))
-	curva.add_point(Vector2(1, 0.0))
-	var curva_tex := CurveTexture.new()
-	curva_tex.curve = curva
-	mat.scale_curve = curva_tex
-
-	var grad := Gradient.new()
-	var nucleo := AssetDefs.color(trail.get("core_color", "DFFBFF"))
-	var color := AssetDefs.color(trail.get("color", "00E5FF"))
-	grad.set_color(0, nucleo)
-	grad.set_color(1, Color(color, 0.0))
-	grad.add_point(0.3, color)
-	var rampa := GradientTexture1D.new()
-	rampa.gradient = grad
-	mat.color_ramp = rampa
-
-	p.process_material = mat
-	p.material = _material_add()
-	p.emitting = false
-	_sprite.add_child(p)
-	return p
-
-
 static func _material_add() -> CanvasItemMaterial:
 	var m := CanvasItemMaterial.new()
 	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -397,7 +348,7 @@ func _process(delta: float) -> void:
 	var en_vuelo := position.distance_to(objetivo) > 0.5
 
 	# acelerador: el empuje sube en vuelo y cae al frenar (modelo del prototipo)
-	if not _flames.is_empty() or not _trails.is_empty():
+	if not _flames.is_empty():
 		_thrust = clampf(_thrust + (3.0 if en_vuelo else -4.0) * delta, 0.0, 1.0)
 		# la llama crece a lo largo con el empuje y respira; el ancho apenas cambia
 		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
@@ -405,9 +356,6 @@ func _process(delta: float) -> void:
 			llama.visible = _thrust > 0.02
 			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro)
 			llama.self_modulate.a = 0.35 + 0.65 * _thrust
-		for t in _trails:
-			t.emitting = _thrust > 0.15
-			t.self_modulate.a = _thrust
 
 	if _anim_total > 0:
 		_anim_t += delta
