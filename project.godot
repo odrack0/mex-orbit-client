@@ -20,6 +20,18 @@ window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[mexorbit]
+
+; A donde apunta el cliente. La clave con sufijo `.web` es una ANULACION POR
+; FEATURE de Godot: en una exportacion Web gana la de abajo y en escritorio la de
+; arriba, sin un `if` en el codigo y sin tocar nada al exportar.
+;
+; Estaba escrita a mano en `session.gd` como 127.0.0.1, que en el navegador de un
+; tester apunta a SU maquina, no al servidor. Es el tipo de fallo que en dev es
+; invisible por definicion.
+api_base="http://127.0.0.1:5100"
+api_base.web="https://astrion-api.turname.mx"
+
 [importer_defaults]
 
 ; Los mipmaps van ACTIVADOS por defecto, y los atlas los apagan uno a uno en su

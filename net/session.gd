@@ -2,7 +2,7 @@
 # dev_login.cfg (NO versionado) permite precargar credenciales de dev.
 extends Node
 
-var api_base := "http://127.0.0.1:5100"
+var api_base := ""            # se resuelve en _ready(): ver project.godot [mexorbit]
 var game_host := ""
 var game_ticket := ""
 var session_token := ""
@@ -22,8 +22,14 @@ var calidad_forzada := ""
 
 
 func _ready() -> void:
+	# De project.godot, con la anulacion `.web` que Godot aplica sola al exportar.
+	# Un `--api=` por linea de comandos lo pisa: sirve para apuntar un cliente de
+	# escritorio a produccion sin reexportar nada.
+	api_base = str(ProjectSettings.get_setting("mexorbit/api_base", "http://127.0.0.1:5100"))
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--screenshot="):
+		if arg.begins_with("--api="):
+			api_base = arg.trim_prefix("--api=")
+		elif arg.begins_with("--screenshot="):
 			autotest_screenshot = arg.trim_prefix("--screenshot=")
 		elif arg.begins_with("--modo="):
 			autotest_modo = arg.trim_prefix("--modo=")
