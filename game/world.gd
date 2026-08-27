@@ -827,6 +827,12 @@ func _crear_caja(box_id: int, pos: Vector2) -> void:
 	# atlas manda el ancho del FOTOGRAMA, no el de la textura entera.
 	var lado := float(caja.texture.get_width()) / maxf(float(caja.hframes), 1.0)
 	caja.scale = Vector2.ONE * (float(d.get("world_size", 48)) / lado)
+	# Relieve: la caja tampoco rota, asi que gana lo mismo que la estacion —que su
+	# sombreado venga de la luz del mundo y no de la cenital plana del render. Sus
+	# tubos de neon los protege el shader: no se apagan por venir la luz de enfrente.
+	if Quality.nivel("shader") >= 1:
+		caja.material = AssetDefs.material_relieve(
+			AssetDefs.ruta_normal(d, not anim.is_empty()))
 	caja.z_index = 1
 	add_child(caja)
 	# la banda emisiva late en ALFA para llamar al jugador (fase por caja). Una
@@ -1719,16 +1725,10 @@ func _diferencia_casco(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 func _montar_relieve_estacion(d: Dictionary, anim: Dictionary) -> void:
 	if Quality.nivel("shader") < 1:
 		return
-	var ruta: String = anim.get("normal", "") if not anim.is_empty() else d.get("normal", "")
-	if ruta == "" or not ResourceLoader.exists(ruta):
-		return
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://game/shaders/relieve.gdshader")
-	mat.set_shader_parameter("normal_map", load(ruta))
-	mat.set_shader_parameter("luz_dir", AssetDefs.luz_mundo())
 	# `giro` se queda en 0 para siempre: no rota. Se deja el uniform en su sitio
 	# igual, para que el shader sea UNO solo y no dos que se parecen.
-	_estacion.material = mat
+	_estacion.material = AssetDefs.material_relieve(
+		AssetDefs.ruta_normal(d, not anim.is_empty()))
 
 
 ## Deja en el mundo SOLO al heroe, para las dos fotos de la prueba del relieve.

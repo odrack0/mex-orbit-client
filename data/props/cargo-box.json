@@ -7,7 +7,8 @@
     "hframes": 7,
     "vframes": 7,
     "count": 48,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/world/cargo-box-anim-normal.png"
   },
   "world_size": 64,
   "click_radius": 34,
@@ -16,5 +17,7 @@
     "radius": 2.0
   },
   "_dos_caminos": "DOS CAMINOS. El respaldo fijo NO es el PNG viejo sino el fotograma 0 del propio atlas: el diseño de la caja cambio con el video, y usar el viejo mostraria una caja distinta al bajar la calidad.",
-  "texture": "res://assets/world/cargo-box-still.png"
+  "texture": "res://assets/world/cargo-box-still.png",
+  "normal": "res://assets/world/cargo-box-still-normal.png",
+  "_relieve": "Mapa de normales, uno por camino. Ni el portal ni la caja ROTAN, asi que aqui el relieve no arregla que la luz gire con ellos —nunca giraba— sino que su sombreado venga de la misma luz que todo lo demas. Sus emisivos (el plasma y los tubos de neon) los protege el shader: no se apagan porque la luz venga del otro lado."
 }

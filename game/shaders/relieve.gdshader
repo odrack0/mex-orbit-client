@@ -21,10 +21,11 @@ uniform sampler2D normal_map : filter_linear_mipmap, repeat_disable;
 uniform float giro = 0.0;             // radianes: rotacion del sprite en el mundo
 uniform vec2 luz_dir = vec2(0.7071, -0.7071);
 uniform float luz_z = 0.60;           // cuanto viene la luz "de frente"; 0 = rasante
-uniform float ambiente = 0.55;        // lo que se ve en la cara oscura
-uniform float difusa = 0.85;
-uniform float especular = 0.35;       // el brillo que barre; es lo que se nota al virar
+uniform float contraste = 0.90;       // cuanto separa la cara clara de la oscura
+uniform float especular = 0.30;       // el brillo que barre; es lo que se nota al virar
 uniform float dureza = 24.0;          // mas alto = reflejo mas concentrado
+uniform float emisivo_min = 0.55;     // a partir de aqui un pixel se considera luz propia
+uniform float emisivo_max = 0.85;     // y aqui, luz propia del todo
 
 // El fragment recibe COLOR ya multiplicado por el modulate solo si no lo tocamos;
 // al escribirlo entero hay que traerselo desde vertex, igual que en `undulate`.
@@ -47,7 +48,18 @@ void fragment() {
 	float lam = clamp(dot(nm, L), 0.0, 1.0);
 	float brillo = pow(lam, dureza);
 
-	// el especular se suma sin teñir: un reflejo de metal es blanco
-	vec3 rgb = base.rgb * (ambiente + difusa * lam) + vec3(especular * brillo);
-	COLOR = vec4(rgb, base.a);
+	// La luz va CENTRADA EN UNO, no sumando ambiente y difusa. La primera version
+	// hacia `ambiente + difusa * lam`, y con un lambert medio de 0,47 eso deja el
+	// asset mas oscuro de lo que venia, siempre. En un bicho de metal apenas se
+	// notaba; en una caja con tubos de neon y en un portal de plasma, se veia.
+	// Asi, lam = 0,5 no cambia nada y los dos lados se reparten alrededor: da
+	// forma sin poder apagar la pieza en conjunto.
+	vec3 rgb = base.rgb * (1.0 + contraste * (lam - 0.5)) + vec3(especular * brillo);
+
+	// Y lo que tiene LUZ PROPIA no se ilumina. Un tubo de neon o el plasma de un
+	// portal no se apagan porque la luz venga del otro lado; ahi el sombreado no
+	// es forma, es un error. Se detecta por el canal mas alto, que es lo que
+	// separa un emisivo saturado de un metal claro.
+	float e = smoothstep(emisivo_min, emisivo_max, max(base.r, max(base.g, base.b)));
+	COLOR = vec4(mix(rgb, base.rgb, e), base.a);
 }

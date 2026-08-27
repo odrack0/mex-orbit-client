@@ -34,6 +34,7 @@ var click_radius := 190.0
 const RANGO_SALTO := 600.0
 
 var _datos = null                 # MexProtocol.MapPortal, para poder reconstruir
+var _aro: Sprite2D                # aro fijo (camino de media y baja)
 var _vortice: Sprite2D
 var _pulse_min := 0.45
 var _pulse_max := 1.6
@@ -63,6 +64,7 @@ func setup(p) -> void:      # p: MexProtocol.MapPortal
 func reconstruir() -> void:
 	for hijo in get_children():
 		hijo.queue_free()
+	_aro = null
 	_vortice = null
 	_anim = null
 	_anim_total = 0
@@ -83,7 +85,29 @@ func _construir() -> void:
 		_montar_encendido(anim, tam)
 	else:
 		_montar_aro(d, tam)
+	_montar_relieve(d, not anim.is_empty())
 	_montar_etiqueta(d, tam)
+
+
+## RELIEVE sobre el aro. El portal no rota, asi que aqui no arregla que la luz
+## gire con el —nunca giraba— sino que su sombreado venga de la misma luz que
+## todo lo demas, en vez de la cenital plana que pide el contrato de render.
+##
+## El PLASMA no se toca, y no por delicadeza: el shader protege lo que tiene luz
+## propia. Un vortice que se apaga porque la luz viene del otro lado no es
+## sombreado, es un error — ahi no hay superficie que iluminar.
+##
+## En el camino fijo va sobre el aro y NO sobre el vortice: ese ya se dibuja en
+## blend aditivo con su propio pulso, y montarle un material encima lo apagaria.
+func _montar_relieve(d: Dictionary, animado: bool) -> void:
+	if Quality.nivel("shader") < 1:
+		return
+	# el sprite se guarda al montarlo, no se busca por indice: `get_child(0)` se
+	# equivoca en silencio el dia que alguien anada otro hijo antes
+	var destino: Sprite2D = _anim if animado else _aro
+	if destino == null:
+		return
+	destino.material = AssetDefs.material_relieve(AssetDefs.ruta_normal(d, animado))
 
 
 func _montar_encendido(anim: Dictionary, tam: float) -> void:
@@ -103,6 +127,7 @@ func _montar_encendido(anim: Dictionary, tam: float) -> void:
 
 func _montar_aro(d: Dictionary, tam: float) -> void:
 	var aro := Sprite2D.new()
+	_aro = aro
 	aro.texture = load(d.get("texture", "res://assets/world/portal.png"))
 	# tamaño en unidades de MUNDO segun el JSON, sea cual sea la resolucion del render
 	var lado := float(aro.texture.get_width())

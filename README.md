@@ -308,16 +308,36 @@ rota: si no se contrarrota la normal antes de iluminarla, la luz gira con la nav
 nada. Se empuja desde `_set_visual_angle`, que corre exactamente cuando cambia el rumbo — un uniform
 por giro, no uno por fotograma.
 
-Lo llevan la nave, **los nueve bichos y la estación**. Cada asset tiene un mapa por camino —el del
+Lo llevan la nave, **los nueve bichos, la estación, el portal y la caja de carga** — el mundo entero
+se ilumina desde el mismo sitio. El material lo construye `AssetDefs.material_relieve()`, en un solo
+lugar: cuatro copias de la misma receta son tres que se quedan atrás el día que cambie la luz, que es
+justo lo que pasó con el recorte del croma. Cada asset tiene un mapa por camino —el del
 atlas cuando está animado, el del PNG cuando no— y elegirlo mal sería peor que no tener ninguno: un
 mapa de normales que no casa con la silueta que ilumina inventa bultos donde no hay nada.
 
-**La estación es un caso distinto y conviene no confundirlo.** No rota, así que su luz nunca giraba
-con ella; lo que gana no es eso sino consistencia. Su render viene iluminado desde arriba en el eje de
+**La estación, el portal y la caja son un caso distinto y conviene no confundirlo.** No rotan, así que
+su luz nunca giraba con ellos; lo que ganan no es eso sino consistencia. Su render viene iluminado desde arriba en el eje de
 cámara —se lo pide el contrato de render, y con razón, porque es lo único que sobrevive a un sprite
 que gira— y esa es la iluminación más plana que existe. Al lado de una nave con forma se leía como un
 decorado pegado. Su `giro` se queda en cero para siempre, y el uniform se deja igual para que el
 shader sea uno solo y no dos que se parecen.
+
+### Dos correcciones que costaron un portal y una caja
+
+La primera fórmula era `ambiente + difusa · lam`, y con un lambert medio de **0,47** eso deja el asset
+más oscuro de lo que venía, siempre. En un bicho de metal no se notaba; en una caja con tubos de neón
+y en un portal de plasma se veía a la primera. Ahora la luz va **centrada en uno**
+(`1 + contraste · (lam − 0,5)`): con `lam = 0,5` no cambia nada y los dos lados se reparten alrededor,
+así que da forma sin poder apagar la pieza en conjunto.
+
+Y **lo que tiene luz propia no se ilumina.** Un tubo de neón o el plasma de un portal no se apagan
+porque la luz venga del otro lado; ahí el sombreado no es forma, es un error — no hay superficie que
+iluminar. Se detecta por el canal más alto, que es lo que separa un emisivo saturado de un metal
+claro. En el Ferox eso valía un 2% y por eso no se escribió al principio; en la caja vale el negocio
+entero.
+
+En el portal, el relieve va sobre el **aro** y no sobre el vórtice: ese ya se dibuja en aditivo con su
+propio pulso, y montarle un material encima lo apagaría.
 
 Cede ante la **ondulación**, que ya ocupa el material del sprite. No es un límite técnico sino de
 sentido: la ondulación es movimiento estructural y el relieve es acabado. Si un bicho quiere las dos,
@@ -337,6 +357,11 @@ Comprueba dos cosas, y las dos son exactas:
 
 Juntas cubren la cadena entera, y el umbral puede ser ridículo (0,02 contra un 0,30 medido) porque el
 caso roto es **cero exacto**, no "un número pequeño".
+
+Ya se ganó el sueldo: al desactivar la protección de emisivos para la medida se subió solo el borde
+inferior del `smoothstep`, dejándolo invertido (`smoothstep(2.0, 0.85, x)`). En GLSL eso no es
+"protección desactivada" sino comportamiento indefinido — devolvía textura cruda sin iluminar. La
+prueba lo cazó en la corrida siguiente.
 
 Costó cinco versiones. Las cuatro primeras **pasaban con el relieve roto a propósito**:
 

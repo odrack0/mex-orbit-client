@@ -26,6 +26,28 @@ const LUZ_MUNDO_GRADOS := 315.0
 static func luz_mundo() -> Vector2:
 	return Vector2.RIGHT.rotated(deg_to_rad(LUZ_MUNDO_GRADOS))
 
+
+## El material de relieve para una textura de normales, o null si no hay mapa.
+## Vive aqui porque lo montan CUATRO sitios —naves y bichos, estacion, portal y
+## caja— y una copia por sitio es una copia que se queda atras el dia que cambie
+## la luz. Es la leccion del recorte del croma, que vivio copiado en dos scripts
+## hasta que uno se quedo con el despill viejo.
+static func material_relieve(ruta: String) -> ShaderMaterial:
+	if ruta == "" or not ResourceLoader.exists(ruta):
+		return null
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://game/shaders/relieve.gdshader")
+	mat.set_shader_parameter("normal_map", load(ruta))
+	mat.set_shader_parameter("luz_dir", luz_mundo())
+	return mat
+
+
+## La ruta del mapa de normales que toca segun el camino: con atlas manda el del
+## atlas. Mezclarlos es peor que no tener ninguno — un mapa que no casa con la
+## silueta que ilumina inventa bultos donde no hay nada.
+static func ruta_normal(d: Dictionary, animado: bool) -> String:
+	return d.get("frames", {}).get("normal", "") if animado else d.get("normal", "")
+
 static var _cache := {}
 
 

@@ -31,7 +31,10 @@
     "hframes": 5,
     "vframes": 5,
     "count": 25,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/world/portal-anim-normal.png"
   },
-  "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva, su `spin` y su `pulse`. Ojo a la diferencia de lectura, que aqui es mayor que en los bichos: con atlas el portal se ve DORMIDO hasta que lo activas, y sin atlas se ve encendido desde el principio y el salto pasa sin ceremonia. Es lo correcto — en calidad baja no se pagan dos segundos de espectaculo — pero no son el mismo portal."
+  "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva, su `spin` y su `pulse`. Ojo a la diferencia de lectura, que aqui es mayor que en los bichos: con atlas el portal se ve DORMIDO hasta que lo activas, y sin atlas se ve encendido desde el principio y el salto pasa sin ceremonia. Es lo correcto — en calidad baja no se pagan dos segundos de espectaculo — pero no son el mismo portal.",
+  "normal": "res://assets/world/portal-normal.png",
+  "_relieve": "Mapa de normales, uno por camino. Ni el portal ni la caja ROTAN, asi que aqui el relieve no arregla que la luz gire con ellos —nunca giraba— sino que su sombreado venga de la misma luz que todo lo demas. Sus emisivos (el plasma y los tubos de neon) los protege el shader: no se apagan porque la luz venga del otro lado."
 }

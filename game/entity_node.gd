@@ -257,18 +257,9 @@ func _montar_relieve(d: Dictionary) -> void:
 		return          # calidad baja: ni el material ni el mapa en VRAM
 	if _sprite.material != null:
 		return          # la ondulacion llego antes y manda
-	# Un mapa por camino, igual que la textura: con atlas manda el del atlas.
-	# Mezclarlos seria peor que no tener ninguno — un mapa de normales que no
-	# casa con la silueta que ilumina inventa bultos donde no hay nada.
-	var ruta: String = (d.get("frames", {}).get("normal", "") if _anim_total > 0
-		else d.get("normal", ""))
-	var tex := _textura(ruta, "")
-	if tex == null:
+	_relieve = AssetDefs.material_relieve(AssetDefs.ruta_normal(d, _anim_total > 0))
+	if _relieve == null:
 		return
-	_relieve = ShaderMaterial.new()
-	_relieve.shader = load("res://game/shaders/relieve.gdshader")
-	_relieve.set_shader_parameter("normal_map", tex)
-	_relieve.set_shader_parameter("luz_dir", AssetDefs.luz_mundo())
 	_sprite.material = _relieve
 	# el giro de partida: sin esto la nave nace iluminada como si mirase al este
 	_relieve.set_shader_parameter("giro", _sprite.rotation)
@@ -541,8 +532,8 @@ func solo_casco(activo: bool) -> void:
 		llama.visible = not activo and _thrust > 0.02
 
 
-## Sube el contraste del relieve durante la prueba: casi sin ambiente y con la
-## difusa al doble. No es hacer trampa, es subir el volumen para oir si el altavoz
+## Sube el contraste del relieve durante la prueba y desactiva la proteccion de
+## emisivos. No es hacer trampa, es subir el volumen para oir si el altavoz
 ## suena — con los valores de juego, la diferencia entre "la luz sigue a la nave"
 ## y "la luz se queda quieta" era de 0,217 contra 0,316 sobre un umbral de 0,30,
 ## o sea una moneda al aire. Exagerado, el caso roto no se mueve (con `giro` fijo
@@ -551,8 +542,16 @@ func solo_casco(activo: bool) -> void:
 func relieve_exagerado(activo: bool) -> void:
 	if _relieve == null:
 		return
-	_relieve.set_shader_parameter("ambiente", 0.05 if activo else 0.55)
-	_relieve.set_shader_parameter("difusa", 1.60 if activo else 0.85)
+	_relieve.set_shader_parameter("contraste", 1.90 if activo else 0.90)
+	# El emisivo tambien se destapa: si no, la prueba mediria menos justo en los
+	# pixeles que mas brillan, que son los que mejor delatan un cambio de luz.
+	#
+	# Se mueven los DOS bordes y en orden. Subir solo el minimo dejaba
+	# `smoothstep(2.0, 0.85, x)` con los bordes invertidos, que en GLSL no es
+	# "protecciondesactivada" sino comportamiento indefinido: devolvia 1, o sea
+	# textura cruda sin iluminar, y la prueba midio cero. La cazo ella misma.
+	_relieve.set_shader_parameter("emisivo_min", 2.0 if activo else 0.55)
+	_relieve.set_shader_parameter("emisivo_max", 3.0 if activo else 0.85)
 
 
 ## El `giro` que tiene ahora mismo el shader, en radianes. La prueba lo lee para
