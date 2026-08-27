@@ -296,6 +296,56 @@ la ventana se lee más ruidosa que en el prototipo. Es la única desviación con
 **Iconos**: SVG del §10 en `assets/ui/icons/`, con el trazo en **blanco puro** — el color lo pone
 `modulate`, y un icono ya coloreado no se podría teñir de ámbar al abrir su ventana.
 
+## Relieve: que la luz no gire con la nave
+
+El arte es cenital y los sprites rotan, así que su iluminación giraba con ellos. `relieve.gdshader`
+reilumina el sprite con un mapa de normales contra una luz **fija en el mundo**
+(`AssetDefs.LUZ_MUNDO_GRADOS`, una sola para todo o el mundo se rompe). Al virar, el reflejo barre el
+casco. No da volumen —la silueta sigue plana— pero es lo que separa un objeto de una calcomanía.
+
+La pieza clave es el uniform `giro`. El mapa de normales vive en espacio de **textura** y el sprite
+rota: si no se contrarrota la normal antes de iluminarla, la luz gira con la nave y no se ha hecho
+nada. Se empuja desde `_set_visual_angle`, que corre exactamente cuando cambia el rumbo — un uniform
+por giro, no uno por fotograma.
+
+Cede ante la **ondulación**, que ya ocupa el material del sprite. No es un límite técnico sino de
+sentido: la ondulación es movimiento estructural y el relieve es acabado. Si un bicho quiere las dos,
+se fusionan en un shader; no se pelean por el slot.
+
+### La prueba, y los cinco falsos OK que dio antes de servir
+
+Vive en el **modo bestiario** (el rápido), no al final del loop: es una prueba de arte, y una que solo
+se puede correr pagando tres minutos de loop no la corre nadie.
+
+Comprueba dos cosas, y las dos son exactas:
+
+| mitad | qué afirma | por qué es exacta |
+|---|---|---|
+| fontanería | girar la nave mueve el uniform `giro` | se lee el número, no se miran píxeles |
+| efecto | con la nave **quieta**, cambiar solo ese número mueve los píxeles | misma geometría y mismo sitio: si el shader lo ignorase, las dos fotos serían idénticas al bit |
+
+Juntas cubren la cadena entera, y el umbral puede ser ridículo (0,02 contra un 0,30 medido) porque el
+caso roto es **cero exacto**, no "un número pequeño".
+
+Costó cinco versiones. Las cuatro primeras **pasaban con el relieve roto a propósito**:
+
+1. **Medir "hacia dónde cae el lado claro"** — lo mandaban las barras de vida y el nombre, que son
+   brillantes y no rotan.
+2. **Umbral de luminancia fijo en 0,28** — el casco ronda 0,16, así que no descartaba los píxeles
+   flojos, los descartaba todos. Devolvía cero, y cero se leía como "no se movió nada".
+3. **Esperar cuatro fotogramas a que la cámara volviera** — el seguimiento es un `lerp` a 8/s, o sea
+   decenas de fotogramas. Medía el vacío, y el vacío es estable.
+4. **Coordenadas de lienzo contra píxeles físicos** — con `stretch/mode = canvas_items` el lienzo mide
+   1370×720 y la ventana 1920×1009. La caja caía 1,4× fuera de la nave, sobre campo de estrellas
+   quieto: dos fotos idénticas, o sea "la luz no se movió". El falso OK perfecto.
+
+La quinta sí distinguía —comparaba dos fotos a rumbos distintos deshaciendo el giro— pero **el margen
+era de 0,03 sobre una varianza de 0,06 entre corridas**, así que habría fallado sola un día
+cualquiera. El suelo venía de que el motor dibuja el sprite girado con filtrado bilineal: dos rumbos
+nunca son una rotación exacta el uno del otro por mucho que la iluminación sí lo sea. La lección no
+fue afinar el umbral sino **quitar la rotación de en medio**: si las dos fotos son del mismo rumbo, no
+hay suelo que esquivar.
+
 ## La estela de chispas, y por qué se fue
 
 Cada tobera soltaba además una estela de chispas **al mundo** (`local_coords = false`), para que el

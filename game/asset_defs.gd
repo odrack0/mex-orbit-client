@@ -10,6 +10,22 @@ const RUTA_MAPAS := "res://data/maps/%s.json"
 const RUTA_PROPS := "res://data/props/%s.json"
 const RUTA_AMMO := "res://data/ammo/%s.json"
 
+## De donde viene la luz del mundo, en grados de pantalla (0 = derecha, 90 =
+## abajo). UNA sola para todo lo que se ilumine, o el mundo se rompe: dos objetos
+## con su propia luz se leen como dos recortes pegados, no como dos cosas en el
+## mismo sitio. Es la razon de que viva aqui y no en el JSON de cada asset — un
+## dial por asset invitaria justo a eso.
+##
+## 315 grados = arriba y a la izquierda. Es la convencion de toda la vida en arte
+## 2D, y no por capricho: el ojo humano da por supuesta la luz de arriba, y el
+## sesgo a la izquierda desambigua bulto de hueco.
+const LUZ_MUNDO_GRADOS := 315.0
+
+
+## El vector de la luz del mundo, listo para el shader de relieve.
+static func luz_mundo() -> Vector2:
+	return Vector2.RIGHT.rotated(deg_to_rad(LUZ_MUNDO_GRADOS))
+
 static var _cache := {}
 
 

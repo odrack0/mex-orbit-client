@@ -79,7 +79,8 @@
         "y": -59
       }
     ],
-    "_nota": "Render fotorrealista con suciedad y rotulos. 31,1 de contraste a 141 px. Cuatro toberas."
+    "_nota": "Render fotorrealista con suciedad y rotulos. 31,1 de contraste a 141 px. Cuatro toberas.",
+    "normal": "res://assets/ships/phoenix-v1-normal.png"
   },
   "_v2": {
     "texture": "res://assets/ships/phoenix-v2.png",
@@ -110,6 +111,9 @@
         "y": -138
       }
     ],
-    "_nota": "Render limpio. 43,6 de contraste a 141 px; a 35 px se sigue leyendo como nave. Tres toberas con boca visible."
-  }
+    "_nota": "Render limpio. 43,6 de contraste a 141 px; a 35 px se sigue leyendo como nave. Tres toberas con boca visible.",
+    "normal": "res://assets/ships/phoenix-v2-normal.png"
+  },
+  "normal": "res://assets/ships/phoenix-v1-normal.png",
+  "_relieve": "Mapa de normales derivado del propio render (tools/gen-normal.py). No da volumen —la silueta sigue plana— pero al virar el reflejo BARRE el casco, que es lo que distingue un objeto de una calcomania. La direccion de la luz NO esta aqui: es una sola para todo el mundo y vive en AssetDefs.LUZ_MUNDO_GRADOS."
 }

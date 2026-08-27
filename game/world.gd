@@ -1239,6 +1239,11 @@ var _at_camara_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
 const AT_BESTIARIO := ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
 var _at_bicho := 0
+var _at_relieve := -1                      # paso de la prueba del relieve
+var _at_casco_a := PackedFloat32Array()
+var _at_relieve_resto := 0.0
+var _at_relieve_previo := 0.0
+var _at_giro_a := 0.0
 var _at_primer_frame := false
 var _at_cambio_calidad := false
 var _at_calidad_previa := "alta"
@@ -1603,11 +1608,213 @@ func _autotest(delta: float) -> void:
 				% [AT_BESTIARIO.size(), _at_muertes], 0)
 
 
+## El relieve solo vale para algo si la luz se queda quieta MIENTRAS la nave gira.
+## Se comprueba en DOS mitades, y las dos son exactas:
+##
+##   FONTANERIA — girar la nave mueve el uniform `giro`. Se lee el numero, no se
+##     miran pixeles: exacto y sin depender de como interpole nadie.
+##   EFECTO — con la nave QUIETA en el mismo sitio, cambiar solo ese numero tiene
+##     que cambiar los pixeles. Si el shader lo ignora, las dos fotos salen
+##     identicas al bit.
+##
+## Juntas prueban la cadena entera. La version anterior comparaba dos fotos a
+## rumbos distintos deshaciendo el giro, y funcionaba, pero el motor dibuja el
+## sprite girado con filtrado bilineal: dos rumbos nunca son una rotacion exacta
+## el uno del otro, y ese suelo dejaba un margen de 0,03 sobre una varianza de
+## 0,06 entre corridas. Una prueba que depende de acertar el umbral entre dos
+## numeros que se mueven no es una prueba, es una moneda al aire con ceremonia.
+## Aqui no hay rotacion entre las dos fotos, asi que no hay suelo que esquivar.
+##
+## Devuelve 0 en curso · 1 pasada · 2 fallada (ya reportada).
+func _relieve_paso() -> int:
+	if _hero == null:
+		return 1
+	if _at_relieve < 0:
+		if Quality.nivel("shader") < 1:
+			return 1        # sin shaders no hay relieve que probar, y es correcto
+		if not _hero.tiene_relieve():
+			_at_captura("AUTOTEST FALLO — la nave no lleva el shader de relieve "
+				+ "montado en calidad alta", 1)
+			return 2
+		# La camara vuelve al heroe y se CLAVA en vez de dejarla volver sola: el
+		# seguimiento normal es un lerp a 8/s, o sea decenas de fotogramas desde
+		# donde la dejo el bestiario. Una version anterior confiaba en cuatro
+		# fotogramas de asiento y media el vacio — que sin nave que medir salia
+		# estable, y estable se leia como correcto.
+		_at_camara_libre = false
+		_camara.position = _hero.position
+		_solo_heroe(true)
+		_at_relieve_previo = _hero.angulo_visual()
+		_hero.rumbo_visual(0.0)
+		_at_relieve = 0
+		return 0
+	_at_relieve += 1
+	match _at_relieve:
+		ASENTAR:
+			_at_giro_a = _hero.giro_shader()
+			_at_casco_a = _casco_luz()
+			_hero.rumbo_visual(GIRO_RELIEVE)
+			return 0
+		ASENTAR + 2:
+			# 1) FONTANERIA
+			var giro_b := _hero.giro_shader()
+			var movio := absf(rad_to_deg(angle_difference(_at_giro_a, giro_b)))
+			if absf(movio - GIRO_RELIEVE) > 5.0:
+				_at_captura("AUTOTEST FALLO — el relieve gira con la nave: girar %.0f "
+					% GIRO_RELIEVE + "grados movio el uniform %.1f" % movio, 1)
+				_solo_heroe(false)
+				return 2
+			# la nave vuelve a su sitio EXACTO y solo se le miente la luz
+			_hero.rumbo_visual(0.0)
+			_hero.forzar_giro(_at_giro_a + deg_to_rad(GIRO_RELIEVE))
+			return 0
+		ASENTAR + 4:
+			# 2) EFECTO
+			var b := _casco_luz()
+			var dif := _diferencia_casco(_at_casco_a, b)
+			_at_relieve_resto = dif
+			_hero.rumbo_visual(_at_relieve_previo)
+			_solo_heroe(false)
+			if is_nan(dif):
+				_at_captura("AUTOTEST FALLO — la prueba del relieve no encontro casco "
+					+ "que medir (camara fuera de la nave)", 1)
+				return 2
+			if dif < MIN_EFECTO:
+				_at_captura("AUTOTEST FALLO — el shader de relieve ignora `giro`: "
+					+ "cambiarlo %.0f grados no movio los pixeles (%.4f)"
+					% [GIRO_RELIEVE, dif], 1)
+				return 2
+			return 1
+	return 0
+
+
+## Cuanto se diferencian dos fotos del casco, como fraccion de su brillo medio.
+## Las dos son de la nave en el MISMO sitio y el mismo rumbo, asi que aqui no hay
+## rotacion ni remuestreo: si el shader ignorase `giro`, esto seria cero exacto.
+func _diferencia_casco(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
+	var dif := 0.0
+	var brillo := 0.0
+	var n := 0
+	for i in a.size():
+		var va: float = a[i]
+		var vb: float = b[i]
+		if is_nan(va) or is_nan(vb):
+			continue
+		dif += absf(va - vb)
+		brillo += va
+		n += 1
+	if n < 400 or brillo <= 0.0001:
+		return NAN
+	return dif / brillo
+
+
+## Deja en el mundo SOLO al heroe, para las dos fotos de la prueba del relieve.
+##
+## Sin esto la comparacion no distingue nada, y el motivo es geometrico: al
+## deshacer el giro de la nave, el FONDO queda girado — y el fondo no gira. Su
+## diferencia entra igual en las dos mitades del cociente y lo empuja a 1 tanto si
+## el relieve funciona como si no. Con la nave sola sobre negro, el negro no suma
+## en ninguna de las dos y lo unico que se compara es el casco.
+func _solo_heroe(activo: bool) -> void:
+	if _fondo != null:
+		_fondo.visible = not activo
+	if _estacion != null:
+		_estacion.visible = not activo
+	for e in _entidades.values():
+		if e != _hero:
+			e.visible = not activo
+	for c in _cajas.values():
+		c.visible = not activo
+	for pt in _portales.values():
+		pt.visible = not activo
+	_hero.solo_casco(activo)
+	_hero.relieve_exagerado(activo)
+
+
+## El casco recortado en una caja centrada en la nave, en luminancia. NAN dentro
+## si el pixel cae fuera de la pantalla.
+func _casco_luz() -> PackedFloat32Array:
+	var img := get_viewport().get_texture().get_image()
+	# `get_global_transform_with_canvas()` da coordenadas de LIENZO y la imagen
+	# viene en pixeles FISICOS. Con `window/stretch/mode = canvas_items` no son lo
+	# mismo: el lienzo mide 1370x720 y la ventana 1920x1009, un factor de 1,4. La
+	# caja caia entera fuera de la nave, sobre campo de estrellas quieto — y dos
+	# fotos de un fondo quieto salen identicas, que es exactamente lo que mide
+	# "la luz no se movio". Un falso OK perfecto.
+	var lienzo := get_viewport_rect().size
+	var k := Vector2(float(img.get_width()) / lienzo.x, float(img.get_height()) / lienzo.y)
+	var centro := _hero.get_global_transform_with_canvas().origin * k
+	var out := PackedFloat32Array()
+	out.resize(CAJA * CAJA)
+	for y in CAJA:
+		for x in CAJA:
+			var px := Vector2i(int(centro.x) + x - CAJA / 2, int(centro.y) + y - CAJA / 2)
+			var v := NAN
+			if px.x >= 0 and px.y >= 0 and px.x < img.get_width() and px.y < img.get_height():
+				v = img.get_pixelv(px).get_luminance()
+			out[y * CAJA + x] = v
+	return out
+
+
+## Compara dos fotos del casco a rumbos distintos DESHACIENDO el giro, y devuelve
+## cuanto queda de diferencia respecto a compararlas sin deshacerlo.
+##
+## Es una prueba binaria por construccion, y ese fue el motivo de tirar la
+## primera: medir "hacia donde cae el lado claro" parecia directo y no lo era,
+## porque la propia textura tiene zonas claras que giran con la nave pase lo que
+## pase, y esa senial tapaba a la del shader.
+##
+## Aqui no hay margen de interpretacion: si el relieve NO se contrarrota, la nave
+## a 120 grados es EXACTAMENTE la misma imagen rotada 120 grados, asi que al
+## deshacer el giro las dos fotos coinciden y el cociente se va a cero. Si la luz
+## se queda quieta en el mundo, el sombreado cambia y no coinciden.
+func _residuo_al_desgirar(a: PackedFloat32Array, b: PackedFloat32Array, grados: float) -> float:
+	var c := cos(deg_to_rad(grados))
+	var sn := sin(deg_to_rad(grados))
+	var mitad := float(CAJA) / 2.0
+	var dif_rot := 0.0
+	var dif_bruta := 0.0
+	var n := 0
+	for y in CAJA:
+		for x in CAJA:
+			var va: float = a[y * CAJA + x]
+			if is_nan(va):
+				continue
+			# el punto de A aparece GIRADO en B: se busca alli
+			var p := Vector2(float(x) - mitad, float(y) - mitad)
+			var q := Vector2(p.x * c - p.y * sn, p.x * sn + p.y * c) + Vector2(mitad, mitad)
+			var qi := Vector2i(int(round(q.x)), int(round(q.y)))
+			if qi.x < 0 or qi.y < 0 or qi.x >= CAJA or qi.y >= CAJA:
+				continue
+			var vb: float = b[qi.y * CAJA + qi.x]
+			var vb_bruto: float = b[y * CAJA + x]
+			if is_nan(vb) or is_nan(vb_bruto):
+				continue
+			dif_rot += absf(va - vb)
+			dif_bruta += absf(va - vb_bruto)
+			n += 1
+	if n < 400 or dif_bruta <= 0.0001:
+		return NAN
+	return dif_rot / dif_bruta
+
+
 ## Especies de caza del autotest: las dos comunes y flojas. Ampliarlo de solo
 ## `vex` a `vex` + `vexor` sube la densidad de presa de 15 a 23 en el 1-1, y ya
 ## no hay motivo para exigir una especie concreta — desde que la venta pregunta
 ## al almacen que hay, al bot le sirve cualquier caja.
 const AT_PRESAS := ["vex", "vexor"]
+
+## Lado de la caja con la que se retrata el casco para la prueba del relieve.
+const CAJA := 128
+
+## Fotogramas de asiento antes de la primera foto del relieve.
+const ASENTAR := 3
+## Cuanto se gira la nave (y cuanto se le miente la luz) durante la prueba.
+const GIRO_RELIEVE := 90.0
+## Cuanto tienen que moverse los pixeles al mentirle la luz al shader. El umbral
+## puede ser ridiculamente bajo porque el caso roto es CERO EXACTO: misma nave,
+## mismo sitio, mismo rumbo, solo cambia un uniform que se estaria ignorando.
+const MIN_EFECTO := 0.02
 
 
 ## La mejor presa NO es la mas cercana: es a la que se llega antes.
@@ -1780,9 +1987,21 @@ func _autotest_bestiario() -> void:
 				# y se DEVUELVE a donde estaba: una prueba que deja residuo
 				# persistente contamina todas las corridas siguientes
 				Quality.aplicar(_at_calidad_previa)
+			# RELIEVE: que la luz NO gire con la nave. Vive en el bestiario y no
+			# en el loop porque es una prueba de ARTE, y el bestiario existe
+			# justo para eso — pagar tres minutos de loop para mirar un shader
+			# es el peaje que nadie acaba pagando, y una prueba que no se corre
+			# no es una prueba.
+			var relieve := _relieve_paso()
+			if relieve == 0:
+				return          # aun midiendo
+			if relieve == 2:
+				return          # fallo, ya reportado
 			_at_camara_libre = false
-			_at_captura("BESTIARIO OK — %d retratos%s" % [AT_BESTIARIO.size(),
-				" + cambio de calidad en caliente" if _at_cambio_calidad else ""], 0)
+			_at_captura("BESTIARIO OK — %d retratos%s · relieve (efecto %.3f)"
+				% [AT_BESTIARIO.size(),
+				" + cambio de calidad en caliente" if _at_cambio_calidad else "",
+				_at_relieve_resto], 0)
 		else:
 			_at_fase = 11
 		return

@@ -1,6 +1,6 @@
-# Una entidad en pantalla: sprite orientado a su rumbo + nombre + barra de vida.
-# Sus PARTICULARIDADES (textura, tamaño, anclajes de toberas, capa emisiva)
-# salen de su JSON en data/ — nada hardcodeado por asset.
+﻿# Una entidad en pantalla: sprite orientado a su rumbo + nombre + barra de vida.
+# Sus PARTICULARIDADES (textura, tamaÃ±o, anclajes de toberas, capa emisiva)
+# salen de su JSON en data/ â€” nada hardcodeado por asset.
 # Se mueve por interpolacion local y se reconcilia contra los ecos del server.
 class_name EntityNode
 extends Node2D
@@ -44,7 +44,7 @@ var _sprite: Sprite2D
 var _def := {}
 var _nombre: Label
 # dos barras y solo dos: casco y escudo. v1 NO tiene nano-casco (la tercera
-# barra amarilla del prototipo): se decidió dejarlo fuera del juego.
+# barra amarilla del prototipo): se decidiÃ³ dejarlo fuera del juego.
 var _hp: ColorRect
 var _escudo: ColorRect
 var _hp_pct := 1.0
@@ -64,12 +64,13 @@ var _idle_timer := 0.0
 # leia por detras sino como motas encima del casco. Una estela que se ve como
 # suciedad no cuenta como estela.
 var _flames: Array[Sprite2D] = []
+var _relieve: ShaderMaterial     # shader de relieve, si esta nave lo tiene
 var _thrust := 0.0
 
-# bocas de cañón (espacio de la textura) y a cuál toca disparar
+# bocas de caÃ±Ã³n (espacio de la textura) y a cuÃ¡l toca disparar
 var _canones: Array[Vector2] = []
 var _canon_actual := 0
-var _impactos_casco := 0        # tope del prototipo: 5 simultáneos
+var _impactos_casco := 0        # tope del prototipo: 5 simultÃ¡neos
 var _impactos_escudo := 0       # tope del prototipo: 9
 
 # ondulacion (solo los bichos que la definen en su JSON): el cuerpo serpentea
@@ -80,7 +81,7 @@ var _onda_idle := 0.35
 
 # ATLAS ANIMADO (segundo tipo de asset): en vez de un PNG con shaders encima,
 # una rejilla de fotogramas sacada de un video en bucle. La luz va COCIDA en
-# ellos, asi que estos bichos no llevan capa emisiva ni shaders — su vida ya
+# ellos, asi que estos bichos no llevan capa emisiva ni shaders â€” su vida ya
 # esta en el asset. Es lo que hacia el original con sus aliens (`loopPlay`),
 # salvo que los suyos por eso no rotaban y los nuestros si.
 var _anim_total := 0
@@ -116,7 +117,7 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_def = d
 	_construir_visual()
 
-	# bocas de cañón del JSON (espacio de la textura; se alternan al disparar)
+	# bocas de caÃ±Ã³n del JSON (espacio de la textura; se alternan al disparar)
 	for canon in d.get("cannons", []):
 		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 	_construir_etiquetas(d, heroe, spawn)
@@ -141,17 +142,17 @@ func _construir_visual() -> void:
 		# desfase por entidad: tres Gravon animando al unisono cantan igual que
 		# cantaban los gusanos ondulando en fase. Con vaiven el periodo es casi el
 		# DOBLE, y repartir sobre `count` dejaria a todos los Vex en la misma mitad
-		# de la onda — abriendo el ala a la vez, que es justo lo que se evita.
+		# de la onda â€” abriendo el ala a la vez, que es justo lo que se evita.
 		var periodo_ := (_anim_total * 2 - 2) if _anim_vaiven else _anim_total
 		_anim_t = randf() * float(periodo_) / maxf(_anim_fps, 1.0)
-	# tamaño en pantalla constante segun el JSON, sea cual sea la resolucion del
+	# tamaÃ±o en pantalla constante segun el JSON, sea cual sea la resolucion del
 	# export. Con atlas manda el alto del FOTOGRAMA, no el de la textura entera.
 	# MIPMAPS, y solo cuando NO es atlas.
 	#
 	# La nave se dibuja a 141 px desde una textura de 512, y el zoom baja hasta
 	# 0,1: ahi son treinta pixeles de una textura de quinientos. Sin mipmaps la
 	# GPU muestrea la textura entera con un filtro de 2x2 texeles, asi que el
-	# detalle fino no se promedia, se ALIASA — hierve al moverse y se lee como
+	# detalle fino no se promedia, se ALIASA â€” hierve al moverse y se lee como
 	# ruido. Es la mitad tecnica de "de lejos no se ve bien"; la otra mitad es
 	# cuanto detalle trae el render.
 	#
@@ -181,6 +182,7 @@ func _construir_visual() -> void:
 		_pulse_sharp = float(p.get("sharpness", 2.8))
 
 	_montar_ondulacion(d)
+	_montar_relieve(d)
 
 	# motores en los anclajes del JSON. Nivel 0 = sin llamas; 1 = llamas.
 	var trail: Dictionary = d.get("engine_trail", {})
@@ -189,14 +191,15 @@ func _construir_visual() -> void:
 			_flames.append(_crear_llama(motor, trail))
 
 
-## Rehace la parte visual con la calidad actual. Lo demas —nombre, barras,
-## cañones, rumbo— no depende del nivel y se queda como esta.
+## Rehace la parte visual con la calidad actual. Lo demas â€”nombre, barras,
+## caÃ±ones, rumboâ€” no depende del nivel y se queda como esta.
 func reconstruir() -> void:
 	for n in [_sprite]:
 		if n != null:
 			n.queue_free()
 	_sprite = null
 	_emissive = null
+	_relieve = null      # su material moria con el sprite: dejarlo apuntando ahi
 	_flames.clear()      # eran hijos del sprite: se van con el
 	_ondas.clear()
 	_anim_total = 0
@@ -209,7 +212,7 @@ func reconstruir() -> void:
 
 func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 	# nombre y barra DEBAJO de la nave, como el prototipo (con contorno negro
-	# para que se lean sobre el fondo estelar). El offset sale del tamaño real.
+	# para que se lean sobre el fondo estelar). El offset sale del tamaÃ±o real.
 	var mitad: float = float(d.get("screen_size", 141)) * 0.5
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
@@ -241,6 +244,31 @@ func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 ##
 ## Se piden por separado a proposito: un Skarnox podria tener magma corriendo
 ## por sus grietas sin que la roca se menee un milimetro.
+## RELIEVE: reiluminar el sprite contra la luz del mundo usando un mapa de
+## normales. Es la "ruta C" â€” no da volumen ni escorzo, pero al virar el reflejo
+## barre el casco, que es lo que separa un objeto de una calcomania.
+##
+## Cede ante la ONDULACION, que ya ocupa el material del sprite. No es una
+## limitacion tecnica sino de sentido: la ondulacion es movimiento estructural
+## â€”el bicho se doblaâ€” y el relieve es acabado. Si algun dia un bicho quiere las
+## dos, se fusionan en un shader, no se pelean por el slot.
+func _montar_relieve(d: Dictionary) -> void:
+	if Quality.nivel("shader") < 1:
+		return          # calidad baja: ni el material ni el mapa en VRAM
+	if _sprite.material != null:
+		return          # la ondulacion llego antes y manda
+	var tex := _textura(d.get("normal", ""), "")
+	if tex == null:
+		return
+	_relieve = ShaderMaterial.new()
+	_relieve.shader = load("res://game/shaders/relieve.gdshader")
+	_relieve.set_shader_parameter("normal_map", tex)
+	_relieve.set_shader_parameter("luz_dir", AssetDefs.luz_mundo())
+	_sprite.material = _relieve
+	# el giro de partida: sin esto la nave nace iluminada como si mirase al este
+	_relieve.set_shader_parameter("giro", _sprite.rotation)
+
+
 func _montar_ondulacion(d: Dictionary) -> void:
 	var o: Dictionary = d.get("undulate", {})
 	var peri: Dictionary = d.get("peristalsis", {})
@@ -361,13 +389,13 @@ func _process(delta: float) -> void:
 		_anim_t += delta
 		var i := int(_anim_t * _anim_fps)
 		if _anim_vaiven:
-			# VAIVEN: ida y vuelta. El bucle cierra POR CONSTRUCCION —dos
-			# fotogramas seguidos son siempre vecinos— asi que no hay costura que
+			# VAIVEN: ida y vuelta. El bucle cierra POR CONSTRUCCION â€”dos
+			# fotogramas seguidos son siempre vecinosâ€” asi que no hay costura que
 			# medir ni que arreglar, y sale gratis: el atlas es el mismo.
 			#
 			# Se descarto para el Gravon y ahi estaba bien descartado: sus aros
 			# tienen rotacion NETA, y al reves se mecerian en vez de girar. Un ala
-			# que se abre no tiene ese problema — cerrarse ES su vuelta. La tecnica
+			# que se abre no tiene ese problema â€” cerrarse ES su vuelta. La tecnica
 			# no era mala, era el bicho equivocado.
 			var periodo := _anim_total * 2 - 2
 			i = i % maxi(periodo, 1)
@@ -489,17 +517,92 @@ func _girar_a(grados: float, dps := 0.0) -> void:
 	_turn_tween.tween_method(_set_visual_angle, _visual_angle, _visual_angle + delta, duracion)
 
 
+## Fija el rumbo VISUAL en el acto. Enganche para el autotest, como
+## `encendido_completo()` en el portal: la prueba del relieve necesita el mismo
+## bicho en tres rumbos distintos, y esperar a que termine un giro suave
+## convertiria la prueba en una carrera. Mata el tween antes: si no, el giro en
+## curso pisaria el rumbo que se acaba de fijar.
+## Deja a la vista SOLO el casco. Enganche del autotest: la prueba del relieve
+## mide hacia donde cae el lado claro de la nave, y las barras de vida y el
+## nombre son brillantes, fijos en pantalla y NO giran — arrastran el centroide
+## a un sitio estable pase lo que pase, o sea que la prueba pasaba con el
+## relieve roto. Las llamas tampoco valen: son aditivas y si giran, asi que
+## falsean en la otra direccion.
+func solo_casco(activo: bool) -> void:
+	for hijo in get_children():
+		if hijo != _sprite and hijo is CanvasItem:
+			hijo.visible = not activo
+	for llama in _flames:
+		llama.visible = not activo and _thrust > 0.02
+
+
+## Sube el contraste del relieve durante la prueba: casi sin ambiente y con la
+## difusa al doble. No es hacer trampa, es subir el volumen para oir si el altavoz
+## suena — con los valores de juego, la diferencia entre "la luz sigue a la nave"
+## y "la luz se queda quieta" era de 0,217 contra 0,316 sobre un umbral de 0,30,
+## o sea una moneda al aire. Exagerado, el caso roto no se mueve (con `giro` fijo
+## el dibujo es una rotacion exacta pase lo que pase con la luz) y el bueno se
+## dispara, que es justo la separacion que hace falta.
+func relieve_exagerado(activo: bool) -> void:
+	if _relieve == null:
+		return
+	_relieve.set_shader_parameter("ambiente", 0.05 if activo else 0.55)
+	_relieve.set_shader_parameter("difusa", 1.60 if activo else 0.85)
+
+
+## El `giro` que tiene ahora mismo el shader, en radianes. La prueba lo lee para
+## comprobar la FONTANERIA —que girar la nave mueve el uniform— sin mirar un solo
+## pixel, que es exacto y no depende de como interpole nadie.
+func giro_shader() -> float:
+	return float(_relieve.get_shader_parameter("giro")) if _relieve != null else 0.0
+
+
+## Miente el `giro` a proposito. La prueba lo usa para comprobar el EFECTO: con la
+## nave quieta en el mismo sitio, cambiar solo este numero tiene que cambiar los
+## pixeles. Si el shader lo ignora, las dos fotos salen identicas al bit.
+func forzar_giro(radianes: float) -> void:
+	if _relieve != null:
+		_relieve.set_shader_parameter("giro", radianes)
+
+
+## Si esta nave lleva el shader de relieve montado. La prueba lo exige en vez de
+## saltarselo: "no hay relieve" y "el relieve funciona" no pueden dar el mismo OK.
+func tiene_relieve() -> bool:
+	return _relieve != null
+
+
+func angulo_visual() -> float:
+	return _visual_angle
+
+
+func rumbo_visual(grados: float) -> void:
+	if _turn_tween != null and _turn_tween.is_valid():
+		_turn_tween.kill()
+	_set_visual_angle(grados)
+
+
 func _set_visual_angle(grados: float) -> void:
 	_visual_angle = fposmod(grados, 360.0)
 	if turn_steps <= 0:
 		# giro continuo: un bicho girando despacio a 32 pasos se ve a tirones,
 		# porque cada paso dura una eternidad
 		_sprite.rotation_degrees = _visual_angle
+		_avisar_giro()
 		return
 	# el giro SALTA de posicion en posicion durante el tween, como el flip de
 	# frames del sheet original: es el look que distingue al prototipo
 	var paso := 360.0 / turn_steps
 	_sprite.rotation_degrees = roundf(_visual_angle / paso) * paso
+	_avisar_giro()
+
+
+## El shader de relieve necesita saber cuanto ha girado el sprite para
+## contrarrotar la normal al espacio del mundo. Se avisa AQUI y no en _process
+## porque aqui es exactamente cuando el rumbo cambia: un uniform por giro en vez
+## de uno por fotograma.
+func _avisar_giro() -> void:
+	if _relieve != null:
+		_relieve.set_shader_parameter("giro", _sprite.rotation)
 
 
 ## Eco autoritativo del server: correccion suave si la deriva es chica, snap si es grande.
@@ -523,9 +626,9 @@ func set_shield_pct(pct: float) -> void:
 	_escudo.size.x = BARRA_ANCHO * _shield_pct
 
 
-## Casco y escudo absolutos del server; cada uno contra su propio máximo.
-## Sin máximo conocido (entidad que nunca fue objetivo) la barra conserva lo
-## que trajo su spawn: convertir absolutos sin denominador la haría mentir.
+## Casco y escudo absolutos del server; cada uno contra su propio mÃ¡ximo.
+## Sin mÃ¡ximo conocido (entidad que nunca fue objetivo) la barra conserva lo
+## que trajo su spawn: convertir absolutos sin denominador la harÃ­a mentir.
 func set_estado_abs(hp: int, escudo: int) -> void:
 	if max_hp_abs > 0:
 		set_hp_pct(float(hp) / max_hp_abs)
@@ -533,8 +636,8 @@ func set_estado_abs(hp: int, escudo: int) -> void:
 		set_shield_pct(float(escudo) / max_shield_abs)
 
 
-## Boca de cañón desde la que sale el próximo disparo, en coordenadas de MUNDO
-## (respeta la rotación y escala del sprite). Sin cañones definidos, el centro.
+## Boca de caÃ±Ã³n desde la que sale el prÃ³ximo disparo, en coordenadas de MUNDO
+## (respeta la rotaciÃ³n y escala del sprite). Sin caÃ±ones definidos, el centro.
 func siguiente_canon() -> Vector2:
 	if _canones.is_empty():
 		return position
