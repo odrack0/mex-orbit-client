@@ -287,6 +287,19 @@ func _desmontar_mapa() -> void:
 	_at_target = 0
 	_pending_box = 0
 	_caja_anim_total = 0
+	# El destino del movimiento pertenece al MAPA, no al jugador.
+	#
+	# Al hacer clic en un portal se guarda su posicion como autopiloto, y esas
+	# son coordenadas del mapa VIEJO. Sin limpiarlas, al aterrizar el heroe salia
+	# disparado hacia ese punto en el mapa nuevo: se llegaba encima del portal y
+	# un instante despues la nave pegaba un salto a la nada.
+	#
+	# `_hold_move` NO se toca a proposito: se recalcula del cursor en cada
+	# fotograma, asi que si el jugador sigue con el boton pulsado —que es lo
+	# normal cuando se salta huyendo— la marcha continua sola y hacia donde
+	# apunta, que es lo que se espera.
+	_autopilot = Vector2.INF
+	_last_sent_target = Vector2.INF
 
 
 func _construir_minimapa(map_code: String) -> void:
@@ -1123,6 +1136,7 @@ var _salto_t0 := 0
 var _at_salto_pedido := false
 var _at_salto_origen := ""
 var _at_salto_destino := ""
+var _at_salto_llegada := Vector2.ZERO
 var _at_salto_portal: PortalNode = null
 var _at_salto_rechazado := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
@@ -1539,7 +1553,9 @@ func _autotest_salto() -> void:
 			_at_salto_origen = _map_code
 			_at_salto_portal = _portales.values()[0]
 			_at_salto_destino = _at_salto_portal.target_map_code
-			_volar_a(_at_salto_portal.position)
+			# como el jugador: clic en el portal deja AUTOPILOTO puesto, y era eso
+			# —no el vuelo— lo que sobrevivia al salto y tiraba de la nave al llegar
+			_on_autopilot(_at_salto_portal.position)
 			_at_ultimo_vuelo = _autotest_t
 			_at_fase = 1
 		1:
@@ -1551,13 +1567,20 @@ func _autotest_salto() -> void:
 			if _hero.position.distance_to(_at_salto_portal.position) < 400.0:
 				var img := get_viewport().get_texture().get_image()
 				img.save_png(Session.autotest_screenshot.replace(".png", "-salto-antes.png"))
+				# Se salta EN MARCHA, con un destino lejos y sin alcanzar. Es el
+				# caso real —se huye, se pulsa J sin soltar el raton— y es el
+				# unico que reproduce el fallo: volando justo hasta el portal, el
+				# autopiloto se completa y se limpia solo antes de saltar, asi
+				# que la prueba pasaba aunque el arreglo no estuviera.
+				_on_autopilot(Vector2(_limites.x - 2000, _limites.y - 2000))
 				# por el camino DEL JUGADOR, no mandando el mensaje a mano: asi la
 				# prueba cubre el encendido, la espera y la medida del viaje
 				_intentar_salto()
 				_at_ultimo_vuelo = _autotest_t
 				_at_fase = 2
 		2:
-			if _map_code == _at_salto_destino:
+			if _map_code == _at_salto_destino and _hero != null:
+				_at_salto_llegada = _hero.position
 				_at_ultimo_vuelo = _autotest_t
 				_at_fase = 3
 			elif _autotest_t - _at_ultimo_vuelo > 15.0:
@@ -1573,6 +1596,18 @@ func _autotest_salto() -> void:
 				return
 			if _portales.is_empty():
 				_at_captura("SALTO FALLO — %s llego sin portales: no habria vuelta" % _map_code, 1)
+				return
+			# la nave tiene que seguir DONDE ATERRIZO, no arrastrada por un destino
+			# del mapa anterior
+			# 200 unidades de margen, no 900. La nave vuela a 320 u/s: en el segundo
+			# y medio que se observa recorre 480 si algo tira de ella, asi que un
+			# umbral de 900 no distingue "quieta" de "arrastrada" — con el puesto,
+			# esta misma prueba daba OK con el fallo dentro.
+			var lejos := _hero.position.distance_to(_at_salto_llegada)
+			if lejos > 200.0:
+				_at_captura("SALTO FALLO — aterrizo en (%d, %d) y se fue a (%d, %d): %d unidades"
+					% [_at_salto_llegada.x, _at_salto_llegada.y,
+					   _hero.position.x, _hero.position.y, lejos], 1)
 				return
 			var vuelta := false
 			for id in _portales:

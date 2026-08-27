@@ -578,6 +578,28 @@ correcto.
 Los 2,1 s no son un adorno que sobra cuando la red es rápida: **son el ritmo del salto**. Sin ellos,
 cruzar un portal no se siente como cruzar nada.
 
+**El destino del movimiento pertenece al MAPA, no al jugador.** Al hacer clic en un portal se guarda su
+posición como autopiloto, y esas son coordenadas del mapa **viejo**. Sin limpiarlas al desmontar, se
+aterrizaba encima del portal y un instante después la nave pegaba un salto hacia la nada — el
+autopiloto reanudando hacia un punto que ya no significa lo mismo.
+
+`_hold_move` **no** se limpia, a propósito: se recalcula del cursor en cada fotograma, así que si el
+jugador sigue con el botón pulsado —que es lo normal cuando se salta huyendo— la marcha continúa sola
+y hacia donde apunta, que es lo que se espera.
+
+**Y el primer test de esto no servía.** Comprobaba que la nave se quedaba donde aterrizó, pasaba, y
+seguía pasando con el arreglo desactivado. Dos motivos, los dos instructivos:
+
+- **Volaba justo hasta el portal**, así que el autopiloto se completaba y se limpiaba solo antes de
+  saltar. El fallo solo aparece saltando **en marcha**, con un destino lejos y sin alcanzar — que es
+  exactamente como se salta huyendo.
+- **El umbral era de 900 unidades.** La nave vuela a 320 u/s: en el segundo y medio que se observa
+  recorre 480 si algo tira de ella. Un margen de 900 no distingue "quieta" de "arrastrada".
+
+Con las dos cosas corregidas, la prueba falla con el fallo (**475 unidades de deriva**) y pasa sin él.
+La regla que deja: **un test de regresión hay que verlo fallar**. Si no se ha visto en rojo, no se sabe
+si prueba algo.
+
 **El alcance del salto no es el radio de clic.** El del clic (190) es para seleccionar el portal con
 el ratón y es más pequeño a propósito; el del salto (600) tiene que **casar con el del server**, que
 valida otra vez. Si el del cliente fuera mayor, pulsarías `J` y recibirías un *"estás demasiado
