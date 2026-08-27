@@ -536,6 +536,30 @@ al server, persistía, y dejaba al jugador fuera de todo mapa.
 mapa: al entrar siempre se iba al inicial. Con dos mapas, eso teletransporta a quien cerró sesión en
 otro sitio.
 
+**Lo que se retrasa es la RECONEXIÓN, no el mapa.** Y esto costó un intento.
+
+En local el server contesta en **111 ms** y la animación dura **2100**: el mapa nuevo llegaba casi
+veinte veces antes de que el portal terminara de abrirse, y montarlo hacía `queue_free()` del portal
+que estaba encendiéndose. Pulsabas `J` y aparecías en otro sector de golpe, sin ver nada.
+
+El primer arreglo aplazaba el `EnterMap` y montaba el mapa al acabar la animación. **No funcionaba**:
+tras el `EnterMap` viene el resto del mundo nuevo —la nave, los NPC, las cajas— y eso seguía llegando
+y entrando en el mapa **viejo**, que se desmontaba dos segundos después llevándoselo por delante.
+
+Retrasando la **reconexión**, la llegada entera ocurre después del encendido y en un solo bloque. El
+socket viejo se queda abierto mientras tanto sin hacer daño: el server ya nos persistió en el destino
+y ya no nos tiene en su mapa. De pulsar `J` a tener el mapa nuevo: **2037 ms**, marcados por la
+animación y no por la red. En calidad media o baja no hay atlas, así que no hay nada que esperar y el
+salto es inmediato — **165 ms**, y ahí eso es lo correcto.
+
+Los 2,1 s no son un adorno que sobra cuando la red es rápida: **son el ritmo del salto**. Sin ellos,
+cruzar un portal no se siente como cruzar nada.
+
+**El alcance del salto no es el radio de clic.** El del clic (190) es para seleccionar el portal con
+el ratón y es más pequeño a propósito; el del salto (600) tiene que **casar con el del server**, que
+valida otra vez. Si el del cliente fuera mayor, pulsarías `J` y recibirías un *"estás demasiado
+lejos"* sin entender por qué; si fuera menor, no podrías saltar desde donde el server sí te deja.
+
 **La petición sale cuando ARRANCA el encendido, no cuando termina.** Los 2,1 s de animación son
 exactamente el hueco donde cabe el viaje al server: si contesta antes, el mapa aparece al cerrarse el
 encendido; si tarda más, la animación ya terminó y solo se espera lo justo. Pedirlo al final habría

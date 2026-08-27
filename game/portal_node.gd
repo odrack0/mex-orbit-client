@@ -25,6 +25,14 @@ var target_map_code := ""
 var is_working := true
 var click_radius := 190.0
 
+## A que distancia se puede SALTAR. No es el radio de click: aquel es para
+## seleccionar el portal con el raton y es mas pequenio a proposito. Este tiene
+## que casar con `JumpRange` del server (World.cs), porque el server valida otra
+## vez — el cliente propone y el server dispone. Si el del cliente fuera MAYOR,
+## el jugador pulsaria J y recibiria un "estas demasiado lejos" sin entender por
+## que; si fuera MENOR, no podria saltar desde sitios donde el server si le deja.
+const RANGO_SALTO := 600.0
+
 var _datos = null                 # MexProtocol.MapPortal, para poder reconstruir
 var _vortice: Sprite2D
 var _pulse_min := 0.45

@@ -236,6 +236,11 @@ var _map_code := ""
 
 
 func _on_enter_map(em) -> void:
+	# el viaje REAL: de pedir el salto a tener el mapa nuevo en la mano
+	if _salto_t0 > 0:
+		print("SALTO viaje ida y vuelta: %d ms · la animacion dura 2100 ms"
+			% (Time.get_ticks_msec() - _salto_t0))
+		_salto_t0 = 0
 	# EnterMap llega tres veces por motivos distintos: al entrar, al reconectar y
 	# al SALTAR de sector. Las dos primeras traen el mismo mapa y todo se conserva;
 	# la tercera trae otro, y lo que sobrevive es solo lo que no pertenece al mapa
@@ -912,7 +917,7 @@ func _portal_al_alcance() -> PortalNode:
 		return null
 	for id in _portales:
 		var p: PortalNode = _portales[id]
-		if p.is_working and _hero.position.distance_to(p.position) <= p.click_radius:
+		if p.is_working and _hero.position.distance_to(p.position) <= PortalNode.RANGO_SALTO:
 			return p
 	return null
 
@@ -925,7 +930,14 @@ func _intentar_salto() -> void:
 		_estado("No hay ningún portal al alcance", NTheme.MUTED)
 		return
 	if not portal.activar():
-		return
+		# sin atlas (calidad media o baja) no hay animacion que esperar: el salto
+		# es instantaneo y eso es lo correcto ahi
+		_salto_portal = null
+	else:
+		_salto_portal = portal
+		if not portal.encendido_terminado.is_connected(_on_encendido_listo):
+			portal.encendido_terminado.connect(_on_encendido_listo)
+	_salto_t0 = Time.get_ticks_msec()
 	_req_id += 1
 	var salto := MexProtocol.JumpRequest.new()
 	salto.request_id = _req_id
@@ -938,11 +950,33 @@ func _intentar_salto() -> void:
 ## reconecta con el token que ya tiene: el estado de la nave quedo persistido en
 ## el mapa destino antes de que el server cerrara, asi que reconectar aterriza
 ## donde toca.
+## El encendido llego a su ultimo fotograma: ahora si, a reconectar.
+func _on_encendido_listo(_portal_id: int) -> void:
+	_salto_portal = null
+	if _salto_url == "":
+		return
+	var url := _salto_url
+	_salto_url = ""
+	_conn.saltar_a(url)
+
+
+## Lo que se retrasa es la RECONEXION, no el mensaje.
+##
+## El primer intento aplazaba el `EnterMap` y montaba el mapa al terminar la
+## animacion. No funcionaba: tras el `EnterMap` viene el resto del mundo nuevo
+## —la nave, los NPC, las cajas— y eso seguia llegando y entrando en el mapa
+## VIEJO, que se desmontaba dos segundos despues llevandoselo por delante.
+##
+## Retrasando la reconexion, la llegada entera ocurre despues del encendido y en
+## un solo bloque. El socket viejo se queda abierto mientras tanto sin hacer
+## dano: el server ya nos persistio en el destino y ya no nos tiene en su mapa.
 func _on_jump_handoff(msg) -> void:
 	var esquema := "wss" if msg.is_tls else "ws"
-	var url := "%s://%s:%d/ws" % [esquema, msg.host, msg.port]
+	_salto_url = "%s://%s:%d/ws" % [esquema, msg.host, msg.port]
 	_estado("Enlazando con el sector %s…" % msg.map_code, NTheme.VIOLET)
-	_conn.saltar_a(url)
+	# sin animacion que esperar (calidad media o baja), se va ya
+	if _salto_portal == null or not is_instance_valid(_salto_portal):
+		_on_encendido_listo(0)
 
 
 func _portal_at(world_pos: Vector2) -> PortalNode:
@@ -1084,6 +1118,9 @@ var _at_chat_ok := false
 var _at_reconectado := false
 var _at_camara_libre := false
 var _at_portal_animado := false
+var _salto_portal: PortalNode = null
+var _salto_url := ""
+var _salto_t0 := 0
 var _at_salto_pedido := false
 var _at_salto_origen := ""
 var _at_salto_destino := ""
@@ -1515,12 +1552,9 @@ func _autotest_salto() -> void:
 			if _hero.position.distance_to(_at_salto_portal.position) < 400.0:
 				var img := get_viewport().get_texture().get_image()
 				img.save_png(Session.autotest_screenshot.replace(".png", "-salto-antes.png"))
-				_at_salto_portal.activar()
-				_req_id += 1
-				var msg := MexProtocol.JumpRequest.new()
-				msg.request_id = _req_id
-				msg.portal_id = _at_salto_portal.portal_id
-				_conn.send(msg.encode())
+				# por el camino DEL JUGADOR, no mandando el mensaje a mano: asi la
+				# prueba cubre el encendido, la espera y la medida del viaje
+				_intentar_salto()
 				_at_ultimo_vuelo = _autotest_t
 				_at_fase = 2
 		2:
