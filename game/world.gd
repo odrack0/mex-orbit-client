@@ -47,6 +47,9 @@ var _estacion_rango := 0.0
 var _en_base := false
 var _estacion: Sprite2D
 var _estacion_reactor: Sprite2D
+var _estacion_anim_total := 0
+var _estacion_anim_fps := 12.0
+var _estacion_anim_t := 0.0
 var _reactor_min := 0.55
 var _reactor_max := 1.8
 var _reactor_speed := 1.1
@@ -351,10 +354,25 @@ func _construir_estacion() -> void:
 	anillo.queue_redraw()
 
 	_estacion = Sprite2D.new()
-	_estacion.texture = load(d.get("texture", "res://assets/world/station.png"))
+	# ALTA monta el atlas; MEDIA y BAJA caen al PNG fijo con su emisiva. Misma
+	# clave de calidad que la caja y el portal: son los tres mobiliario del mapa.
+	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
+	_estacion_anim_total = 0
+	if anim.is_empty():
+		_estacion.texture = load(d.get("texture", "res://assets/world/station.png"))
+	else:
+		_estacion.texture = load(anim.get("atlas", "res://assets/world/station-anim.png"))
+		_estacion.hframes = int(anim.get("hframes", 1))
+		_estacion.vframes = int(anim.get("vframes", 1))
+		_estacion_anim_total = int(anim.get("count", _estacion.hframes * _estacion.vframes))
+		_estacion_anim_fps = float(anim.get("fps", 12))
+		_estacion_anim_t = 0.0
 	_estacion.position = _estacion_pos
-	# tamaño en unidades de MUNDO segun el JSON, sea cual sea la resolucion del render
-	var lado := float(_estacion.texture.get_width())
+	# tamaño en unidades de MUNDO segun el JSON, sea cual sea la resolucion del
+	# render. Manda el ANCHO del fotograma y no el alto: `world_size` es la huella
+	# de la base —lo que el anillo de zona segura rodea—, y un render en retrato
+	# escalado por su alto dejaria una huella mucho mas estrecha de lo declarado.
+	var lado := float(_estacion.texture.get_width()) / maxf(float(_estacion.hframes), 1.0)
 	_estacion.scale = Vector2.ONE * (float(d.get("world_size", 820)) / lado)
 	_estacion.z_index = -1
 	add_child(_estacion)
@@ -1118,6 +1136,11 @@ func _process(delta: float) -> void:
 	if _fondo != null:
 		_fondo.update_parallax(_camara.position, _camara.zoom, get_viewport_rect().size)
 
+	# la base animada avanza sus fotogramas
+	if _estacion_anim_total > 0 and _estacion != null:
+		_estacion_anim_t += delta
+		_estacion.frame = int(_estacion_anim_t * _estacion_anim_fps) % _estacion_anim_total
+
 	# el reactor de la estacion respira
 	if _estacion_reactor != null:
 		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _reactor_speed)
@@ -1342,6 +1365,10 @@ func _autotest(delta: float) -> void:
 				if not _base.acciones_activas():
 					_at_captura("AUTOTEST FALLO — en la base y las acciones siguen bloqueadas", 1)
 					return
+				# retrato de la ESTACION. La fase decia desde siempre que servia
+				# para revisar su arte y no guardaba nada; ahora si.
+				var img_b := get_viewport().get_texture().get_image()
+				img_b.save_png(Session.autotest_screenshot.replace(".png", "-base.png"))
 				_at_ultimo_vuelo = _autotest_t
 				_req_id += 1
 				var msg := MexProtocol.UnloadCargo.new()
