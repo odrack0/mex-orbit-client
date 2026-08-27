@@ -536,7 +536,28 @@ al server, persistía, y dejaba al jugador fuera de todo mapa.
 mapa: al entrar siempre se iba al inicial. Con dos mapas, eso teletransporta a quien cerró sesión en
 otro sitio.
 
-**Lo que se retrasa es la RECONEXIÓN, no el mapa.** Y esto costó un intento.
+**Todo va en paralelo con la animación; lo único que espera es APLICAR la llegada.** Al pulsar `J`
+arrancan a la vez el encendido y el `JumpRequest`; en cuanto responde el `JumpHandoff` se abre ya la
+conexión con el servidor del destino, y lo que ese servidor manda se **retiene en un buzón** en vez de
+aplicarse. Al terminar el encendido se suelta el buzón entero, en orden.
+
+Eso importa por lo que viene. Con los mapas en un solo proceso da igual; en cuanto vivan en máquinas
+distintas, **abrir el socket y hacer el handshake son cientos de milisegundos**, y si eso ocurriera
+*después* de la animación se sumaría en vez de solaparse — justo lo que los 2,1 s existen para evitar.
+Medido en local:
+
+| | |
+|---|---|
+| La conexión con el mapa nuevo queda lista en | **83 ms** |
+| El buzón se suelta a los | **1851 ms** (cuando acaba el encendido) |
+| **Holgura** | **1768 ms** |
+
+Ese es el margen que tendrá un servidor remoto antes de que el salto empiece a notarse lento.
+
+**El `Ping` no se retiene.** Es del transporte, no del mundo: guardarlo dos segundos sería dejar que el
+servidor nuevo nos diera por muertos justo mientras llegamos.
+
+**Y esto costó dos intentos.**
 
 En local el server contesta en **111 ms** y la animación dura **2100**: el mapa nuevo llegaba casi
 veinte veces antes de que el portal terminara de abrirse, y montarlo hacía `queue_free()` del portal
@@ -546,11 +567,13 @@ El primer arreglo aplazaba el `EnterMap` y montaba el mapa al acabar la animaci�
 tras el `EnterMap` viene el resto del mundo nuevo —la nave, los NPC, las cajas— y eso seguía llegando
 y entrando en el mapa **viejo**, que se desmontaba dos segundos después llevándoselo por delante.
 
-Retrasando la **reconexión**, la llegada entera ocurre después del encendido y en un solo bloque. El
-socket viejo se queda abierto mientras tanto sin hacer daño: el server ya nos persistió en el destino
-y ya no nos tiene en su mapa. De pulsar `J` a tener el mapa nuevo: **2037 ms**, marcados por la
-animación y no por la red. En calidad media o baja no hay atlas, así que no hay nada que esperar y el
-salto es inmediato — **165 ms**, y ahí eso es lo correcto.
+El segundo retrasaba la **reconexión** entera. Funcionaba, pero tiraba a la basura el motivo de tener
+2,1 s de animación: el paso caro —conectar con el servidor del destino— quedaba fuera del hueco.
+
+El tercero es el de arriba: conectar ya y retener la llegada. De pulsar `J` a tener el mapa nuevo,
+**1879 ms**, marcados por la animación y no por la red. En calidad media o baja no hay atlas, así que
+no hay nada que esperar ni que retener y el salto es inmediato — **128 ms**, y ahí eso es lo
+correcto.
 
 Los 2,1 s no son un adorno que sobra cuando la red es rápida: **son el ritmo del salto**. Sin ellos,
 cruzar un portal no se siente como cruzar nada.

@@ -36,6 +36,10 @@ var _url := ""
 ## dentro de la ventana de gracia, sin pasar por la api.
 var reconnect_token := ""
 var _reanudando := false
+var _reteniendo := false
+var _buzon: Array[PackedByteArray] = []
+var _reten_t0 := 0
+var _reten_listo := -1
 
 
 func connect_to(url: String, ticket: String) -> void:
@@ -108,8 +112,51 @@ func send(frame: PackedByteArray) -> void:
 		_ws.put_packet(frame)
 
 
+## Retener la llegada: lo que mande el server se guarda en vez de aplicarse.
+##
+## Sirve para conectar con el mapa destino EN PARALELO a la animacion del portal
+## sin que el mundo nuevo se cuele en el viejo. Antes se retrasaba la conexion
+## entera hasta terminar la animacion, y eso funcionaba en local —donde conectar
+## cuesta nada— pero tiraba a la basura el motivo de tener 2,1 s de animacion: en
+## cuanto el mapa destino viva en otra maquina, abrir el socket y hacer el
+## handshake son cientos de milisegundos que se pagarian DESPUES, sumados en vez
+## de solapados.
+func retener() -> void:
+	_reteniendo = true
+	_buzon.clear()
+	_reten_t0 = Time.get_ticks_msec()
+	_reten_listo = -1
+
+
+## Y soltarla de golpe, en orden. Quien llama decide cuando: normalmente al
+## terminar el encendido del portal.
+func soltar() -> void:
+	if not _reteniendo:
+		return
+	_reteniendo = false
+	if _reten_listo >= 0:
+		print("SALTO conexion nueva lista en %d ms · se suelta a los %d ms · holgura %d ms"
+			% [_reten_listo, Time.get_ticks_msec() - _reten_t0,
+			   Time.get_ticks_msec() - _reten_t0 - _reten_listo])
+	var pendientes := _buzon.duplicate()
+	_buzon.clear()
+	for frame: PackedByteArray in pendientes:
+		_despachar(frame)
+
+
 func _despachar(frame: PackedByteArray) -> void:
-	match _msg_id(frame):
+	var id := _msg_id(frame)
+	# El Ping se contesta SIEMPRE, retenidos o no: es del transporte, no del
+	# mundo. Guardarlo dos segundos seria dejar que el server nos diera por
+	# muertos justo mientras llegamos.
+	if _reteniendo and id != MexProtocol.Ping.MSG_ID:
+		# el EnterMap es la senial de que el mapa destino ya esta sincronizado:
+		# con eso se mide cuanta HOLGURA deja la animacion
+		if id == MexProtocol.EnterMap.MSG_ID and _reten_listo < 0:
+			_reten_listo = Time.get_ticks_msec() - _reten_t0
+		_buzon.append(frame)
+		return
+	match id:
 		MexProtocol.Welcome.MSG_ID: welcome.emit(MexProtocol.Welcome.decode(frame))
 		MexProtocol.EnterMap.MSG_ID: enter_map.emit(MexProtocol.EnterMap.decode(frame))
 		MexProtocol.EntitySpawn.MSG_ID: entity_spawn.emit(MexProtocol.EntitySpawn.decode(frame))

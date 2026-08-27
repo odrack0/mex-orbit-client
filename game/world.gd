@@ -236,10 +236,8 @@ var _map_code := ""
 
 
 func _on_enter_map(em) -> void:
-	# el viaje REAL: de pedir el salto a tener el mapa nuevo en la mano
 	if _salto_t0 > 0:
-		print("SALTO viaje ida y vuelta: %d ms · la animacion dura 2100 ms"
-			% (Time.get_ticks_msec() - _salto_t0))
+		print("SALTO de pulsar J a tener el mapa: %d ms" % (Time.get_ticks_msec() - _salto_t0))
 		_salto_t0 = 0
 	# EnterMap llega tres veces por motivos distintos: al entrar, al reconectar y
 	# al SALTAR de sector. Las dos primeras traen el mismo mapa y todo se conserva;
@@ -950,14 +948,11 @@ func _intentar_salto() -> void:
 ## reconecta con el token que ya tiene: el estado de la nave quedo persistido en
 ## el mapa destino antes de que el server cerrara, asi que reconectar aterriza
 ## donde toca.
-## El encendido llego a su ultimo fotograma: ahora si, a reconectar.
+## El encendido llego a su ultimo fotograma: se suelta la llegada, que lleva
+## esperando desde que la conexion nueva termino de sincronizar.
 func _on_encendido_listo(_portal_id: int) -> void:
 	_salto_portal = null
-	if _salto_url == "":
-		return
-	var url := _salto_url
-	_salto_url = ""
-	_conn.saltar_a(url)
+	_conn.soltar()
 
 
 ## Lo que se retrasa es la RECONEXION, no el mensaje.
@@ -972,11 +967,16 @@ func _on_encendido_listo(_portal_id: int) -> void:
 ## dano: el server ya nos persistio en el destino y ya no nos tiene en su mapa.
 func _on_jump_handoff(msg) -> void:
 	var esquema := "wss" if msg.is_tls else "ws"
-	_salto_url = "%s://%s:%d/ws" % [esquema, msg.host, msg.port]
+	var url := "%s://%s:%d/ws" % [esquema, msg.host, msg.port]
 	_estado("Enlazando con el sector %s…" % msg.map_code, NTheme.VIOLET)
-	# sin animacion que esperar (calidad media o baja), se va ya
+	# Se conecta YA, en paralelo a la animacion, y se RETIENE lo que llegue. El
+	# hueco de 2,1 s absorbe asi tambien el coste de abrir el socket contra el
+	# server del destino, que es el que se vuelve caro al partir la carga.
+	_conn.retener()
+	_conn.saltar_a(url)
+	# sin animacion que esperar (calidad media o baja) no hay nada que retener
 	if _salto_portal == null or not is_instance_valid(_salto_portal):
-		_on_encendido_listo(0)
+		_conn.soltar()
 
 
 func _portal_at(world_pos: Vector2) -> PortalNode:
@@ -1119,7 +1119,6 @@ var _at_reconectado := false
 var _at_camara_libre := false
 var _at_portal_animado := false
 var _salto_portal: PortalNode = null
-var _salto_url := ""
 var _salto_t0 := 0
 var _at_salto_pedido := false
 var _at_salto_origen := ""
