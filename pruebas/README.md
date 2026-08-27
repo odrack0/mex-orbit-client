@@ -75,6 +75,30 @@ El mapa 1-1 tiene ~20 bichos (15 Vex, 3 Gravon, 2 Skarnox). **A esa población l
 animación cuesta un 17% y el suelo se queda en 109 fps.** El desplome solo aparece
 a 150, cinco veces la población real.
 
+### Rotar nodos es 3× más barato que una clave de forma
+
+150 bichos con las alas plegándose, mismo ciclo, mismo modelo de partida:
+
+| | media | 1% peor |
+|---|---|---|
+| **rotación de nodos** (modelo partido) | **149,8** | **92,0** |
+| clave de forma (morph target) | 48,4 | 22,6 |
+| estático, de referencia | 156,3 | 83,9 |
+
+Contra el modelo quieto, animar por nodos cuesta un **4%** — y el 1% peor sale
+incluso mejor, dentro del ruido. Un nodo rotado es una matriz; una clave de forma
+son deltas por vértice para toda la malla.
+
+Esto obliga a corregir las cifras de más abajo: las de la clave de forma medían la
+animación **congelada**, porque glTF no lleva bandera de bucle y `play()`
+reproducía una vez. Con el bucle puesto, el morph target no cuesta el 41% sino el
+**69%**.
+
+El modelo partido sale de `partir-en-piezas.py`, y el movimiento **no va en el
+GLB**: se escriben dos rotaciones desde `_process`, igual que el cliente ya mueve
+el pulso y la ondulación. El GLB solo lleva la estructura — tres nodos con el
+origen en la bisagra.
+
 ### Y el coste NO es reproducir la animación
 
 Tres pasadas a 150 con el mismo GLB animado:

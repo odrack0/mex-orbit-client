@@ -2,8 +2,8 @@
 #
 # No es el juego: es la pregunta que decide si el pipeline de modelo unico entra
 # o no. Monta N modelos girando bajo una camara ortografica en la elevacion que
-# se le pida, con UNA luz direccional clavada en el mundo —la misma idea que
-# AssetDefs.LUZ_MUNDO_GRADOS—, mide los fps sostenidos y se va.
+# se le pida, con UNA luz direccional clavada en el mundo â€”la misma idea que
+# AssetDefs.LUZ_MUNDO_GRADOSâ€”, mide los fps sostenidos y se va.
 #
 # Uso:
 #   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
@@ -17,6 +17,33 @@ var _animados := 0
 var _modo_anim := "player"
 var _mallas: Array[MeshInstance3D] = []
 var _fase: PackedFloat32Array = PackedFloat32Array()
+## Uno por bicho, o null. En modo "player" la fase del pulso se LEE de aqui:
+## quien manda es el reproductor de la animacion, no un reloj paralelo.
+var _players: Array[AnimationPlayer] = []
+
+## "sync" = la emision late CON el aleteo, leyendo la misma fase.
+## "libre" = late en su propio reloj, como hace hoy entity_node.
+## "no"    = sin pulso.
+##
+## Hoy los dos relojes existen y NO estan acoplados: el pulso del Vexor corre a
+## `speed: 3.2` (periodo 1,96 s) y su ciclo de alas dura 2,17 s, asi que se
+## separan del todo cada ~21 s. Que parezca sincronizado es el ojo encontrando
+## patron en dos ritmos casi iguales.
+var _pulso := "sync"
+var _materiales: Array[BaseMaterial3D] = []
+## Pares [ala_izq, ala_der] por bicho, o [] si el modelo no viene partido.
+var _alas: Array = []
+## Cuanto se pliegan, en grados.
+const ALAS_GRADOS := 60.0
+var _traza := false
+var _proxima_traza := 0.0
+
+## Los diales del Vexor, tal cual estan en data/npcs/vexor.json.
+const PULSO_MIN := 0.25
+const PULSO_MAX := 2.6
+const PULSO_SHARP := 2.4
+const PULSO_SPEED := 3.2      # solo en modo "libre": su reloj propio
+const CICLO_ALAS := 2.17      # 26 fotogramas a 12 fps, el atlas actual
 const LUZ_MUNDO_GRADOS := 315.0
 
 var _n := 15
@@ -34,7 +61,7 @@ var _fps_muestras := 0
 ## Todos los tiempos de fotograma, para poder sacar percentiles. El MINIMO
 ## ABSOLUTO no es una estadistica: es "lo peor que he visto", y solo puede
 ## empeorar cuanto mas tiempo miras. En pasadas de 6 s daba 70 fps y dejando la
-## ventana abierta unos minutos bajaba a 38 — sin que el juego fuera a peor, solo
+## ventana abierta unos minutos bajaba a 38 â€” sin que el juego fuera a peor, solo
 ## por haber visto veinte veces mas fotogramas. Lo que se compara entre pasadas
 ## es el 1% PEOR, que si converge.
 var _dts := PackedFloat32Array()
@@ -62,6 +89,10 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
+		elif arg == "--traza":
+			_traza = true
+		elif arg.begins_with("--pulso="):
+			_pulso = arg.trim_prefix("--pulso=")         # sync | libre | no
 		elif arg.begins_with("--anim="):
 			_modo_anim = arg.trim_prefix("--anim=")     # player | directo | no
 		elif arg.begins_with("--modelo="):
@@ -139,8 +170,13 @@ func _ready() -> void:
 	_label.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
 	capa.add_child(_label)
 
-	print("BANCO n=%d elev=%.0f tris=%d modelo=%s animados=%d/%d"
-		% [_n, _elev, _n * 15000, _ruta.get_file(), _animados, _n])
+	var largo := 0.0
+	for ap in _players:
+		if ap != null:
+			largo = ap.current_animation_length
+			break
+	print("BANCO n=%d elev=%.0f tris=%d modelo=%s animados=%d/%d pulso=%s ciclo=%.2fs (atlas: %.2fs)"
+		% [_n, _elev, _n * 15000, _ruta.get_file(), _animados, _n, _pulso, largo, CICLO_ALAS])
 
 
 func _process(delta: float) -> void:
@@ -150,8 +186,37 @@ func _process(delta: float) -> void:
 	# Un ciclo de alas cada 2,17 s, que es lo que dura el atlas actual del Vexor
 	# (26 fotogramas a 12 fps). Cada bicho con su fase.
 	for i in _mallas.size():
-		var t: float = fposmod(_t / 2.17 + _fase[i], 1.0)
-		_mallas[i].set_blend_shape_value(0, 0.5 - 0.5 * cos(TAU * t))
+		# LA FASE SALE DE QUIEN MUEVE LAS ALAS, no de un reloj paralelo. Con
+		# AnimationPlayer se le pregunta a el; sin el, del reloj propio que
+		# tambien mueve la clave de forma. Un reloj, dos consumidores.
+		var t: float
+		var ap: AnimationPlayer = _players[i] if i < _players.size() else null
+		if ap != null and ap.current_animation_length > 0.0:
+			t = ap.current_animation_position / ap.current_animation_length
+		else:
+			t = fposmod(_t / CICLO_ALAS + _fase[i], 1.0)
+		var pliegue := 0.5 - 0.5 * cos(TAU * t)      # 0 = alas abiertas, 1 = plegadas
+
+		if _modo_anim == "directo" and _mallas[i].get_blend_shape_count() > 0:
+			_mallas[i].set_blend_shape_value(0, pliegue)
+
+		if i < _alas.size() and not _alas[i].is_empty():
+			var a: float = deg_to_rad(ALAS_GRADOS) * pliegue
+			_alas[i][0].rotation.y = -a
+			_alas[i][1].rotation.y = a
+
+		if _pulso != "no" and i < _materiales.size():
+			# SINCRONIZADO: la emision lee el MISMO pliegue que mueve las alas,
+			# asi que el destello cae en el aleteo por construccion â€” no hay dos
+			# relojes que puedan separarse.
+			# LIBRE: reproduce lo que hace hoy entity_node, un seno con su propia
+			# velocidad. Es la comparacion, no la propuesta.
+			var onda := pliegue
+			if _pulso == "libre":
+				onda = 0.5 + 0.5 * sin(_t * PULSO_SPEED + _fase[i] * TAU)
+			onda = pow(onda, PULSO_SHARP)   # sharpness: valles largos, pico marcado
+			_materiales[i].emission_energy_multiplier = (
+				PULSO_MIN + (PULSO_MAX - PULSO_MIN) * onda)
 
 	_t += delta
 	# Se mide el TIEMPO DE FOTOGRAMA, no el contador de Godot: el contador es una
@@ -173,13 +238,24 @@ func _process(delta: float) -> void:
 
 	# El percentil se recalcula cada medio segundo, no por fotograma: ordenar
 	# miles de muestras a 100 fps seria medir el coste de medir.
+	# Traza del primer bicho cada medio segundo: si el valor de la forma no se
+	# mueve, no es que "no se vea" â€” es que no esta pasando nada.
+	if _traza and _t > _proxima_traza and not _mallas.is_empty():
+		_proxima_traza = _t + 0.4
+		var ap0: AnimationPlayer = _players[0] if not _players.is_empty() else null
+		print("TRAZA t=%.1f  anim_pos=%.2f  forma=%.3f  emision=%.2f" % [
+			_t,
+			ap0.current_animation_position if ap0 != null else -1.0,
+			_mallas[0].get_blend_shape_value(0) if _mallas[0].get_blend_shape_count() > 0 else -1.0,
+			_materiales[0].emission_energy_multiplier if not _materiales.is_empty() else -1.0])
+
 	if _t > _proximo_recalculo and _dts.size() > 100:
 		_proximo_recalculo = _t + 0.5
 		_p1 = _percentil_bajo(1.0)
 
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
-	_label.text = ("%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f en t=%.1fs)"
-		+ "\ntirones >%.0f ms:  %d en los primeros %ds  ·  %d despues") % [
+	_label.text = ("%d bichos vivos Â· %d tris Â· elev %.0fÂ°\n%d fps  (media %.0f Â· 1%% peor %.0f Â· minimo %.0f en t=%.1fs)"
+		+ "\ntirones >%.0f ms:  %d en los primeros %ds  Â·  %d despues") % [
 		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min, _t_peor,
 		TIRON_MS, _tirones_pronto, int(PRONTO_S), _tirones_tarde]
 
@@ -196,40 +272,96 @@ func _process(delta: float) -> void:
 ## El desfase es el mismo truco que el pulso emisivo ya usa en entity_node
 ## (`entity_id * 1.7`): quince bichos aleteando al unisono se leen como un
 ## mecanismo, no como bichos. La diferencia es que aqui el desfase se aplica al
-## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso —
+## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso â€”
 ## y entonces el destello cae en el aleteo por construccion, en vez de correr en
 ## su propio reloj y desincronizarse cada 21 s como ahora.
 func _arrancar_animacion(nodo: Node, i: int) -> void:
+	# La FASE es una sola por bicho y la comparten el aleteo y el pulso. Ese es
+	# el punto entero: mientras cada uno lleve su propio reloj, coinciden a ratos
+	# y se separan solos.
+	var mallas := nodo.find_children("*", "MeshInstance3D", true, false)
+	var malla: MeshInstance3D = mallas[0] if not mallas.is_empty() else null
+	if malla != null:
+		_mallas.append(malla)
+		_fase.append(float(i) / float(_n))
+		if _pulso != "no":
+			# Un material propio por bicho: la energia de emision es del
+			# material, no del nodo, y compartirlo haria latir a los 150 igual.
+			# Rompe el batching, y lo que eso cuesta se mide como todo lo demas.
+			var m := malla.get_active_material(0)
+			if m is BaseMaterial3D:
+				var copia: BaseMaterial3D = m.duplicate()
+				malla.set_surface_override_material(0, copia)
+				_materiales.append(copia)
+
+	# ---- alas como NODOS ----
+	# El modelo partido trae `ala_izq` y `ala_der` con su origen en la bisagra, y
+	# plegarlas es rotar dos nodos. No hace falta AnimationPlayer ni clave de
+	# forma: es lo mismo que el cliente ya hace con el pulso y la ondulacion,
+	# movidos desde _process. Dos floats por bicho contra deltas por vertice.
+	var izq := nodo.find_children("*ala_izq*", "Node3D", true, false)
+	var der := nodo.find_children("*ala_der*", "Node3D", true, false)
+	if not izq.is_empty() and not der.is_empty():
+		_alas.append([izq[0], der[0]])
+		if i == 0:
+			print("DIAG  alas por nodo: %s en %s / %s en %s" % [
+				izq[0].name, izq[0].position, der[0].name, der[0].position])
+	else:
+		_alas.append([])
+
+	if i == 0:
+		# Diagnostico del primer bicho: sin esto, "no se mueve" puede ser la
+		# malla sin morph, el material sin emision o la pista sin resolver, y
+		# las tres se ven igual desde fuera.
+		var mat := malla.get_active_material(0) if malla != null else null
+		print("DIAG  malla=%s  morph=%d  material=%s  emision=%s"
+			% [malla != null, malla.get_blend_shape_count() if malla else -1,
+			mat.get_class() if mat else "null",
+			str(mat.emission_enabled) if mat is BaseMaterial3D else "n/a"])
+		if malla != null and malla.mesh != null:
+			var nombres := []
+			for b in malla.mesh.get_blend_shape_count():
+				nombres.append(malla.mesh.get_blend_shape_name(b))
+			print("DIAG  formas=%s" % str(nombres))
+
+	_players.append(null)
 	if _modo_anim == "no":
 		return
 	var players := nodo.find_children("*", "AnimationPlayer", true, false)
 	if players.is_empty():
 		return
 	var ap: AnimationPlayer = players[0]
-	var nombres := ap.get_animation_list()
-	if nombres.is_empty():
+	if ap.get_animation_list().is_empty():
 		return
 
 	if _modo_anim == "directo":
 		# El AnimationPlayer sobra: la animacion es UN numero entre 0 y 1. Se
 		# apaga el nodo y se escribe la clave de forma a mano en _process.
 		ap.process_mode = Node.PROCESS_MODE_DISABLED
-		var mallas := nodo.find_children("*", "MeshInstance3D", true, false)
-		if mallas.is_empty() or (mallas[0] as MeshInstance3D).get_blend_shape_count() == 0:
-			return
-		_mallas.append(mallas[0])
-		_fase.append(float(i) / float(_n))
 		_animados += 1
 		return
 
-	ap.play(nombres[0])
+	var nombre := ap.get_animation_list()[0]
+	# glTF no tiene bandera de bucle, asi que Godot importa con LOOP_NONE y
+	# play() reproduce UNA vez. Sin esto el bicho aletea dos segundos mientras la
+	# ventana aparece y se queda congelado para siempre — que se lee exactamente
+	# igual que "la animacion no funciona".
+	ap.get_animation(nombre).loop_mode = Animation.LOOP_LINEAR
+	if i == 0:
+		var anim := ap.get_animation(nombre)
+		print("DIAG  anim='%s' largo=%.2fs pistas=%d" % [nombre, anim.length, anim.get_track_count()])
+		for k in mini(4, anim.get_track_count()):
+			print("DIAG    pista %d  tipo=%d  ruta=%s  claves=%d"
+				% [k, anim.track_get_type(k), str(anim.track_get_path(k)), anim.track_get_key_count(k)])
+	ap.play(nombre)
 	ap.seek(ap.current_animation_length * float(i) / float(_n), true)
+	_players[_players.size() - 1] = ap
 	_animados += 1
 
 
 ## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
-## pasadas: el minimo absoluto lo decide un hipo suelto —otro proceso, el reloj
-## de la GPU— y no dice nada de como va el juego.
+## pasadas: el minimo absoluto lo decide un hipo suelto â€”otro proceso, el reloj
+## de la GPUâ€” y no dice nada de como va el juego.
 func _percentil_bajo(pct: float) -> float:
 	var ordenados := _dts.duplicate()
 	ordenados.sort()
