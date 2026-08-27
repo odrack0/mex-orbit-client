@@ -2,8 +2,8 @@
 #
 # No es el juego: es la pregunta que decide si el pipeline de modelo unico entra
 # o no. Monta N modelos girando bajo una camara ortografica en la elevacion que
-# se le pida, con UNA luz direccional clavada en el mundo â€”la misma idea que
-# AssetDefs.LUZ_MUNDO_GRADOSâ€”, mide los fps sostenidos y se va.
+# se le pida, con UNA luz direccional clavada en el mundo Ã¢â‚¬â€la misma idea que
+# AssetDefs.LUZ_MUNDO_GRADOSÃ¢â‚¬â€, mide los fps sostenidos y se va.
 #
 # Uso:
 #   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
@@ -34,7 +34,7 @@ var _materiales: Array[BaseMaterial3D] = []
 ## Pares [ala_izq, ala_der] por bicho, o [] si el modelo no viene partido.
 var _alas: Array = []
 ## Cuanto se pliegan, en grados.
-const ALAS_GRADOS := 60.0
+const ALAS_GRADOS := 34.0
 var _traza := false
 var _proxima_traza := 0.0
 
@@ -61,7 +61,7 @@ var _fps_muestras := 0
 ## Todos los tiempos de fotograma, para poder sacar percentiles. El MINIMO
 ## ABSOLUTO no es una estadistica: es "lo peor que he visto", y solo puede
 ## empeorar cuanto mas tiempo miras. En pasadas de 6 s daba 70 fps y dejando la
-## ventana abierta unos minutos bajaba a 38 â€” sin que el juego fuera a peor, solo
+## ventana abierta unos minutos bajaba a 38 Ã¢â‚¬â€ sin que el juego fuera a peor, solo
 ## por haber visto veinte veces mas fotogramas. Lo que se compara entre pasadas
 ## es el 1% PEOR, que si converge.
 var _dts := PackedFloat32Array()
@@ -201,17 +201,31 @@ func _process(delta: float) -> void:
 			_mallas[i].set_blend_shape_value(0, pliegue)
 
 		if i < _alas.size() and not _alas[i].is_empty():
-			var a: float = deg_to_rad(ALAS_GRADOS) * pliegue
-			_alas[i][0].rotation.y = -a
-			_alas[i][1].rotation.y = a
+			# Sobre Z, NO sobre Y. El ala tiene que girar alrededor del eje del
+			# CUERPO para batir de arriba abajo, y ese eje cambia de nombre al
+			# exportar: en Blender el largo va por Y, pero glTF permuta y en Godot
+			# es Z (la Y de Godot es la vertical). Rotando sobre Y las alas se
+			# abrian como una puerta, de atras hacia adelante.
+			#
+			# Y el batido es un SENO, no el mismo 0->1->0 del pliegue: un aleteo
+			# oscila ALREDEDOR de la posicion de reposo, arriba y abajo. Con la
+			# curva del pliegue el ala solo bajaba y volvia, que se lee como que se
+			# dobla, no como que bate.
+			var bat := sin(TAU * t)                       # -1 arriba .. +1 abajo
+			var a: float = deg_to_rad(ALAS_GRADOS) * bat
+			_alas[i][0].rotation.z = -a
+			_alas[i][1].rotation.z = a
 
 		if _pulso != "no" and i < _materiales.size():
 			# SINCRONIZADO: la emision lee el MISMO pliegue que mueve las alas,
-			# asi que el destello cae en el aleteo por construccion â€” no hay dos
+			# asi que el destello cae en el aleteo por construccion Ã¢â‚¬â€ no hay dos
 			# relojes que puedan separarse.
 			# LIBRE: reproduce lo que hace hoy entity_node, un seno con su propia
 			# velocidad. Es la comparacion, no la propuesta.
-			var onda := pliegue
+			# El destello cae en el golpe de BAJADA, el punto mas bajo del batido.
+			# Misma fase que mueve el ala, distinto punto de la curva: el ala usa
+			# el seno y el pulso su desfase de un cuarto.
+			var onda := 0.5 - 0.5 * cos(TAU * t)
 			if _pulso == "libre":
 				onda = 0.5 + 0.5 * sin(_t * PULSO_SPEED + _fase[i] * TAU)
 			onda = pow(onda, PULSO_SHARP)   # sharpness: valles largos, pico marcado
@@ -239,14 +253,25 @@ func _process(delta: float) -> void:
 	# El percentil se recalcula cada medio segundo, no por fotograma: ordenar
 	# miles de muestras a 100 fps seria medir el coste de medir.
 	# Traza del primer bicho cada medio segundo: si el valor de la forma no se
-	# mueve, no es que "no se vea" â€” es que no esta pasando nada.
+	# mueve, no es que "no se vea" Ã¢â‚¬â€ es que no esta pasando nada.
 	if _traza and _t > _proxima_traza and not _mallas.is_empty():
 		_proxima_traza = _t + 0.4
 		var ap0: AnimationPlayer = _players[0] if not _players.is_empty() else null
-		print("TRAZA t=%.1f  anim_pos=%.2f  forma=%.3f  emision=%.2f" % [
+		var ala_deg := 999.0
+		var ala_alto := 0.0
+		if not _alas.is_empty() and not _alas[0].is_empty():
+			var ala: Node3D = _alas[0][1]
+			ala_deg = rad_to_deg(ala.rotation.z)
+			# La ALTURA de la punta del ala en el mundo: es lo que dice si bate de
+			# arriba abajo o se abre de lado. El angulo solo no lo distingue.
+			var aabb := (ala as MeshInstance3D).get_aabb() if ala is MeshInstance3D else AABB()
+			ala_alto = (ala.global_transform * aabb.get_endpoint(7)).y
+		print("TRAZA t=%.1f  anim_pos=%.2f  forma=%.3f  ala=%.1f deg  punta_y=%+.3f  emision=%.2f" % [
 			_t,
 			ap0.current_animation_position if ap0 != null else -1.0,
 			_mallas[0].get_blend_shape_value(0) if _mallas[0].get_blend_shape_count() > 0 else -1.0,
+			ala_deg,
+			ala_alto,
 			_materiales[0].emission_energy_multiplier if not _materiales.is_empty() else -1.0])
 
 	if _t > _proximo_recalculo and _dts.size() > 100:
@@ -254,8 +279,8 @@ func _process(delta: float) -> void:
 		_p1 = _percentil_bajo(1.0)
 
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
-	_label.text = ("%d bichos vivos Â· %d tris Â· elev %.0fÂ°\n%d fps  (media %.0f Â· 1%% peor %.0f Â· minimo %.0f en t=%.1fs)"
-		+ "\ntirones >%.0f ms:  %d en los primeros %ds  Â·  %d despues") % [
+	_label.text = ("%d bichos vivos Ã‚Â· %d tris Ã‚Â· elev %.0fÃ‚Â°\n%d fps  (media %.0f Ã‚Â· 1%% peor %.0f Ã‚Â· minimo %.0f en t=%.1fs)"
+		+ "\ntirones >%.0f ms:  %d en los primeros %ds  Ã‚Â·  %d despues") % [
 		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min, _t_peor,
 		TIRON_MS, _tirones_pronto, int(PRONTO_S), _tirones_tarde]
 
@@ -272,7 +297,7 @@ func _process(delta: float) -> void:
 ## El desfase es el mismo truco que el pulso emisivo ya usa en entity_node
 ## (`entity_id * 1.7`): quince bichos aleteando al unisono se leen como un
 ## mecanismo, no como bichos. La diferencia es que aqui el desfase se aplica al
-## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso â€”
+## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso Ã¢â‚¬â€
 ## y entonces el destello cae en el aleteo por construccion, en vez de correr en
 ## su propio reloj y desincronizarse cada 21 s como ahora.
 func _arrancar_animacion(nodo: Node, i: int) -> void:
@@ -344,7 +369,7 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 	var nombre := ap.get_animation_list()[0]
 	# glTF no tiene bandera de bucle, asi que Godot importa con LOOP_NONE y
 	# play() reproduce UNA vez. Sin esto el bicho aletea dos segundos mientras la
-	# ventana aparece y se queda congelado para siempre — que se lee exactamente
+	# ventana aparece y se queda congelado para siempre â€” que se lee exactamente
 	# igual que "la animacion no funciona".
 	ap.get_animation(nombre).loop_mode = Animation.LOOP_LINEAR
 	if i == 0:
@@ -360,8 +385,8 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 
 
 ## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
-## pasadas: el minimo absoluto lo decide un hipo suelto â€”otro proceso, el reloj
-## de la GPUâ€” y no dice nada de como va el juego.
+## pasadas: el minimo absoluto lo decide un hipo suelto Ã¢â‚¬â€otro proceso, el reloj
+## de la GPUÃ¢â‚¬â€ y no dice nada de como va el juego.
 func _percentil_bajo(pct: float) -> float:
 	var ordenados := _dts.duplicate()
 	ordenados.sort()
