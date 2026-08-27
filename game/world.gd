@@ -377,8 +377,17 @@ func _construir_estacion() -> void:
 	_estacion.z_index = -1
 	add_child(_estacion)
 
-	# el reactor late con su capa emisiva (mas lento y suave que un alien)
-	if d.has("emissive"):
+	# El reactor late con su capa emisiva... SOLO en el camino fijo.
+	#
+	# Con atlas la luz ya viene cocida en los fotogramas, y montar la emisiva
+	# encima la cuenta dos veces. Aqui ademas era peor que redundante: la emisiva
+	# es la del reactor REDONDO de la estacion vieja, y se estaba estirando en
+	# blend aditivo sobre un render que no tiene esa forma. De ahi el halo azul
+	# alrededor de la silueta que no venia de ninguna parte.
+	#
+	# Es la misma regla que ya cumplen `EntityNode` y `PortalNode` —la animacion
+	# manda sobre el truco— y que aqui se me paso.
+	if d.has("emissive") and _estacion_anim_total == 0:
 		_estacion_reactor = Sprite2D.new()
 		_estacion_reactor.texture = load(d.emissive)
 		var mat := CanvasItemMaterial.new()
