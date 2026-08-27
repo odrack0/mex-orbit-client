@@ -2,8 +2,8 @@
 #
 # No es el juego: es la pregunta que decide si el pipeline de modelo unico entra
 # o no. Monta N modelos girando bajo una camara ortografica en la elevacion que
-# se le pida, con UNA luz direccional clavada en el mundo Ã¢â‚¬â€la misma idea que
-# AssetDefs.LUZ_MUNDO_GRADOSÃ¢â‚¬â€, mide los fps sostenidos y se va.
+# se le pida, con UNA luz direccional clavada en el mundo —la misma idea que
+# AssetDefs.LUZ_MUNDO_GRADOS—, mide los fps sostenidos y se va.
 #
 # Uso:
 #   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
@@ -35,8 +35,27 @@ var _materiales: Array[BaseMaterial3D] = []
 var _alas: Array = []
 ## Cuanto se pliegan, en grados.
 const ALAS_GRADOS := 34.0
+
+## Segmentos de cola por bicho, de la union hacia la punta.
+var _colas: Array = []
+## Grados POR SEGMENTO. Se acumulan por la cadena: con 3 segmentos la punta llega
+## al triple. Poco por segmento y varios segmentos se lee como algo que ondula;
+## mucho en uno solo se lee como una bisagra.
+const COLA_GRADOS := 9.0
+## Un ciclo cada 1,5 s: es el `speed: 4.2` de undulate en vexor.json (2*PI/4,2).
+## NO va sincronizada con las alas, igual que hoy en el sprite: son dos partes del
+## cuerpo con su propio ritmo, y eso es lo que hace que se lea como bicho.
+const COLA_CICLO := 1.50
+## Retraso de cada segmento respecto al anterior, en vueltas. Es lo que convierte
+## tres rotaciones en una ONDA que viaja: sin esto la cola se mece entera de una
+## pieza, como un limpiaparabrisas.
+const COLA_DESFASE := 0.22
 var _traza := false
 var _proxima_traza := 0.0
+## Grados por segundo que gira cada bicho. 0 los deja quietos, para mirar el
+## aleteo y la cola sin que el giro los tape.
+var _giro := 100.0
+var _doble_cara := true
 
 ## Los diales del Vexor, tal cual estan en data/npcs/vexor.json.
 const PULSO_MIN := 0.25
@@ -61,7 +80,7 @@ var _fps_muestras := 0
 ## Todos los tiempos de fotograma, para poder sacar percentiles. El MINIMO
 ## ABSOLUTO no es una estadistica: es "lo peor que he visto", y solo puede
 ## empeorar cuanto mas tiempo miras. En pasadas de 6 s daba 70 fps y dejando la
-## ventana abierta unos minutos bajaba a 38 Ã¢â‚¬â€ sin que el juego fuera a peor, solo
+## ventana abierta unos minutos bajaba a 38 — sin que el juego fuera a peor, solo
 ## por haber visto veinte veces mas fotogramas. Lo que se compara entre pasadas
 ## es el 1% PEOR, que si converge.
 var _dts := PackedFloat32Array()
@@ -91,6 +110,10 @@ func _ready() -> void:
 			_shot = arg.trim_prefix("--shot=")
 		elif arg == "--traza":
 			_traza = true
+		elif arg == "--una-cara":
+			_doble_cara = false
+		elif arg.begins_with("--giro="):
+			_giro = float(arg.trim_prefix("--giro="))   # grados/s; 0 = quietos
 		elif arg.begins_with("--pulso="):
 			_pulso = arg.trim_prefix("--pulso=")         # sync | libre | no
 		elif arg.begins_with("--anim="):
@@ -132,6 +155,11 @@ func _ready() -> void:
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color(0.35, 0.40, 0.55)
 	e.ambient_light_energy = 0.35
+	# El fondo lo pinta la CAMARA, no solo el entorno: en el renderizador de
+	# compatibilidad el color del Environment no llegaba al borrado y la escena
+	# salia sobre un gris azulado —el color de la luz ambiente— en vez de sobre el
+	# negro del espacio.
+	RenderingServer.set_default_clear_color(e.background_color)
 	e.glow_enabled = true
 	env.environment = e
 	add_child(env)
@@ -180,8 +208,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	for i in _bichos.size():
-		_bichos[i].rotation.y += deg_to_rad(100.0) * delta * (0.6 + 0.4 * float(i % 3))
+	# El giro sirve para ver que el reflejo BARRE, pero tapa el aleteo y la cola:
+	# con --giro=0 los bichos se quedan quietos y solo se mueve lo que se anima.
+	if _giro > 0.0:
+		for i in _bichos.size():
+			_bichos[i].rotation.y += deg_to_rad(_giro) * delta * (0.6 + 0.4 * float(i % 3))
 
 	# Un ciclo de alas cada 2,17 s, que es lo que dura el atlas actual del Vexor
 	# (26 fotogramas a 12 fps). Cada bicho con su fase.
@@ -216,9 +247,19 @@ func _process(delta: float) -> void:
 			_alas[i][0].rotation.z = -a
 			_alas[i][1].rotation.z = a
 
+		# ---- la cola ----
+		# Sobre Y, la vertical: vista desde arriba la cola serpentea de lado a
+		# lado, que es lo que hace `undulate` en el sprite. Y con su propio reloj,
+		# no el de las alas: en el sprite tambien son independientes.
+		if i < _colas.size() and not _colas[i].is_empty():
+			var tc := _t / COLA_CICLO + _fase[i]
+			for k in _colas[i].size():
+				var seg: Node3D = _colas[i][k]
+				seg.rotation.y = deg_to_rad(COLA_GRADOS) * sin(TAU * (tc - k * COLA_DESFASE))
+
 		if _pulso != "no" and i < _materiales.size():
 			# SINCRONIZADO: la emision lee el MISMO pliegue que mueve las alas,
-			# asi que el destello cae en el aleteo por construccion Ã¢â‚¬â€ no hay dos
+			# asi que el destello cae en el aleteo por construccion — no hay dos
 			# relojes que puedan separarse.
 			# LIBRE: reproduce lo que hace hoy entity_node, un seno con su propia
 			# velocidad. Es la comparacion, no la propuesta.
@@ -253,7 +294,7 @@ func _process(delta: float) -> void:
 	# El percentil se recalcula cada medio segundo, no por fotograma: ordenar
 	# miles de muestras a 100 fps seria medir el coste de medir.
 	# Traza del primer bicho cada medio segundo: si el valor de la forma no se
-	# mueve, no es que "no se vea" Ã¢â‚¬â€ es que no esta pasando nada.
+	# mueve, no es que "no se vea" — es que no esta pasando nada.
 	if _traza and _t > _proxima_traza and not _mallas.is_empty():
 		_proxima_traza = _t + 0.4
 		var ap0: AnimationPlayer = _players[0] if not _players.is_empty() else null
@@ -266,12 +307,19 @@ func _process(delta: float) -> void:
 			# arriba abajo o se abre de lado. El angulo solo no lo distingue.
 			var aabb := (ala as MeshInstance3D).get_aabb() if ala is MeshInstance3D else AABB()
 			ala_alto = (ala.global_transform * aabb.get_endpoint(7)).y
-		print("TRAZA t=%.1f  anim_pos=%.2f  forma=%.3f  ala=%.1f deg  punta_y=%+.3f  emision=%.2f" % [
+		# La punta de la COLA en X: si serpentea, esto oscila. El angulo del ultimo
+		# segmento no vale — con la cadena mal encadenada tambien cambiaria.
+		var cola_x := 0.0
+		if not _colas.is_empty() and not _colas[0].is_empty():
+			var ult: Node3D = _colas[0][_colas[0].size() - 1]
+			cola_x = ult.global_position.x - _bichos[0].global_position.x
+		print("TRAZA t=%.1f  anim_pos=%.2f  forma=%.3f  ala=%.1f deg  punta_y=%+.3f  cola_x=%+.3f  emision=%.2f" % [
 			_t,
 			ap0.current_animation_position if ap0 != null else -1.0,
 			_mallas[0].get_blend_shape_value(0) if _mallas[0].get_blend_shape_count() > 0 else -1.0,
 			ala_deg,
 			ala_alto,
+			cola_x,
 			_materiales[0].emission_energy_multiplier if not _materiales.is_empty() else -1.0])
 
 	if _t > _proximo_recalculo and _dts.size() > 100:
@@ -279,8 +327,8 @@ func _process(delta: float) -> void:
 		_p1 = _percentil_bajo(1.0)
 
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
-	_label.text = ("%d bichos vivos Ã‚Â· %d tris Ã‚Â· elev %.0fÃ‚Â°\n%d fps  (media %.0f Ã‚Â· 1%% peor %.0f Ã‚Â· minimo %.0f en t=%.1fs)"
-		+ "\ntirones >%.0f ms:  %d en los primeros %ds  Ã‚Â·  %d despues") % [
+	_label.text = ("%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f en t=%.1fs)"
+		+ "\ntirones >%.0f ms:  %d en los primeros %ds  ·  %d despues") % [
 		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min, _t_peor,
 		TIRON_MS, _tirones_pronto, int(PRONTO_S), _tirones_tarde]
 
@@ -297,7 +345,7 @@ func _process(delta: float) -> void:
 ## El desfase es el mismo truco que el pulso emisivo ya usa en entity_node
 ## (`entity_id * 1.7`): quince bichos aleteando al unisono se leen como un
 ## mecanismo, no como bichos. La diferencia es que aqui el desfase se aplica al
-## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso Ã¢â‚¬â€
+## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso —
 ## y entonces el destello cae en el aleteo por construccion, en vez de correr en
 ## su propio reloj y desincronizarse cada 21 s como ahora.
 func _arrancar_animacion(nodo: Node, i: int) -> void:
@@ -316,6 +364,12 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 			var m := malla.get_active_material(0)
 			if m is BaseMaterial3D:
 				var copia: BaseMaterial3D = m.duplicate()
+				# A DOS CARAS. Blender dibuja las caras por los dos lados y Godot
+				# descarta las traseras; la malla de Meshy son cientos de cascaras
+				# solapadas con el giro inconsistente, asi que en Godot salian
+				# huecos y esquirlas donde Blender enseniaba solido.
+				if _doble_cara:
+					copia.cull_mode = BaseMaterial3D.CULL_DISABLED
 				malla.set_surface_override_material(0, copia)
 				_materiales.append(copia)
 
@@ -333,6 +387,21 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 				izq[0].name, izq[0].position, der[0].name, der[0].position])
 	else:
 		_alas.append([])
+
+	# La cola viene ENCADENADA en el GLB (cola_2 cuelga de cola_1), asi que basta
+	# rotar cada segmento un poco: la cadena compone las rotaciones sola.
+	var segmentos: Array = []
+	for k in range(1, 9):
+		var s := nodo.find_children("*cola_%d" % k, "Node3D", true, false)
+		if s.is_empty():
+			break
+		segmentos.append(s[0])
+	_colas.append(segmentos)
+	if i == 0 and not segmentos.is_empty():
+		var nombres := ""
+		for s in segmentos:
+			nombres += " " + (s as Node3D).name
+		print("DIAG  cola: %d segmentos —%s" % [segmentos.size(), nombres])
 
 	if i == 0:
 		# Diagnostico del primer bicho: sin esto, "no se mueve" puede ser la
@@ -369,7 +438,7 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 	var nombre := ap.get_animation_list()[0]
 	# glTF no tiene bandera de bucle, asi que Godot importa con LOOP_NONE y
 	# play() reproduce UNA vez. Sin esto el bicho aletea dos segundos mientras la
-	# ventana aparece y se queda congelado para siempre â€” que se lee exactamente
+	# ventana aparece y se queda congelado para siempre — que se lee exactamente
 	# igual que "la animacion no funciona".
 	ap.get_animation(nombre).loop_mode = Animation.LOOP_LINEAR
 	if i == 0:
@@ -385,8 +454,8 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 
 
 ## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
-## pasadas: el minimo absoluto lo decide un hipo suelto Ã¢â‚¬â€otro proceso, el reloj
-## de la GPUÃ¢â‚¬â€ y no dice nada de como va el juego.
+## pasadas: el minimo absoluto lo decide un hipo suelto —otro proceso, el reloj
+## de la GPU— y no dice nada de como va el juego.
 func _percentil_bajo(pct: float) -> float:
 	var ordenados := _dts.duplicate()
 	ordenados.sort()
