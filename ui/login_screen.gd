@@ -257,13 +257,58 @@ func _error(texto: String) -> void:
 	_status.text = texto
 
 
-func _on_respuesta(_result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+## Godot pone la causa REAL en `result`, no en el codigo HTTP: cuando no hay
+## nadie al otro lado el codigo es 0, que es el mensaje menos util que existe —
+## manda a mirar la api cuando la api ni se ha enterado de que existes. Y se
+## nombra la URL a la que se intento ir, porque el fallo suele ser justo ese:
+## apuntar a un sitio distinto del que uno cree (un `--api=` viejo, la anulacion
+## `.web` al exportar). Cadena vacia = el transporte fue bien.
+func _fallo_de_red(result: int) -> String:
+	match result:
+		HTTPRequest.RESULT_SUCCESS:
+			return ""
+		HTTPRequest.RESULT_CANT_CONNECT, HTTPRequest.RESULT_CONNECTION_ERROR:
+			return "No hay respuesta de la api en %s. ¿Está levantada? (tools/dev-run.ps1)" % Session.api_base
+		HTTPRequest.RESULT_CANT_RESOLVE:
+			return "No se pudo resolver el host de %s." % Session.api_base
+		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+			return "Falló el TLS contra %s. ¿Es https contra un puerto http?" % Session.api_base
+		HTTPRequest.RESULT_TIMEOUT:
+			return "La api de %s no contestó a tiempo." % Session.api_base
+		_:
+			return "La petición a %s falló antes de recibir respuesta (result %d)." % [Session.api_base, result]
+
+
+## Mismo criterio que en el alta: un 401 se arregla tecleando otra vez y un 403
+## no se arregla de ninguna manera. Juntarlos en "credenciales o api caida" hacia
+## que un baneo pareciera un dedazo, y ademas culpaba a la api — que a estas
+## alturas ya se sabe que contesto, porque si no habriamos salido por
+## `_fallo_de_red`.
+func _motivo_enlace(code: int) -> String:
+	match code:
+		401:
+			return "Usuario o contraseña incorrectos."
+		403:
+			return "Esta cuenta está bloqueada o baneada."
+		429:
+			return "Demasiados intentos seguidos. Espera un momento y reintenta."
+		_:
+			return "La api rechazó el enlace (HTTP %d)." % code
+
+
+func _on_respuesta(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_boton.disabled = false
+	# El transporte se comprueba ANTES de mirar el modo: "no hay api" se cuenta
+	# igual en el enlace que en el alta, y es el unico fallo que los dos comparten.
+	var red := _fallo_de_red(result)
+	if red != "":
+		_error(red)
+		return
 	if _modo == "alta":
 		_respuesta_alta(code)
 		return
 	if code != 200:
-		_error("Enlace rechazado (HTTP %d): credenciales o api caida." % code)
+		_error(_motivo_enlace(code))
 		return
 	var datos: Dictionary = JSON.parse_string(body.get_string_from_utf8())
 	Session.account_id = int(datos.account_id)
