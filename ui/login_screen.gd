@@ -56,6 +56,15 @@ func _ready() -> void:
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
+	# A DONDE VA A LLAMAR, a la vista. Es una linea diminuta y evita toda una
+	# clase de averia: el cliente web estuvo llamando a 127.0.0.1 —la maquina del
+	# propio tester— y el unico modo de enterarse era llegar hasta el error. Un
+	# ajuste invisible se equivoca en silencio; uno que se lee se comprueba de un
+	# vistazo antes de tocar nada.
+	var destino := NTheme.label(Session.api_base, NTheme.mono(), 9, NTheme.FAINT)
+	destino.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	col.add_child(destino)
+
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", NTheme.glass_panel())
 	card.custom_minimum_size = Vector2(400, 0)

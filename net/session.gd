@@ -57,8 +57,11 @@ func _resolver_api() -> String:
 	if OS.has_feature("web"):
 		var origen := str(JavaScriptBridge.eval("location.origin", true))
 		var ruta := str(ProjectSettings.get_setting("mexorbit/api_path", "/api"))
-		if origen != "":
-			return origen + ruta
+		# Si el origen no se puede leer se devuelve la ruta a secas, que fallara
+		# nombrandola — y eso es informacion. Caer aqui al valor de escritorio
+		# seria volver a 127.0.0.1, o sea el fallo que esto viene a arreglar
+		# disfrazado de respaldo.
+		return (origen + ruta) if origen != "" else ruta
 	return str(ProjectSettings.get_setting("mexorbit/api_base", "http://127.0.0.1:5100"))
 
 
