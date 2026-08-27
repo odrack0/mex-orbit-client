@@ -34,6 +34,18 @@ var _dts := PackedFloat32Array()
 var _p1 := 0.0
 var _proximo_recalculo := 0.0
 
+## Un tiron visible: por debajo de 30 fps en un solo fotograma.
+const TIRON_MS := 33.3
+## Frontera para separar "esto se compilo tarde" de "esto pasa siempre". El
+## driver de OpenGL compila shaders la primera vez que los usa y bloquea; si
+## todos los tirones caen antes de esta marca, no son del juego.
+const PRONTO_S := 10.0
+
+var _calentamiento := 2.0
+var _t_peor := 0.0
+var _tirones_pronto := 0
+var _tirones_tarde := 0
+
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -43,6 +55,8 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
+		elif arg.begins_with("--calentamiento="):
+			_calentamiento = float(arg.trim_prefix("--calentamiento="))
 		elif arg.begins_with("--segundos="):
 			# 0 = no se cierra solo. Para mirarlo en vez de medirlo: la medida
 			# sigue actualizandose en pantalla y se cierra a mano.
@@ -125,11 +139,18 @@ func _process(delta: float) -> void:
 	# media movil y esconde justo lo que interesa, que es el peor fotograma.
 	var fps := 1.0 / maxf(delta, 0.000001)
 	# los dos primeros segundos no cuentan: shaders y texturas se estan calentando
-	if _t > 2.0:
+	if _t > _calentamiento:
 		_fps_suma += fps
 		_fps_muestras += 1
-		_fps_min = min(_fps_min, fps)
+		if fps < _fps_min:
+			_fps_min = fps
+			_t_peor = _t          # CUANDO fue el peor dice mas que cuanto fue
 		_dts.append(delta)
+		if delta * 1000.0 > TIRON_MS:
+			if _t < PRONTO_S:
+				_tirones_pronto += 1
+			else:
+				_tirones_tarde += 1
 
 	# El percentil se recalcula cada medio segundo, no por fotograma: ordenar
 	# miles de muestras a 100 fps seria medir el coste de medir.
@@ -138,8 +159,10 @@ func _process(delta: float) -> void:
 		_p1 = _percentil_bajo(1.0)
 
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
-	_label.text = "%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f)" % [
-		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min]
+	_label.text = ("%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f en t=%.1fs)"
+		+ "\ntirones >%.0f ms:  %d en los primeros %ds  ·  %d despues") % [
+		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min, _t_peor,
+		TIRON_MS, _tirones_pronto, int(PRONTO_S), _tirones_tarde]
 
 	# En web no se cierra: no hay a quien devolverle el codigo de salida y la
 	# medida se lee de la pantalla, asi que sigue girando y actualizando.
@@ -166,6 +189,7 @@ func _terminar(media: float) -> void:
 	await RenderingServer.frame_post_draw
 	if _shot != "":
 		get_viewport().get_texture().get_image().save_png(_shot)
-	print("RESULTADO n=%d elev=%.0f media=%.1f fps  1%%peor=%.1f fps  minimo=%.1f fps"
-		% [_n, _elev, media, _percentil_bajo(1.0), _fps_min])
+	print("RESULTADO n=%d elev=%.0f media=%.1f  1%%peor=%.1f  minimo=%.1f (t=%.1fs)  tirones=%d/%d pronto/tarde"
+		% [_n, _elev, media, _percentil_bajo(1.0), _fps_min, _t_peor,
+		_tirones_pronto, _tirones_tarde])
 	get_tree().quit(0)
