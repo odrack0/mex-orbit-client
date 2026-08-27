@@ -98,19 +98,10 @@ func _fila_numero(etiqueta: String) -> Label:
 	return v
 
 
-## Estilo `.ltab` del prototipo: Michroma 7px, y el elegido en CIAN.
-##
-## En cian y no en ambar a proposito, aunque la version anterior de esta ventana
-## usaba ambar: el ambar del §1.3 significa "esta ventana esta abierta" y es un
-## codigo de estado que no se comparte. Un segmento elegido es lo mismo que una
-## pestania activa, y el prototipo las pinta en cian (`.ltab.on`).
+## El segmento lo construye NTheme (§7): vivia aqui y ahora lo comparten esta
+## ventana y la pantalla de entrada.
 func _segmento(nombre: String) -> Button:
-	var b := Button.new()
-	b.text = Quality.ETIQUETAS[nombre]
-	b.custom_minimum_size = Vector2(0, 22)
-	b.focus_mode = Control.FOCUS_NONE
-	b.add_theme_font_override("font", NTheme.michroma())
-	b.add_theme_font_size_override("font_size", 7)
+	var b := NTheme.segmento(Quality.ETIQUETAS[nombre])
 	b.pressed.connect(func():
 		preset_elegido.emit(nombre)
 		_refrescar())
@@ -119,21 +110,7 @@ func _segmento(nombre: String) -> Button:
 
 func _refrescar() -> void:
 	for nombre in _segmentos:
-		var activo: bool = Quality.preset == nombre
-		var b: Button = _segmentos[nombre]
-		b.add_theme_color_override("font_color", NTheme.CYAN if activo else NTheme.MUTED)
-		b.add_theme_color_override("font_hover_color", NTheme.CYAN)
-		var caja := StyleBoxFlat.new()
-		caja.bg_color = Color(NTheme.CYAN, 0.12 if activo else 0.04)
-		caja.border_color = NTheme.EDGE if activo else NTheme.EDGE_SOFT
-		caja.set_border_width_all(1)
-		caja.content_margin_left = 10
-		caja.content_margin_right = 10
-		b.add_theme_stylebox_override("normal", caja)
-		var hover := caja.duplicate()
-		hover.bg_color = Color(NTheme.CYAN, 0.16)
-		b.add_theme_stylebox_override("hover", hover)
-		b.add_theme_stylebox_override("pressed", hover)
+		NTheme.marcar_segmento(_segmentos[nombre], Quality.preset == nombre)
 	if _detalle != null:
 		_detalle.text = DETALLE.get(Quality.preset, "")
 

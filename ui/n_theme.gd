@@ -77,3 +77,37 @@ static func label(texto: String, fuente: Font, tam: int, color: Color) -> Label:
 	l.add_theme_font_size_override("font_size", tam)
 	l.add_theme_color_override("font_color", color)
 	return l
+
+
+## Un segmento del SELECTOR SEGMENTADO del §7: Michroma 7px uppercase, para
+## elegir entre dos y cuatro opciones excluyentes.
+##
+## Vive aqui y no en la ventana de Ajustes porque ya son dos los sitios que lo
+## usan —la calidad grafica y el modo de la pantalla de entrada— y una copia por
+## sitio es una copia que se queda atras. Misma leccion que el recorte del croma.
+static func segmento(texto: String) -> Button:
+	var b := Button.new()
+	b.text = texto
+	b.custom_minimum_size = Vector2(0, 22)
+	b.focus_mode = Control.FOCUS_NONE
+	b.add_theme_font_override("font", michroma())
+	b.add_theme_font_size_override("font_size", 7)
+	return b
+
+
+## El elegido va en CIAN, no en ambar. El ambar del §1.3 significa "esta ventana
+## esta abierta" y ese codigo no se comparte: un segmento elegido es una pestania
+## activa. Mezclarlos deja al jugador sin saber que le dice el color.
+static func marcar_segmento(b: Button, activo: bool) -> void:
+	b.add_theme_color_override("font_color", CYAN if activo else MUTED)
+	b.add_theme_color_override("font_hover_color", CYAN)
+	var caja := StyleBoxFlat.new()
+	caja.bg_color = Color(CYAN, 0.12 if activo else 0.04)
+	caja.border_color = EDGE if activo else EDGE_SOFT
+	caja.set_border_width_all(1)
+	caja.content_margin_left = 10
+	caja.content_margin_right = 10
+	b.add_theme_stylebox_override("normal", caja)
+	var hover := caja.duplicate()
+	hover.bg_color = Color(CYAN, 0.16)
+	b.add_theme_stylebox_override("hover", hover)

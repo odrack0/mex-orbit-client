@@ -1022,6 +1022,28 @@ golpeas.
 Las tres parejas base→mayor (Vex→Vexor, Skarn→Skarnox, Gravit→**Gravon**) dejan la regla de
 sufijos completa: **-it/-in** menor, **-on/-or/-ox** mayor.
 
+## Entrar y darse de alta
+
+La pantalla de entrada tiene **dos modos en el mismo card** —`ENLACE` y `ALTA`— con el selector
+segmentado del §7. En alta aparecen dos campos más (correo y nombre de piloto), y al crear la cuenta
+**entra solo**: el jugador acaba de teclear esos datos y volver a pedírselos no comprueba nada.
+
+Una pantalla aparte habría sido un segundo logo, un segundo card y un "volver", tres piezas nuevas
+para un formulario que comparte dos de sus cuatro campos con el que ya existía.
+
+Las reglas del server (usuario y piloto de 3 a 32, contraseña de 8) están repetidas en el cliente a
+propósito, para poder decir **qué** falta antes de gastar un viaje y recibir un 400 que no explica
+nada. El server sigue validando: esto es cortesía, no seguridad. Y cada código de respuesta dice algo
+distinto —409 se arregla cambiando el nombre, 403 no se arregla de ninguna manera—, así que se
+traducen por separado en vez de a un "no se pudo" que obligaría a probar diez nombres contra una
+puerta cerrada.
+
+El gate lo comprueba **sin red**: cambia de modo, verifica que aparecen los dos campos, que la
+validación rechaza un formulario vacío y que al volver a `ENLACE` desaparecen. No registra una cuenta
+de verdad porque eso ensuciaría la base con una cuenta por pasada; que el server acepta el alta ya lo
+prueba el despliegue. Y deja una foto en `autotest-alta.png`, porque esa pantalla no la retrata nadie
+más.
+
 ## Despliegue
 
 El cliente se publica como **exportación Web**: los testers abren
