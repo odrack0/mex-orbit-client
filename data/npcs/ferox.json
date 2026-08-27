@@ -39,7 +39,10 @@
     "hframes": 7,
     "vframes": 7,
     "count": 46,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/npcs/ferox-anim-normal.png"
   },
-  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad."
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad.",
+  "normal": "res://assets/npcs/ferox-base-normal.png",
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
 }

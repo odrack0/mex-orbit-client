@@ -257,7 +257,12 @@ func _montar_relieve(d: Dictionary) -> void:
 		return          # calidad baja: ni el material ni el mapa en VRAM
 	if _sprite.material != null:
 		return          # la ondulacion llego antes y manda
-	var tex := _textura(d.get("normal", ""), "")
+	# Un mapa por camino, igual que la textura: con atlas manda el del atlas.
+	# Mezclarlos seria peor que no tener ninguno — un mapa de normales que no
+	# casa con la silueta que ilumina inventa bultos donde no hay nada.
+	var ruta: String = (d.get("frames", {}).get("normal", "") if _anim_total > 0
+		else d.get("normal", ""))
+	var tex := _textura(ruta, "")
 	if tex == null:
 		return
 	_relieve = ShaderMaterial.new()

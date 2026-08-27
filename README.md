@@ -308,6 +308,17 @@ rota: si no se contrarrota la normal antes de iluminarla, la luz gira con la nav
 nada. Se empuja desde `_set_visual_angle`, que corre exactamente cuando cambia el rumbo — un uniform
 por giro, no uno por fotograma.
 
+Lo llevan la nave, **los nueve bichos y la estación**. Cada asset tiene un mapa por camino —el del
+atlas cuando está animado, el del PNG cuando no— y elegirlo mal sería peor que no tener ninguno: un
+mapa de normales que no casa con la silueta que ilumina inventa bultos donde no hay nada.
+
+**La estación es un caso distinto y conviene no confundirlo.** No rota, así que su luz nunca giraba
+con ella; lo que gana no es eso sino consistencia. Su render viene iluminado desde arriba en el eje de
+cámara —se lo pide el contrato de render, y con razón, porque es lo único que sobrevive a un sprite
+que gira— y esa es la iluminación más plana que existe. Al lado de una nave con forma se leía como un
+decorado pegado. Su `giro` se queda en cero para siempre, y el uniform se deja igual para que el
+shader sea uno solo y no dos que se parecen.
+
 Cede ante la **ondulación**, que ya ocupa el material del sprite. No es un límite técnico sino de
 sentido: la ondulación es movimiento estructural y el relieve es acabado. Si un bicho quiere las dos,
 se fusionan en un shader; no se pelean por el slot.

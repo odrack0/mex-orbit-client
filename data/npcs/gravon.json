@@ -7,7 +7,8 @@
     "hframes": 7,
     "vframes": 7,
     "count": 49,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/npcs/gravon-anim-normal.png"
   },
   "screen_size": 214,
   "click_radius": 72,
@@ -25,5 +26,7 @@
     "max_intensity": 2.4,
     "speed": 1.1,
     "sharpness": 3.2
-  }
+  },
+  "normal": "res://assets/npcs/gravon-base-normal.png",
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
 }

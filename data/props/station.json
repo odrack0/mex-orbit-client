@@ -23,7 +23,8 @@
     "hframes": 4,
     "vframes": 4,
     "count": 16,
-    "fps": 4
+    "fps": 4,
+    "normal": "res://assets/world/station-anim-normal.png"
   },
   "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva y su pulso. Como en la caja y el portal."
 }

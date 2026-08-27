@@ -39,7 +39,10 @@
     "vframes": 7,
     "count": 48,
     "fps": 12,
-    "pingpong": true
+    "pingpong": true,
+    "normal": "res://assets/npcs/skarn-anim-normal.png"
   },
-  "_dos_caminos": "En calidad ALTA manda el atlas; en MEDIA y BAJA, el PNG con su peristalsis RADIAL y su parpadeo. Esos shaders se hicieron para esta roca antes de que tuviera video, y no sobran: son su repliegue, y son lo que evita que en calidad media el Skarn parezca una piedra muerta."
+  "_dos_caminos": "En calidad ALTA manda el atlas; en MEDIA y BAJA, el PNG con su peristalsis RADIAL y su parpadeo. Esos shaders se hicieron para esta roca antes de que tuviera video, y no sobran: son su repliegue, y son lo que evita que en calidad media el Skarn parezca una piedra muerta.",
+  "normal": "res://assets/npcs/skarn-base-normal.png",
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
 }

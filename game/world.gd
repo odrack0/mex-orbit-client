@@ -397,6 +397,7 @@ func _construir_estacion() -> void:
 	var lado := float(_estacion.texture.get_width()) / maxf(float(_estacion.hframes), 1.0)
 	_estacion.scale = Vector2.ONE * (float(d.get("world_size", 820)) / lado)
 	_estacion.z_index = -1
+	_montar_relieve_estacion(d, anim)
 	add_child(_estacion)
 
 	# El reactor late con su capa emisiva... SOLO en el camino fijo.
@@ -1706,6 +1707,28 @@ func _diferencia_casco(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 	if n < 400 or brillo <= 0.0001:
 		return NAN
 	return dif / brillo
+
+
+## RELIEVE de la estacion. Aqui NO arregla lo mismo que en la nave, y conviene
+## tenerlo claro: la estacion no rota, asi que su luz nunca giraba con ella. Lo
+## que arregla es la CONSISTENCIA — su render viene iluminado desde arriba en el
+## eje de camara, que es la iluminacion mas plana que existe (se lo pide el
+## contrato de render, y con razon, porque es lo unico que sobrevive a un sprite
+## que gira). Al lado de una nave con forma, eso se lee como un decorado pegado.
+## Reiluminarla con la misma luz del mundo le devuelve el bulto.
+func _montar_relieve_estacion(d: Dictionary, anim: Dictionary) -> void:
+	if Quality.nivel("shader") < 1:
+		return
+	var ruta: String = anim.get("normal", "") if not anim.is_empty() else d.get("normal", "")
+	if ruta == "" or not ResourceLoader.exists(ruta):
+		return
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://game/shaders/relieve.gdshader")
+	mat.set_shader_parameter("normal_map", load(ruta))
+	mat.set_shader_parameter("luz_dir", AssetDefs.luz_mundo())
+	# `giro` se queda en 0 para siempre: no rota. Se deja el uniform en su sitio
+	# igual, para que el shader sea UNO solo y no dos que se parecen.
+	_estacion.material = mat
 
 
 ## Deja en el mundo SOLO al heroe, para las dos fotos de la prueba del relieve.

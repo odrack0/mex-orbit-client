@@ -32,7 +32,10 @@
     "hframes": 6,
     "vframes": 5,
     "count": 26,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/npcs/vexor-anim-normal.png"
   },
-  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas."
+  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas.",
+  "normal": "res://assets/npcs/vexor-base-normal.png",
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
 }

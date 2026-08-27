@@ -7,7 +7,8 @@
     "hframes": 7,
     "vframes": 7,
     "count": 45,
-    "fps": 12
+    "fps": 12,
+    "normal": "res://assets/npcs/vorax-anim-normal.png"
   },
   "screen_size": 205,
   "click_radius": 66,
@@ -38,5 +39,7 @@
     "frequency": 2.4,
     "speed": 2.2,
     "sharpness": 3.5
-  }
+  },
+  "normal": "res://assets/npcs/vorax-base-normal.png",
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
 }
