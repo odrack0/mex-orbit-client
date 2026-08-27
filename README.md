@@ -353,7 +353,7 @@ no rehacer nada.
 | `explosion` | no se dibuja | se dibuja | ídem |
 
 **El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
-de VRAM (ocho bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
+de VRAM (los **nueve** bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
 sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
 
 **El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
@@ -415,6 +415,7 @@ estaba en el JSON.
 |---|---|---|---|---|
 | Gravon | 214 px | 384 | 49 | 27,6 MB |
 | Skarnox | 208 px | 384 | 42 | 27,6 MB |
+| Skarn | 196 px | 320 | 48 | 19,1 MB |
 | Ferox | 190 px | 320 | 46 | 19,1 MB |
 | Mordax | 186 px | 320 | 48 | 19,1 MB |
 | Vex | 141 px | 256 | 48 | 12,2 MB |
@@ -467,6 +468,7 @@ movimiento salta mucho en cualquier transición; lo que delata un bucle roto es 
 | Skarnox | 2,0× | 13× de crudo; recortar 6 fotogramas lo salvó |
 | Gravon | 3,0× | el vídeo **era** un ciclo entero que no cerraba: recortar solo quita movimiento |
 | Vex | 3,9× | no es un ciclo, es una **rampa** — se arregla con vaivén, no recortando |
+| Skarn | 14,7× | la peor, y **no por mal vídeo**: la roca casi no cambia entre fotogramas (paso normal 0,28), así que cualquier salto canta. Vaivén |
 
 El Gravit y el Skarnox son el caso que el recorte arregla —sobra material—; el Gravon es el que no
 —falta cierre—. Por eso el script solo recorta si la mejora es grande, y si no, avisa y deja el
@@ -482,6 +484,12 @@ Con `"pingpong": true` se reproduce **de ida y vuelta**. El cierre es perfecto *
 —dos fotogramas seguidos son siempre vecinos, así que no hay costura que medir— y **no cuesta un
 fotograma más**: el atlas es el mismo, solo cambia cómo se recorre. El ciclo pasa a durar 8 s y lo que
 se ve es un ala que se abre y se cierra. La rampa deja de ser un defecto y pasa a ser el movimiento.
+
+**Una costura enorme no significa un vídeo malo.** El Skarn cierra a **14,7×**, la peor cifra del
+catálogo, y su vídeo está impecable — el mejor encuadre de todos, con 0,1% de deriva. Lo que pasa es
+que una roca casi no cambia entre fotogramas: su paso normal es **0,28** cuando el del Mordax es 3,16.
+Contra un paso tan pequeño, cualquier salto se dispara en la proporción. Es el recordatorio de que la
+métrica es una **razón**, y una razón se puede disparar por el denominador.
 
 **Se había descartado, y estaba bien descartado.** El comentario de `video-atlas.py` lo dice desde el
 Gravon: sus aros tienen rotación **neta**, y al revés se mecerían en vez de girar. Pero un ala que se

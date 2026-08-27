@@ -29,5 +29,17 @@
     "amount": 0.35,
     "scale": 7.0,
     "speed": 0.9
-  }
+  },
+  "_asset": "ATLAS ANIMADO con VAIVEN. Celda de 320 para 196 px en pantalla. Cuesta 19,1 MB. Con este, los NUEVE bichos del 1-1 estan animados.",
+  "_bucle": "La peor costura del catalogo: 14,7 veces el paso normal. Y no es que el video sea malo — es que la roca apenas cambia entre fotogramas (paso normal 0,28), asi que cualquier salto canta. El magma se enciende y se apaga sin volver al principio: una RAMPA, como la del Vex.",
+  "_vaiven": "`pingpong` vale aqui porque el movimiento NO tiene direccion privilegiada: una brasa que se aviva y se apaga es la misma brasa al reves. Los aros del Gravon no podian —tienen rotacion neta y hacia atras se mecerian—, pero el magma si. El cierre sale perfecto por construccion y el ciclo pasa a durar 8 s.",
+  "frames": {
+    "atlas": "res://assets/npcs/skarn-anim.png",
+    "hframes": 7,
+    "vframes": 7,
+    "count": 48,
+    "fps": 12,
+    "pingpong": true
+  },
+  "_dos_caminos": "En calidad ALTA manda el atlas; en MEDIA y BAJA, el PNG con su peristalsis RADIAL y su parpadeo. Esos shaders se hicieron para esta roca antes de que tuviera video, y no sobran: son su repliegue, y son lo que evita que en calidad media el Skarn parezca una piedra muerta."
 }
