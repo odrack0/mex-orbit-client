@@ -578,6 +578,26 @@ correcto.
 Los 2,1 s no son un adorno que sobra cuando la red es rápida: **son el ritmo del salto**. Sin ellos,
 cruzar un portal no se siente como cruzar nada.
 
+**Mientras se salta, el cliente NO conduce la nave.**
+
+Durante los ~2 s de encendido el socket **ya es el del servidor destino**, pero en pantalla sigue el
+mapa viejo: la cámara, el cursor y el autopiloto hablan en coordenadas del mapa que se está dejando.
+Con el ratón pulsado —lo normal al saltar huyendo— el vuelo sostenido seguía mandando **esas**
+coordenadas al servidor **nuevo**, que las aceptaba como buenas. Por eso se aterrizaba encima del
+portal y un instante después la nave salía disparada: llevaba un destino del mapa anterior metido por
+la puerta de atrás.
+
+Entre pulsar `J` y ver el mapa nuevo, la nave no está en ningún sitio que el jugador pueda ver bien.
+Lo único correcto es no tocarla.
+
+**Y este camino era INTESTABLE**, que es la razón de que el fallo llegara tan lejos. `_process_hold_move`
+leía `Input.is_mouse_button_pressed` a pelo, y en headless no hay ratón que pulsar: la prueba salía por
+el early-return sin ejecutar nada. Ahora el cursor entra por `_cursor_mundo()` y el "sigue pulsado" por
+`_sigue_pulsado()`, que la prueba puede suplantar. **Un camino que solo existe con un dedo encima es un
+camino que nadie prueba** — y ahí es donde se esconden los fallos que el jugador ve y el gate no.
+
+Con eso, la prueba reproduce el fallo (**485 unidades de deriva**) y pasa con el arreglo.
+
 **El destino del movimiento pertenece al MAPA, no al jugador.** Al hacer clic en un portal se guarda su
 posición como autopiloto, y esas son coordenadas del mapa **viejo**. Sin limpiarlas al desmontar, se
 aterrizaba encima del portal y un instante después la nave pegaba un salto hacia la nada — el

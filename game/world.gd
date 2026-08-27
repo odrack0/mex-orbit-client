@@ -20,6 +20,9 @@ var _limites := Vector2(20800, 12800)
 # vuelo sostenido (herencia del prototipo)
 var _hold_move := false
 var _hold_timer := 0.0
+var _saltando := false
+## Cursor simulado para la prueba del vuelo sostenido (INF = raton de verdad).
+var _at_cursor := Vector2.INF
 var _last_sent_target := Vector2.INF
 var _seleccionada := 0        # entity_id con seleccion local
 
@@ -300,6 +303,8 @@ func _desmontar_mapa() -> void:
 	# apunta, que es lo que se espera.
 	_autopilot = Vector2.INF
 	_last_sent_target = Vector2.INF
+	_hold_timer = 0.0
+	_saltando = false
 
 
 func _construir_minimapa(map_code: String) -> void:
@@ -985,6 +990,7 @@ func _on_jump_handoff(msg) -> void:
 	# Se conecta YA, en paralelo a la animacion, y se RETIENE lo que llegue. El
 	# hueco de 2,1 s absorbe asi tambien el coste de abrir el socket contra el
 	# server del destino, que es el que se vuelve caro al partir la carga.
+	_saltando = true
 	_conn.retener()
 	_conn.saltar_a(url)
 	# sin animacion que esperar (calidad media o baja) no hay nada que retener
@@ -1040,23 +1046,56 @@ func _seleccionar(e: EntityNode) -> void:
 ## Reenvio periodico del destino mientras el boton siga presionado. La camara
 ## sigue a la nave, asi que el punto bajo un cursor quieto tambien avanza y la
 ## nave "persigue" al cursor de forma continua, como en el prototipo.
+## El vuelo sostenido: mientras el boton siga pulsado, se reenvia el punto bajo
+## el cursor.
+##
+## El cursor entra por `_cursor_mundo()` y el "sigue pulsado" por `_sigue_pulsado()`
+## en vez de leerse de `Input` a pelo. No es ceremonia: sin eso este camino era
+## INTESTABLE en headless —no hay raton que pulsar—, y resulta que era justo el
+## camino donde vivia el fallo del salto. Un camino que solo existe con un dedo
+## encima es un camino que nadie prueba.
 func _process_hold_move(delta: float) -> void:
 	if not _hold_move:
 		return
-	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+	if not _sigue_pulsado():
 		_hold_move = false
 		return
 	_hold_timer += delta
 	if _hold_timer < HOLD_RESEND_SEC:
 		return
 	_hold_timer = 0.0
-	var target := get_global_mouse_position()
+	var target := _cursor_mundo()
 	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA:
 		_volar_a(target)
 
 
+func _sigue_pulsado() -> bool:
+	if _at_cursor != Vector2.INF:
+		return true                       # la prueba sostiene el boton por su cuenta
+	return Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+
+
+func _cursor_mundo() -> Vector2:
+	return _at_cursor if _at_cursor != Vector2.INF else get_global_mouse_position()
+
+
 func _volar_a(destino: Vector2) -> void:
 	if _hero == null:
+		return
+	# MIENTRAS SE SALTA, el cliente no conduce la nave.
+	#
+	# Este era el fallo. Durante los ~2 s de encendido el socket YA es el del
+	# servidor destino, pero en pantalla sigue el mapa viejo: la camara, el cursor
+	# y el autopiloto hablan en coordenadas del mapa que se esta dejando. Con el
+	# raton pulsado —lo normal al saltar huyendo— el vuelo sostenido seguia
+	# mandando esas coordenadas al server NUEVO, que las aceptaba como buenas. Por
+	# eso se aterrizaba encima del portal y un instante despues la nave salia
+	# disparada: llevaba un destino del mapa anterior metido por la puerta de
+	# atras.
+	#
+	# Entre pulsar J y ver el mapa nuevo, la nave no esta en ningun sitio que el
+	# jugador pueda ver bien. Lo unico correcto es no tocarla.
+	if _saltando:
 		return
 	# a diferencia del prototipo (mapa "infinito" + radiacion), v1 clampea igual
 	# que el server: cliente y autoridad siempre coinciden en el destino
@@ -1137,6 +1176,7 @@ var _at_salto_pedido := false
 var _at_salto_origen := ""
 var _at_salto_destino := ""
 var _at_salto_llegada := Vector2.ZERO
+var _at_salto_camara := 0.0
 var _at_salto_portal: PortalNode = null
 var _at_salto_rechazado := false     # el autotest suelta la camara para retratar el mapa
 var _at_camara_t := -1.0
@@ -1573,6 +1613,12 @@ func _autotest_salto() -> void:
 				# autopiloto se completa y se limpia solo antes de saltar, asi
 				# que la prueba pasaba aunque el arreglo no estuviera.
 				_on_autopilot(Vector2(_limites.x - 2000, _limites.y - 2000))
+				# y con el boton SOSTENIDO apuntando lejos, que es como se salta
+				# huyendo: eso es lo que seguia mandando destinos del mapa viejo
+				# por el socket del mapa nuevo
+				_at_cursor = Vector2(_limites.x - 1500, _limites.y - 1500)
+				_hold_move = true
+				_hold_timer = 0.0
 				# por el camino DEL JUGADOR, no mandando el mensaje a mano: asi la
 				# prueba cubre el encendido, la espera y la medida del viaje
 				_intentar_salto()
@@ -1581,6 +1627,11 @@ func _autotest_salto() -> void:
 		2:
 			if _map_code == _at_salto_destino and _hero != null:
 				_at_salto_llegada = _hero.position
+				# EN EL INSTANTE de llegar: un fotograma despues el lerp ya habria
+				# alcanzado y la comprobacion no probaria nada
+				_at_salto_camara = _camara.position.distance_to(_hero.position)
+				_at_cursor = Vector2.INF     # se suelta el boton al llegar
+				_hold_move = false
 				_at_ultimo_vuelo = _autotest_t
 				_at_fase = 3
 			elif _autotest_t - _at_ultimo_vuelo > 15.0:
@@ -1603,6 +1654,13 @@ func _autotest_salto() -> void:
 			# y medio que se observa recorre 480 si algo tira de ella, asi que un
 			# umbral de 900 no distingue "quieta" de "arrastrada" — con el puesto,
 			# esta misma prueba daba OK con el fallo dentro.
+			# la camara tiene que estar SOBRE la nave nada mas llegar: si se quedo
+			# cruzando desde el mapa viejo, el cursor apunta a coordenadas de otro
+			# sitio y el vuelo sostenido manda la nave alli
+			if _at_salto_camara > 150.0:
+				_at_captura("SALTO FALLO — al llegar, la camara estaba a %d unidades de la nave"
+					% _at_salto_camara, 1)
+				return
 			var lejos := _hero.position.distance_to(_at_salto_llegada)
 			if lejos > 200.0:
 				_at_captura("SALTO FALLO — aterrizo en (%d, %d) y se fue a (%d, %d): %d unidades"
