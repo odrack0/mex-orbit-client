@@ -61,6 +61,40 @@ solo puede ser mayor. Lo que esto no cubre sigue siendo el navegador, que añade
 WASM y un solo hilo por encima del mismo renderizador — pero la pregunta ya no es
 «¿aguanta el 3D?» sino «¿cuánto se lleva el navegador de un margen de 120 fps?».
 
+## Lo que cuesta animar
+
+Mismo Vexor con alas plegables (clave de forma, 26 fotogramas, un ciclo).
+
+| bichos | quietos | aleteando | coste |
+|---|---|---|---|
+| **20** | 276 · suelo 152 | 228 · **suelo 109** | 17% |
+| **30** | 272 · suelo 151 | 212 · **suelo 109** | 22% |
+| 150 | 190 · suelo 121 | 114 · suelo 41 | 40% |
+
+El mapa 1-1 tiene ~20 bichos (15 Vex, 3 Gravon, 2 Skarnox). **A esa población la
+animación cuesta un 17% y el suelo se queda en 109 fps.** El desplome solo aparece
+a 150, cinco veces la población real.
+
+### Y el coste NO es reproducir la animación
+
+Tres pasadas a 150 con el mismo GLB animado:
+
+| | media | 1% peor |
+|---|---|---|
+| sin reproducir nada | 113,2 | 64,2 |
+| con `AnimationPlayer` | 113,6 | 41,3 |
+| escribiendo el valor desde `_process` | 58,6 | 28,0 |
+
+**El mero hecho de que la malla tenga clave de forma cuesta el 41%**, antes de
+mover nada: 190 fps con el GLB estático contra 113 con el animado en reposo. El
+`AnimationPlayer` no cuesta casi nada de media, y escribir el valor a mano —que
+parecía lo barato, y es lo que el cliente hace con `undulate` y el pulso— sale el
+doble de caro.
+
+Las dos hipótesis intuitivas eran falsas. Si alguna vez hacen falta 150 bichos
+animados a la vez, lo que hay que cambiar es la técnica —esqueleto en vez de morph
+target, unas matrices en vez de deltas por vértice— no el driver.
+
 ## Tres diales que invalidan la medida si se tocan
 
 Cada uno costó una pasada mal leída.

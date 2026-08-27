@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bkof7rx5xkhbc"
-path="res://.godot/imported/vexor_emissive.png-f2d9e08eeecc89d9eaab4b3526b48cc7.ctex"
+uid="uid://ce5iw4pcx2wl2"
+path="res://.godot/imported/vexor-anim_metallic_roughness.jpg-604a745c4b377c7554da31495cfb2361.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "605b93ae453eacce4742c428a4ebead1"
+"md5": "08862c2b698a80953c2cd5d6e01cd0aa"
 }
 
 [deps]
 
-source_file="res://pruebas/vexor_emissive.png"
-dest_files=["res://.godot/imported/vexor_emissive.png-f2d9e08eeecc89d9eaab4b3526b48cc7.ctex"]
+source_file="res://pruebas/vexor-anim_metallic_roughness.jpg"
+dest_files=["res://.godot/imported/vexor-anim_metallic_roughness.jpg-604a745c4b377c7554da31495cfb2361.ctex"]
 
 [params]
 

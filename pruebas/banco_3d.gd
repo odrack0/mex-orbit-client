@@ -9,7 +9,14 @@
 #   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
 extends Node3D
 
-const RUTA := "res://pruebas/vexor.glb"
+var _ruta := "res://pruebas/vexor.glb"
+var _animados := 0
+## "player" = un AnimationPlayer por bicho. "directo" = se escribe el valor de la
+## clave de forma desde _process, que es lo que el cliente real haria: ya mueve
+## asi el gain de undulate y la intensidad del pulso.
+var _modo_anim := "player"
+var _mallas: Array[MeshInstance3D] = []
+var _fase: PackedFloat32Array = PackedFloat32Array()
 const LUZ_MUNDO_GRADOS := 315.0
 
 var _n := 15
@@ -55,6 +62,10 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
+		elif arg.begins_with("--anim="):
+			_modo_anim = arg.trim_prefix("--anim=")     # player | directo | no
+		elif arg.begins_with("--modelo="):
+			_ruta = arg.trim_prefix("--modelo=")
 		elif arg.begins_with("--calentamiento="):
 			_calentamiento = float(arg.trim_prefix("--calentamiento="))
 		elif arg.begins_with("--segundos="):
@@ -62,9 +73,9 @@ func _ready() -> void:
 			# sigue actualizandose en pantalla y se cierra a mano.
 			_segundos = float(arg.trim_prefix("--segundos="))
 
-	var escena: PackedScene = load(RUTA)
+	var escena: PackedScene = load(_ruta)
 	if escena == null:
-		push_error("BANCO: no se pudo cargar " + RUTA)
+		push_error("BANCO: no se pudo cargar " + _ruta)
 		get_tree().quit(1)
 		return
 
@@ -81,6 +92,7 @@ func _ready() -> void:
 		m.rotation.y = TAU * float(i) / float(_n)
 		add_child(m)
 		_bichos.append(m)
+		_arrancar_animacion(m, i)
 
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
@@ -127,12 +139,19 @@ func _ready() -> void:
 	_label.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
 	capa.add_child(_label)
 
-	print("BANCO n=%d elev=%.0f tris=%d" % [_n, _elev, _n * 15000])
+	print("BANCO n=%d elev=%.0f tris=%d modelo=%s animados=%d/%d"
+		% [_n, _elev, _n * 15000, _ruta.get_file(), _animados, _n])
 
 
 func _process(delta: float) -> void:
 	for i in _bichos.size():
 		_bichos[i].rotation.y += deg_to_rad(100.0) * delta * (0.6 + 0.4 * float(i % 3))
+
+	# Un ciclo de alas cada 2,17 s, que es lo que dura el atlas actual del Vexor
+	# (26 fotogramas a 12 fps). Cada bicho con su fase.
+	for i in _mallas.size():
+		var t: float = fposmod(_t / 2.17 + _fase[i], 1.0)
+		_mallas[i].set_blend_shape_value(0, 0.5 - 0.5 * cos(TAU * t))
 
 	_t += delta
 	# Se mide el TIEMPO DE FOTOGRAMA, no el contador de Godot: el contador es una
@@ -170,6 +189,42 @@ func _process(delta: float) -> void:
 	if _segundos > 0.0 and _t >= _segundos and not OS.has_feature("web"):
 		set_process(false)
 		_terminar(media)
+
+
+## Arranca la animacion del GLB, si la trae, DESFASADA por entidad.
+##
+## El desfase es el mismo truco que el pulso emisivo ya usa en entity_node
+## (`entity_id * 1.7`): quince bichos aleteando al unisono se leen como un
+## mecanismo, no como bichos. La diferencia es que aqui el desfase se aplica al
+## RELOJ DE LA ANIMACION, que despues puede alimentar tambien la fase del pulso —
+## y entonces el destello cae en el aleteo por construccion, en vez de correr en
+## su propio reloj y desincronizarse cada 21 s como ahora.
+func _arrancar_animacion(nodo: Node, i: int) -> void:
+	if _modo_anim == "no":
+		return
+	var players := nodo.find_children("*", "AnimationPlayer", true, false)
+	if players.is_empty():
+		return
+	var ap: AnimationPlayer = players[0]
+	var nombres := ap.get_animation_list()
+	if nombres.is_empty():
+		return
+
+	if _modo_anim == "directo":
+		# El AnimationPlayer sobra: la animacion es UN numero entre 0 y 1. Se
+		# apaga el nodo y se escribe la clave de forma a mano en _process.
+		ap.process_mode = Node.PROCESS_MODE_DISABLED
+		var mallas := nodo.find_children("*", "MeshInstance3D", true, false)
+		if mallas.is_empty() or (mallas[0] as MeshInstance3D).get_blend_shape_count() == 0:
+			return
+		_mallas.append(mallas[0])
+		_fase.append(float(i) / float(_n))
+		_animados += 1
+		return
+
+	ap.play(nombres[0])
+	ap.seek(ap.current_animation_length * float(i) / float(_n), true)
+	_animados += 1
 
 
 ## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
