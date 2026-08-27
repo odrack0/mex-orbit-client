@@ -398,11 +398,27 @@ atlas de un PNG.
 
 Hay que activarlo **en los dos sitios**: el filtro en el nodo y `mipmaps/generate=true` en el
 `.import` de la textura. Solo con el filtro no hay niveles que muestrear y Godot cae al nivel 0 sin
-avisar. Están activados en las texturas sueltas de `assets/ships` y `assets/npcs`; los `*-anim.png`
-se quedan fuera a propósito.
+avisar.
+
+Y el `.import` lo genera Godot, no nosotros: una textura nueva nace con los mipmaps **apagados**, así
+que activarlos a mano en cada una es un olvido esperando. Por eso el default está invertido en
+`project.godot` (`[importer_defaults]`): van activados, y los atlas los apagan uno a uno en su propio
+`.import`. La razón es cuál de los dos olvidos duele más — una textura suelta sin mipmaps se aliasa de
+lejos y nadie lo ata a una casilla de importación, mientras que un atlas con mipmaps se nota enseguida
+porque mezcla fotogramas, y además su lista es corta y conocida (`*-anim.png`). Default seguro con
+excepciones explícitas, en vez de default inseguro con excepciones que hay que acordarse de poner.
+
+Los mipmaps cuestan un 33% más de VRAM, que es la otra razón para no ponérselos a los atlas: el de la
+estación pasaría de 40 a 53 MB para generar niveles que su sprite tiene prohibido usar.
 
 Medido sobre la captura de zoom lejano del autotest: la energía de alta frecuencia baja de 15,54 a
 14,42, y a ojo los tubos de los cañones pasan de línea de puntos a tubo sólido.
+
+**Las dos Phoenix conviven** en `data/ships/phoenix.json` (`_v1` y `_v2`) para poder compararlas en
+juego. Cambiar de una a otra es copiar `texture`, `engines` y `cannons` del bloque que toque a los
+campos de arriba. **Los anclajes no son intercambiables**: cada render tiene los suyos —la v1 tiene
+cuatro toberas y la v2 tres con boca visible—, y mezclarlos pone la estela y los láseres donde no hay
+tobera ni cañón.
 
 **El autotest saca esa captura** (`autotest-zoom.png`, fase 96, zoom 0,35). Antes miraba siempre la
 nave a tamaño de crucero, que es donde el arte nunca falla; el sitio donde se cae es el otro. Misma

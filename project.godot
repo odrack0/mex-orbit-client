@@ -20,5 +20,18 @@ window/size/mode=2
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[importer_defaults]
+
+; Los mipmaps van ACTIVADOS por defecto, y los atlas los apagan uno a uno en su
+; propio .import. Es al reves de como estaba, y el motivo es cual de los dos
+; olvidos duele mas: una textura suelta sin mipmaps se aliasa de lejos y nadie
+; lo ata a una casilla de importacion, mientras que un atlas con mipmaps se nota
+; enseguida —mezcla fotogramas— y ademas su lista es corta y conocida (*-anim).
+; Un default seguro con excepciones explicitas, en vez de un default inseguro con
+; excepciones que hay que acordarse de poner.
+texture={
+"mipmaps/generate": true
+}
+
 [rendering]
 environment/defaults/default_clear_color=Color(0.0275, 0.0275, 0.0588, 1)

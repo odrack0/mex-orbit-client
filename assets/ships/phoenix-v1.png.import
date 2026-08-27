@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dyn5ksjiu1ags"
-path="res://.godot/imported/phoenix.png-b4840e0808026af796df72628c32ed19.ctex"
+uid="uid://cern63bkv3i7l"
+path="res://.godot/imported/phoenix-v1.png-db6ce4566e58faf758c885924d549fd5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ships/phoenix.png"
-dest_files=["res://.godot/imported/phoenix.png-b4840e0808026af796df72628c32ed19.ctex"]
+source_file="res://assets/ships/phoenix-v1.png"
+dest_files=["res://.godot/imported/phoenix-v1.png-db6ce4566e58faf758c885924d549fd5.ctex"]
 
 [params]
 
