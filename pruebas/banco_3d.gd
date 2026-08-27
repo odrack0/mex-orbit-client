@@ -24,6 +24,16 @@ var _fps_min := 9999.0
 var _fps_suma := 0.0
 var _fps_muestras := 0
 
+## Todos los tiempos de fotograma, para poder sacar percentiles. El MINIMO
+## ABSOLUTO no es una estadistica: es "lo peor que he visto", y solo puede
+## empeorar cuanto mas tiempo miras. En pasadas de 6 s daba 70 fps y dejando la
+## ventana abierta unos minutos bajaba a 38 — sin que el juego fuera a peor, solo
+## por haber visto veinte veces mas fotogramas. Lo que se compara entre pasadas
+## es el 1% PEOR, que si converge.
+var _dts := PackedFloat32Array()
+var _p1 := 0.0
+var _proximo_recalculo := 0.0
+
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -119,10 +129,17 @@ func _process(delta: float) -> void:
 		_fps_suma += fps
 		_fps_muestras += 1
 		_fps_min = min(_fps_min, fps)
+		_dts.append(delta)
+
+	# El percentil se recalcula cada medio segundo, no por fotograma: ordenar
+	# miles de muestras a 100 fps seria medir el coste de medir.
+	if _t > _proximo_recalculo and _dts.size() > 100:
+		_proximo_recalculo = _t + 0.5
+		_p1 = _percentil_bajo(1.0)
 
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
-	_label.text = "%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · minimo %.0f)" % [
-		_n, _n * 15000, _elev, int(fps), media, _fps_min]
+	_label.text = "%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f)" % [
+		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min]
 
 	# En web no se cierra: no hay a quien devolverle el codigo de salida y la
 	# medida se lee de la pantalla, asi que sigue girando y actualizando.
@@ -132,9 +149,23 @@ func _process(delta: float) -> void:
 		_terminar(media)
 
 
+## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
+## pasadas: el minimo absoluto lo decide un hipo suelto —otro proceso, el reloj
+## de la GPU— y no dice nada de como va el juego.
+func _percentil_bajo(pct: float) -> float:
+	var ordenados := _dts.duplicate()
+	ordenados.sort()
+	var cuantos := maxi(1, int(float(ordenados.size()) * pct / 100.0))
+	var suma := 0.0
+	for i in cuantos:
+		suma += ordenados[ordenados.size() - 1 - i]   # los mas LARGOS = los peores
+	return float(cuantos) / suma
+
+
 func _terminar(media: float) -> void:
 	await RenderingServer.frame_post_draw
 	if _shot != "":
 		get_viewport().get_texture().get_image().save_png(_shot)
-	print("RESULTADO n=%d elev=%.0f media=%.1f fps minimo=%.1f fps" % [_n, _elev, media, _fps_min])
+	print("RESULTADO n=%d elev=%.0f media=%.1f fps  1%%peor=%.1f fps  minimo=%.1f fps"
+		% [_n, _elev, media, _percentil_bajo(1.0), _fps_min])
 	get_tree().quit(0)
