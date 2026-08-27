@@ -15,14 +15,15 @@
     "alpha": 0.22,
     "width": 3.0
   },
-  "_asset": "ATLAS ANIMADO — de prueba, para VERLO en el juego antes de decidir. La celda es RECTANGULAR (320x532) porque el render es un retrato de 566x942: cuadrarlo tiraria la mitad. Cuesta 31,8 MB, el asset mas caro con diferencia.",
+  "_asset": "ATLAS ANIMADO — de prueba, para VERLO en el juego antes de decidir. Celda RECTANGULAR de 632x1048 porque el render es un retrato: cuadrarlo tiraria la mitad. Cuesta 40,4 MB, el asset mas caro con diferencia.",
+  "_por_que_4_fps": "La base se dibuja a 820 px de ancho, asi que la celda tiene que ser grande o el contorno se deshace, y con celda grande no caben 48 fotogramas: a 12 fps la celda bajaba a 320 y el render se veia al 51% de su detalle, ampliado 2,56x. A 4 fps caben 16 celdas a resolucion COMPLETA del render (ampliacion 1,30x). El precio en fluidez es pequenio y esta medido: triplicar el intervalo entre fotogramas solo sube el cambio por fotograma de 2,25 a 3,00 sobre 255, porque el movimiento de la base es un balanceo lento. Si al verlo da tirones, el dial es el fps y baja la celda con el.",
   "_ojo": "El render esta en vista OBLICUA y es VERTICAL, cuando todo lo demas del juego —naves, los nueve bichos, el portal, la caja— es cenital. Se monta para poder juzgarlo en movimiento y en su sitio; si canta, se cambia el render, no el codigo.",
   "frames": {
     "atlas": "res://assets/world/station-anim.png",
-    "hframes": 7,
-    "vframes": 7,
-    "count": 48,
-    "fps": 12
+    "hframes": 4,
+    "vframes": 4,
+    "count": 16,
+    "fps": 4
   },
   "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva y su pulso. Como en la caja y el portal."
 }
