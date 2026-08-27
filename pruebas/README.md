@@ -20,7 +20,11 @@ proyecto cuyos ajustes mide**: renderizador, import de texturas, MSAA,
 `project.godot`. Montarlo en otro repo sería medir otro juego. Es el mismo motivo
 por el que el autotest del loop vive en `game/world.gd` y no fuera.
 
-## Medido (27-ago-2026, máquina de desarrollo)
+## Medido (27-ago-2026)
+
+**Sobre gráficos integrados**: Ryzen 7 5700G con Radeon Graphics, 512 MB de VRAM
+asignada, sin GPU dedicada. No es una máquina que infle el resultado — es
+aproximadamente el equipo con el que un jugador va a abrir el juego.
 
 Vexor a 15 000 tris, texturas de 512, una luz direccional, sin sombras.
 
@@ -35,8 +39,9 @@ escena es trivial —una luz, sin sombras— y ahí el pipeline simple gana. Imp
 porque Compatibility es lo que corre en navegador.
 
 150 bichos vivos son 2,25 M de triángulos en pantalla. El renderizador no es el
-cuello de botella. **Ojo: es una máquina de desarrollo y no dice nada del portátil
-de un jugador.**
+cuello de botella, **y eso sale de una iGPU**: el margen sobre una gráfica
+dedicada es mayor, no menor. Lo que esto no cubre sigue siendo el navegador, que
+añade WASM y un solo hilo por encima del mismo renderizador.
 
 ## Dos diales que invalidan la medida si se tocan
 

@@ -33,6 +33,10 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
+		elif arg.begins_with("--segundos="):
+			# 0 = no se cierra solo. Para mirarlo en vez de medirlo: la medida
+			# sigue actualizandose en pantalla y se cierra a mano.
+			_segundos = float(arg.trim_prefix("--segundos="))
 
 	var escena: PackedScene = load(RUTA)
 	if escena == null:
@@ -122,7 +126,8 @@ func _process(delta: float) -> void:
 
 	# En web no se cierra: no hay a quien devolverle el codigo de salida y la
 	# medida se lee de la pantalla, asi que sigue girando y actualizando.
-	if _t >= _segundos and not OS.has_feature("web"):
+	# Con --segundos=0 tampoco, que es el modo "mirarlo" en vez de "medirlo".
+	if _segundos > 0.0 and _t >= _segundos and not OS.has_feature("web"):
 		set_process(false)
 		_terminar(media)
 
