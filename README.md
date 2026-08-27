@@ -1021,3 +1021,57 @@ golpeas.
 
 Las tres parejas base→mayor (Vex→Vexor, Skarn→Skarnox, Gravit→**Gravon**) dejan la regla de
 sufijos completa: **-it/-in** menor, **-on/-or/-ox** mayor.
+
+## Despliegue
+
+El cliente se publica como **exportación Web**: los testers abren
+[astrion.turname.mx](https://astrion.turname.mx) y ya está, y actualizar es reexportar.
+
+```bash
+ssh root@74.208.108.67 'bash -s' < tools/deploy-web.sh
+```
+
+**Se exporta EN el servidor**, no aquí, y por una razón práctica: el paquete pesa unos 120 MB
+(82 de `.pck` y 39 de `.wasm`) y subirlo desde una conexión doméstica se atasca. Allí el export
+tarda un minuto y no hay subida. Godot 4.7.1 y sus plantillas ya están instalados en `/opt/godot`
+—la misma versión que en desarrollo— porque el prototipo hace lo mismo.
+
+Dos detalles del guion que parecen manías y no lo son:
+
+- **Importa antes de exportar.** Los `.import` no están en git; sin ese paso, cada PNG sale como
+  marcador de posición y el juego se publica lleno de cuadros rosas.
+- **El `.pck` se copia aparte y se renombra.** `mv` en el mismo sistema de ficheros es atómico, así
+  que nadie se descarga un archivo a medias mientras se publica.
+
+### A dónde apunta el cliente
+
+`api_base` sale de `project.godot`, sección `[mexorbit]`, usando la **anulación por *feature*** de
+Godot: la clave `api_base.web` gana en una exportación Web y la de escritorio se queda con la de
+arriba. Sin un `if` en el código y sin tocar nada al exportar.
+
+```
+api_base="http://127.0.0.1:5100"
+api_base.web="https://astrion.turname.mx/api"
+```
+
+Apunta al **mismo origen que el juego**, no al subdominio `astrion-api`: la API no tiene CORS
+configurado y el navegador bloquearía la llamada entre dominios. Un `--api=…` por línea de comandos
+pisa las dos, que sirve para apuntar un cliente de escritorio a producción sin reexportar.
+
+Antes esto era una constante escrita a mano con `127.0.0.1`, que en el navegador de un tester apunta
+a **su** máquina. Es el tipo de fallo que en desarrollo es invisible por definición.
+
+La URL del game server no se configura aquí: la manda la API en el login, y en el salto de sector la
+manda el propio servidor desde `map_server`.
+
+### Que las credenciales no viajen dentro
+
+`dev_login.cfg` lleva credenciales reales y este paquete **se reparte**. Hay tres cierres para el
+mismo riesgo: está en `.gitignore` (no llega ni al clon del servidor), el preset lo excluye, y el
+guion aborta si encuentra rastro suyo dentro del `.pck`.
+
+Tres y no uno porque el guardián ya falló una vez: comprobaba con `strings`, que no está instalado
+en el servidor, y al ir dentro de un `if` el fallo del comando se leyó como «no encontrado, todo
+bien» — se saltó solo y el paquete se publicó sin que nadie lo revisara. Ahora usa `grep -a` y
+comprueba que existe antes de confiar en él. **Un guardián que puede desaparecer en silencio es peor
+que no tener guardián, porque da confianza.**
