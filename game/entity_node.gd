@@ -343,7 +343,12 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_pulse_sharp = float(pul.get("sharpness", 2.4))
 	var cg: Array = d.get("cuernos_grados", [])
 	if cg.size() == 2:
-		_cuernos_min, _cuernos_max = float(cg[0]), float(cg[1])
+		# Una asignacion por linea: GDScript NO tiene asignacion multiple. Escrito
+		# como en Python, `a, b = x, y` es un error de PARSEO, no de ejecucion: se
+		# cayo entity_node entero, con el world.gd que depende de su clase, y el
+		# juego se quedaba en negro justo despues del login.
+		_cuernos_min = float(cg[0])
+		_cuernos_max = float(cg[1])
 	_cuernos_eje = int(d.get("cuernos_eje", 1))
 
 
