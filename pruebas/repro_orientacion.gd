@@ -7,17 +7,21 @@ extends Node2D
 const ANGULOS := [0, 90, 180, 270]
 var _vp: SubViewport
 var _modelo: Node3D
+var _ruta := "res://assets/npcs/vexor.glb"
 var _i := 0
 var _esperas := 0
 
 func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--modelo="):
+			_ruta = "res://assets/npcs/%s" % arg.trim_prefix("--modelo=")
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(410, 410)
 	_vp.transparent_bg = true
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_vp)
-	_modelo = (load("res://assets/npcs/vexor.glb") as PackedScene).instantiate()
+	_modelo = (load(_ruta) as PackedScene).instantiate()
 	_vp.add_child(_modelo)
 
 	var ent := Environment.new()
@@ -47,6 +51,6 @@ func _process(_delta: float) -> void:
 	if _esperas < 3:
 		return
 	_esperas = 0
-	_vp.get_texture().get_image().save_png("C:/Tools/ori_%03d.png" % ANGULOS[_i])
+	_vp.get_texture().get_image().save_png("C:/Tools/ori_%s_%03d.png" % [_ruta.get_file().get_basename(), ANGULOS[_i]])
 	print("giro Y=%d guardado" % ANGULOS[_i])
 	_i += 1

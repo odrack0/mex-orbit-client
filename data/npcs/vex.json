@@ -3,6 +3,8 @@
   "code": "vex",
   "texture": "res://assets/npcs/vex-base.png",
   "emissive": "res://assets/npcs/vex-emissive.png",
+  "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre. Los tres PNG de media y baja se hornean de este MISMO modelo. Sin cuernos_grados: se midio y a 141 px el gesto no se distingue del reposo.",
+  "modelo": "res://assets/npcs/vex.glb",
   "screen_size": 141,
   "click_radius": 46,
   "_onda": "Solo el aguijon. from 0.74 esta medido: el perfil de anchura del render se desploma de 352 a 49 px en 0.75, donde acaban las placas y asoma la cola. Es MAS nervioso que el Vexor (mas rapido, mas inquieto parado) pero se desplaza menos en pantalla: el pequenio tiembla, el grande pesa.",

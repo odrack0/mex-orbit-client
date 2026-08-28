@@ -8,6 +8,7 @@ extends Node2D
 ##   godot --path . res://pruebas/repro_eje_hueso.tscn -- --hueso=cuerno_izq --grados=30
 
 var _hueso := "cuerno_izq"
+var _ruta := "res://assets/npcs/vexor.glb"
 var _grados := 30.0
 var _vp: SubViewport
 var _sk: Skeleton3D
@@ -20,6 +21,8 @@ func _ready() -> void:
 			_hueso = arg.trim_prefix("--hueso=")
 		elif arg.begins_with("--grados="):
 			_grados = float(arg.trim_prefix("--grados="))
+		elif arg.begins_with("--modelo="):
+			_ruta = "res://assets/npcs/%s" % arg.trim_prefix("--modelo=")
 
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(512, 512)
@@ -27,7 +30,7 @@ func _ready() -> void:
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_vp)
-	var modelo := (load("res://assets/npcs/vexor.glb") as PackedScene).instantiate()
+	var modelo := (load(_ruta) as PackedScene).instantiate()
 	_vp.add_child(modelo)
 	_sk = modelo.find_children("*", "Skeleton3D", true, false)[0]
 
@@ -65,7 +68,7 @@ func _process(_delta: float) -> void:
 	# El REPOSO tambien se guarda: tres poses sin la de partida no se pueden
 	# comparar, que fue el primer intento.
 	_vp.get_texture().get_image().save_png(
-		"C:/Tools/eje_%s_%s.png" % [_hueso, "reposo" if _eje < 0 else str(_eje)])
+		"C:/Tools/eje_%s_%s_%s.png" % [_ruta.get_file().get_basename(), _hueso, "reposo" if _eje < 0 else str(_eje)])
 	print("  %s guardado" % ("reposo" if _eje < 0 else "eje %d" % _eje))
 	_eje += 1
 	if _eje > 2:

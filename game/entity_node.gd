@@ -82,6 +82,7 @@ const ELEVACION := 90.0
 var _vp: SubViewport             # el mundo 3D de este bicho, o null
 var _modelo: Node3D              # la instancia del GLB dentro del viewport
 var _huesos_3d := {}             # nombre -> {i, rest}, o vacio si no hay esqueleto
+var _cuernos_grados := 0.0       # amplitud de las pinzas de la proa, del JSON
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -93,10 +94,10 @@ const COLA_CICLO := 1.50      # reloj propio, como en el sprite
 const COLA_GRADOS := 9.0
 const COLA_DESFASE := 0.22    # por segmento, para que la onda recorra la cola
 const EJE_COLA := 2
-## Los cuernos van al MISMO reloj que las alas: se abren y cierran acompasados.
-## El eje se midio con repro_eje_hueso.tscn —el 1 abre las pinzas de lado, el 0 y
-## el 2 las hunden o las tuercen— y no se dedujo de la permutacion de ejes.
-const CUERNOS_GRADOS := 14.0
+## Los cuernos van al MISMO reloj que las alas. El eje se midio con
+## repro_eje_hueso.tscn: el 1 es el unico que gira DENTRO del plano —dy≈0 y el
+## area crece—, que es abrir de verdad; el 2 mueve mas pixeles pero tumba el
+## cuerno hacia la camara (dy +5, area −15%), que se lee como que se cae.
 const EJE_CUERNOS := 1
 var _thrust := 0.0
 
@@ -334,6 +335,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_pulse_min = float(pul.get("min_intensity", 0.25))
 	_pulse_max = float(pul.get("max_intensity", 2.6))
 	_pulse_sharp = float(pul.get("sharpness", 2.4))
+	_cuernos_grados = float(d.get("cuernos_grados", 0.0))
 
 
 	_sprite.texture = _vp.get_texture()
@@ -668,12 +670,17 @@ func _process(delta: float) -> void:
 		_poner_hueso("ala_izq", EJE_ALAS, -bat)
 		_poner_hueso("ala_der", EJE_ALAS, bat)
 
-		# Las pinzas de la proa, del mismo `t` que las alas. Menos grados que ellas
-		# a proposito: la zona son 0,186 unidades de un modelo de 1,911, unos 17 px
-		# en pantalla, y lo que la hace legible es que cambia la SILUETA, no el
-		# recorrido. Pasarse la convierte en un aspaviento.
-		_poner_hueso("cuerno_izq", EJE_CUERNOS, -deg_to_rad(CUERNOS_GRADOS) * sin(TAU * t))
-		_poner_hueso("cuerno_der", EJE_CUERNOS, deg_to_rad(CUERNOS_GRADOS) * sin(TAU * t))
+		# Las pinzas de la proa, del mismo `t` que las alas. La amplitud es POR
+		# ESPECIE y por defecto 0: depende de la anatomia y hay que medirla.
+		#   Vexor  14 grados — la zona son 17 px en pantalla pero cambia la silueta
+		#   Vex     0 grados — sus cuernos son mas verticales y a 141 px el gesto
+		#                      no se distingue del reposo. Medido, no supuesto.
+		# Pasarse convierte el gesto en un aspaviento; animar lo que no se ve es
+		# gastar por nada.
+		if _cuernos_grados > 0.0:
+			var pinza := deg_to_rad(_cuernos_grados) * sin(TAU * t)
+			_poner_hueso("cuerno_izq", EJE_CUERNOS, -pinza)
+			_poner_hueso("cuerno_der", EJE_CUERNOS, pinza)
 
 		var tc := reloj / COLA_CICLO + fase
 		for k in 3:

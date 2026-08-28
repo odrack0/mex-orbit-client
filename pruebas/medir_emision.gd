@@ -18,15 +18,19 @@ const CON_GLOW := [2.6, 5.0, 9.0]
 var _vp: SubViewport
 var _mats: Array[BaseMaterial3D] = []
 var _env: Environment
+var _bicho := "vexor"
 
 func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--bicho="):
+			_bicho = arg.trim_prefix("--bicho=")
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(512, 512)
 	_vp.transparent_bg = true
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_vp)
-	var modelo := (load("res://assets/npcs/vexor.glb") as PackedScene).instantiate()
+	var modelo := (load("res://assets/npcs/%s.glb" % _bicho) as PackedScene).instantiate()
 	_vp.add_child(modelo)
 	for m in modelo.find_children("*", "MeshInstance3D", true, false):
 		var malla: MeshInstance3D = m
@@ -71,8 +75,8 @@ func _stats(img: Image, etiqueta: String) -> void:
 		% [etiqueta, suma / maxi(n, 1), 100.0 * fuertes / maxi(n, 1), n])
 
 func _medir() -> void:
-	var base := (load("res://assets/npcs/vexor-base.png") as Texture2D).get_image()
-	var emi := (load("res://assets/npcs/vexor-emissive.png") as Texture2D).get_image()
+	var base := (load("res://assets/npcs/%s-base.png" % _bicho) as Texture2D).get_image()
+	var emi := (load("res://assets/npcs/%s-emissive.png" % _bicho) as Texture2D).get_image()
 	base.decompress(); emi.decompress()
 	var media := Image.create_empty(base.get_width(), base.get_height(), false, Image.FORMAT_RGBAF)
 	for y in base.get_height():
@@ -81,7 +85,7 @@ func _medir() -> void:
 			var e := emi.get_pixel(x, y)
 			media.set_pixel(x, y, Color(b.r + e.r * e.a * K, b.g + e.g * e.a * K,
 				b.b + e.b * e.a * K, maxf(b.a, e.a)))
-	media.save_png("C:/Tools/media_compuesta.png")
+	media.save_png("C:/Tools/media_%s.png" % _bicho)
 	_stats(media, "MEDIA")
 
 	for g in GANANCIAS:
