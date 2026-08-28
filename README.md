@@ -1114,3 +1114,25 @@ en el servidor, y al ir dentro de un `if` el fallo del comando se leyó como «n
 bien» — se saltó solo y el paquete se publicó sin que nadie lo revisara. Ahora usa `grep -a` y
 comprueba que existe antes de confiar en él. **Un guardián que puede desaparecer en silencio es peor
 que no tener guardián, porque da confianza.**
+
+## Brazos radiales (el Vorax)
+
+No son la cola con otro nombre. La cola es una **cadena** —cada hueso cuelga del anterior y la onda
+viaja a lo largo— y esto es un **anillo** de huesos hermanos colgados de la raíz. El desfase va por
+índice de brazo, así que la onda recorre el bicho girando alrededor del centro; mover los ocho a la
+vez se leería como que respira, no como que se mueve.
+
+Los brazos se **cuentan del esqueleto**, no del JSON: el JSON dice cómo se mueven, no cuántos son. Si
+el modelo se rehace con otro número de tentáculos, el cliente se entera solo.
+
+| dial | valor | de dónde sale |
+|---|---|---|
+| `eje` | **2** | el único que gira el brazo *dentro* del plano del disco, o sea el que barre la silueta. Medido con `repro_eje_hueso`: 1,02 de diferencia contra 0,79 del eje 0 y 0,83 del 1 — los otros lo inclinan hacia la cámara y desde arriba casi no se ven |
+| `grados` | **16** | acotado por los VECINOS, no por lo que se lea. Los brazos más juntos están a 18-20° uno de otro, así que un barrido grande los cruza. A 205 px la silueta cambia un 8,0% con 18° y un 10,6% con 45°: rendimientos decrecientes justo donde empieza el riesgo |
+| `desfase` | 1/n | la onda da una vuelta entera al anillo |
+
+**Y `repro_eje_hueso` guardaba PNG negros diciendo «guardado».** Prefijaba `npcs/` siempre, así que
+`--modelo=npcs/vorax.glb` daba `assets/npcs/npcs/vorax.glb`, el modelo no cargaba y la escena seguía
+adelante. Cuatro renders vacíos que se analizan como si fueran un resultado son peor que un error.
+Ahora comprueba que el recurso existe y aborta, y el encuadre se **mide** del modelo en vez de una
+constante heredada de otro bicho.

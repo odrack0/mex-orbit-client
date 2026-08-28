@@ -24,7 +24,12 @@ func _ready() -> void:
 		elif arg.begins_with("--grados="):
 			_grados = float(arg.trim_prefix("--grados="))
 		elif arg.begins_with("--modelo="):
-			_ruta = "res://assets/npcs/%s" % arg.trim_prefix("--modelo=")
+			# Acepta "vorax.glb" y tambien "npcs/vorax.glb". Antes prefijaba
+			# `npcs/` siempre, asi que la segunda forma —la que documenta
+			# ver_anclajes— daba `assets/npcs/npcs/vorax.glb`, el modelo NO
+			# cargaba y la escena guardaba cuatro PNG negros diciendo "guardado".
+			var m := arg.trim_prefix("--modelo=")
+			_ruta = "res://assets/%s" % m if m.contains("/") else "res://assets/npcs/%s" % m
 		elif arg.begins_with("--solo-eje="):
 			_solo = int(arg.trim_prefix("--solo-eje="))
 		elif arg == "--ambos":
@@ -36,7 +41,20 @@ func _ready() -> void:
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_vp)
-	var modelo := (load(_ruta) as PackedScene).instantiate()
+	# Se comprueba que EXISTE antes de cargarlo. Un `load` fallido devuelve null,
+	# `instantiate()` revienta, y la escena seguia adelante guardando negros: un
+	# render vacio que se anuncia como bueno es peor que un error, porque se
+	# analiza como si fuera un resultado.
+	if not ResourceLoader.exists(_ruta):
+		push_error("no existe %s" % _ruta)
+		get_tree().quit(1)
+		return
+	var escena := load(_ruta) as PackedScene
+	if escena == null:
+		push_error("%s no es una escena cargable" % _ruta)
+		get_tree().quit(1)
+		return
+	var modelo := escena.instantiate()
 	_vp.add_child(modelo)
 	var esqueletos := modelo.find_children("*", "Skeleton3D", true, false)
 	if esqueletos.is_empty():

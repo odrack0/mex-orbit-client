@@ -27,22 +27,16 @@
     "speed": 2.0,
     "sharpness": 2.6
   },
-  "undulate": {
-    "amplitude": 0.055,
-    "frequency": 1.8,
-    "speed": 3.2,
-    "from": 0.22,
-    "idle": 0.4
-  },
-  "peristalsis": {
-    "amount": 1.8,
-    "frequency": 2.4,
-    "speed": 2.2,
-    "sharpness": 3.5
-  },
   "normal": "res://assets/npcs/vorax-base-normal.png",
   "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset.",
   "modelo": "res://assets/npcs/vorax.glb",
-  "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre. Esqueleto de GUSANO: raiz + seis segmentos de cola y NADA mas — sin alas ni cuernos. El perfil de la malla no da un solo salto lateral (el ancho pasa de 0,41 en la proa a 0,22 en la popa sin escalon), asi que no hay ala que doblar; forzar los diales para montarla igual habria dejado huesos sin un vertice que pese en ellos.",
-  "_horneado": "Media y baja salen del MISMO modelo (tools/hornear-sprite.py), no de un render aparte. Si algo no cuadra entre calidades se mueve el PNG, nunca el GLB: el PNG se rehornea y un ajuste hecho del otro lado se pierde solo."
+  "_modelo": "Malla 3D con esqueleto para calidad ALTA, en un SubViewport por entidad. Esqueleto RADIAL: raiz + ocho brazos, sin alas ni cola. Los angulos NO se reparten a 360/8 — se miden de la malla, que sale asimetrica del generador: 36, 84, 102, 122, 146, 188, 286 y 342 grados.",
+  "_horneado": "Media y baja salen del MISMO modelo (tools/hornear-sprite.py), no de un render aparte. Si algo no cuadra entre calidades se mueve el PNG, nunca el GLB: el PNG se rehornea y un ajuste hecho del otro lado se pierde solo.",
+  "brazos": {
+    "grados": 16.0,
+    "eje": 2,
+    "ciclo": 2.4
+  },
+  "_brazos": "Barrido de los tentaculos. EJE 2, medido con repro_eje_hueso: es el unico que gira el brazo DENTRO del plano del disco, o sea el que barre la silueta; el 0 y el 1 lo inclinan hacia la camara y desde arriba casi no se ven (1,02 de diferencia contra 0,79 y 0,83). AMPLITUD acotada por los vecinos, no por lo que se lea: los brazos mas juntos estan a 18-20 grados uno de otro, asi que un barrido grande los cruza. A 205 px la silueta cambia un 8% con 18 grados y un 10,6% con 45 — rendimientos decrecientes justo donde empieza el riesgo de cruce. El desfase por defecto es 1/n: la onda da una vuelta entera al anillo en vez de mover los ocho a la vez, que se leeria como que respira y no como que se mueve.",
+  "_shaders_2d": "Se quitan `undulate` y `peristalsis`: describian al gusano anterior. El bicho nuevo es radial y su movimiento sale del esqueleto, no de deformar la textura."
 }
