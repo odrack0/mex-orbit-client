@@ -81,6 +81,7 @@ func _medir() -> void:
 			var e := emi.get_pixel(x, y)
 			media.set_pixel(x, y, Color(b.r + e.r * e.a * K, b.g + e.g * e.a * K,
 				b.b + e.b * e.a * K, maxf(b.a, e.a)))
+	media.save_png("C:/Tools/media_compuesta.png")
 	_stats(media, "MEDIA")
 
 	for g in GANANCIAS:
