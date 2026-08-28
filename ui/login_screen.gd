@@ -99,6 +99,13 @@ func _ready() -> void:
 	inner.add_child(_status)
 
 	_http = HTTPRequest.new()
+	# En Web, el gzip lo negocia el NAVEGADOR y es transparente: fetch entrega el
+	# cuerpo ya descomprimido pero deja visible el Content-Encoding, y con
+	# `accept_gzip` (el default) Godot intentaba descomprimir OTRA vez ese cuerpo
+	# plano — login roto con result 8 (BODY_DECOMPRESS_FAILED) en cuanto un proxy
+	# comprimia el JSON. En escritorio no aporta: las respuestas de la api miden
+	# cientos de bytes.
+	_http.accept_gzip = false
 	add_child(_http)
 	_http.request_completed.connect(_on_respuesta)
 
