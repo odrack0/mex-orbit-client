@@ -99,6 +99,11 @@ var _escala_llama := Vector2.ONE
 ## Ancho maximo del ciclo de empuje (`0.55 + 0.15 * _thrust` a tope de gas). La
 ## base se calcula contra el para que la llama mida su tobera cuando va a fondo.
 const LLAMA_ANCHO_MAX := 0.70
+## Cuanto del ancho de su textura ocupa el penacho de verdad, medido cerca de la
+## boca: `engine-flame.png` es de 64 px y el chorro va de la columna 10 a la 54,
+## o sea 45 px. Sin corregirlo, escalar la TEXTURA al ancho de la tobera deja el
+## chorro visible en un 70% de esa medida y no la cubre.
+const LLAMA_RELLENO := 0.70
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -447,9 +452,12 @@ func _montar_anclajes(d: Dictionary) -> void:
 		# fotograma con el ciclo de empuje. Fijarla aqui no servia de nada —la
 		# escala buena duraba un frame— y por eso las llamas seguian saliendo de
 		# 35-45 px por mucho que se midiera la boca.
-		_escala_llama = Vector2.ONE * (escala_llama / LLAMA_ANCHO_MAX)
+		_escala_llama = Vector2.ONE * (escala_llama / (LLAMA_ANCHO_MAX * LLAMA_RELLENO))
 		for punto in toberas:
-			_flames.append(_crear_llama_en(punto, trail, _anclas))
+			# Medio ancho de boca hacia PROA, para que el chorro salga de dentro de
+			# la campana y no arranque justo en su filo. El marcador esta en el
+			# vertice mas trasero de la tobera, que es su borde, no su garganta.
+			_flames.append(_crear_llama_en(punto - Vector2(0.0, ancho * 0.5), trail, _anclas))
 
 
 ## Posicion de un nodo dentro del modelo, sumando la cadena de padres A MANO:
