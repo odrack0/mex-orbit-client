@@ -65,6 +65,34 @@ var _idle_timer := 0.0
 # suciedad no cuenta como estela.
 var _flames: Array[Sprite2D] = []
 var _relieve: ShaderMaterial     # shader de relieve, si esta nave lo tiene
+
+## ---- malla 3D (calidad ALTA de los bichos que traen `modelo`) ----
+## Supermuestreo del viewport respecto al tamanio en pantalla. A 1 el bicho se
+## rinde justo a sus 178 px y al acercar el zoom se ve blando; a 2 aguanta el
+## acercamiento sin costar cuatro veces, porque el area sigue siendo pequenia.
+const VIEWPORT_FACTOR := 2
+## Aire alrededor del modelo para que el aleteo no se salga del encuadre. Es
+## tambien el pixelaje de mas que se pide al viewport, para que ese aire NO le
+## robe tamanio al bicho: el lado mayor sigue midiendo `screen_size`.
+const MARGEN := 1.15
+## Elevacion de la camara. 90 es el cenital de siempre; por debajo empieza el
+## escorzo, que es la decision de Q1 y todavia no esta tomada.
+const ELEVACION := 90.0
+
+var _vp: SubViewport             # el mundo 3D de este bicho, o null
+var _modelo: Node3D              # la instancia del GLB dentro del viewport
+var _huesos_3d := {}             # nombre -> {i, rest}, o vacio si no hay esqueleto
+var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
+
+## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
+## cambia el bicho en el juego; el banco es donde se comparan, no donde se fijan.
+const CICLO_ALAS := 2.17      # 26 fotogramas a 12 fps: el mismo ritmo que el atlas
+const ALAS_GRADOS := 34.0
+const EJE_ALAS := 1           # Y en Godot. glTF permuta ejes: la Y de Blender sale Z
+const COLA_CICLO := 1.50      # reloj propio, como en el sprite
+const COLA_GRADOS := 9.0
+const COLA_DESFASE := 0.22    # por segmento, para que la onda recorra la cola
+const EJE_COLA := 2
 var _thrust := 0.0
 
 # bocas de caÃ±Ã³n (espacio de la textura) y a cuÃ¡l toca disparar
@@ -127,6 +155,19 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 func _construir_visual() -> void:
 	var d := _def
 	_sprite = Sprite2D.new()
+
+	# ---- ALTA con MALLA 3D ----
+	# Si el bicho trae `modelo`, la calidad alta deja de ser un atlas de video y
+	# pasa a ser una malla con esqueleto. Entra por DEBAJO, no por encima: el 3D
+	# vive en un SubViewport y su textura alimenta a este mismo Sprite2D, asi que
+	# la posicion, el z-index, el radio de click, las barras y los FX siguen
+	# siendo exactamente los de 2D. Cero cambios en world.gd.
+	#
+	# El precio es un viewport por entidad. Se mide, no se supone.
+	if Quality.nivel("npc") >= 2 and str(d.get("modelo", "")) != "":
+		if _construir_malla_3d(d):
+			add_child(_sprite)
+			return
 	# ALTA monta el atlas del video; MEDIA y BAJA caen al PNG fijo, que por eso
 	# nunca se borro al convertir un bicho a atlas.
 	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("npc") >= 2 else {}
@@ -191,13 +232,181 @@ func _construir_visual() -> void:
 			_flames.append(_crear_llama(motor, trail))
 
 
+## Monta la malla 3D en un SubViewport y la cuelga del Sprite2D. Devuelve false
+## si el modelo no carga, para que se caiga al camino de siempre.
+func _construir_malla_3d(d: Dictionary) -> bool:
+	var escena: PackedScene = load(str(d["modelo"]))
+	if escena == null:
+		push_warning("EntityNode: no se pudo cargar %s; se cae al sprite" % d["modelo"])
+		return false
+
+	var lado := int(round(float(d.get("screen_size", 141)) * MARGEN)) * VIEWPORT_FACTOR
+	_vp = SubViewport.new()
+	_vp.size = Vector2i(lado, lado)
+	# Fondo transparente: el bicho se compone sobre el mundo 2D, no lo tapa.
+	_vp.transparent_bg = true
+	# MUNDO 3D PROPIO. Sin esto el SubViewport COMPARTE el World3D del padre: los
+	# modelos de todos los bichos viven en el mismo mundo y en el mismo origen, y
+	# cada camara los ve TODOS. Se veia como una bola de copias del bicho que crecia
+	# segun entraban mas, cada una en el angulo en que iba su dueno.
+	_vp.own_world_3d = true
+	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	# BORRAR SIEMPRE, explicito. Sin esto el destino acumula: el bicho gira y cada
+	# fotograma deja su copia encima del anterior, asi que en unos segundos hay un
+	# abanico de vexores en circulo y el apilado de bordes lo empasta a blanco.
+	# Se veia como "muchos encimados", que es literalmente lo que era.
+	_vp.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	# Sin sombras ni reflejos: es un recorte de un bicho, no una escena.
+	add_child(_vp)
+
+	_modelo = escena.instantiate()
+	_vp.add_child(_modelo)
+
+	var ent := Environment.new()
+	ent.background_mode = Environment.BG_CLEAR_COLOR
+	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	ent.ambient_light_color = Color(0.35, 0.40, 0.55)
+	ent.ambient_light_energy = 0.28   # la misma fuerza de fondo que usa el horneado
+	var we := WorldEnvironment.new()
+	we.environment = ent
+	_vp.add_child(we)
+
+	# La MISMA luz del mundo que usa el relieve en 2D. No es cosmetico: si cada
+	# bicho se ilumina por su cuenta, dos vecinos se leen como dos recortes
+	# pegados en vez de dos cosas en el mismo sitio.
+	var sol := DirectionalLight3D.new()
+	# 1.0, NO el 2.6 del banco. Blender hornea el sprite de media con un sol de 3.2,
+	# que por como normaliza equivale a ~1.0 aqui; con 2.6 el bicho salia lavado a
+	# blanco y no se parecia a su propio horneado. El horneado es la referencia:
+	# alta y media tienen que ser el mismo bicho, uno articulado y otro no.
+	sol.light_energy = 1.0
+	sol.rotation = Vector3(deg_to_rad(-48.0),
+		deg_to_rad(AssetDefs.LUZ_MUNDO_GRADOS), 0.0)
+	sol.shadow_enabled = false
+	_vp.add_child(sol)
+
+	# Camara ortografica en la elevacion del contrato. A 90 grados es el cenital
+	# de siempre y el cambio no se nota; por debajo empieza el escorzo.
+	var cam := Camera3D.new()
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	# El encuadre se MIDE del modelo. Con una constante a ojo el bicho salia
+	# desbordando su propia barra de vida: el contrato es que su lado mayor ocupe
+	# `screen_size` pixeles, igual que el recorte del PNG en 2D.
+	cam.size = _extension(_modelo) * MARGEN
+	_vp.add_child(cam)
+	var el := deg_to_rad(ELEVACION)
+	# `look_at_from_position`, no `look_at`: `setup()` corre ANTES de que la entidad
+	# entre en el arbol y `look_at` exige estar dentro. Hacen lo mismo.
+	# Y el "arriba" es -Z, no Y: a 90 grados la camara mira justo por Y y el vector
+	# de arriba seria paralelo a su eje de vista, que no define una orientacion.
+	cam.look_at_from_position(Vector3(0.0, 8.0 * sin(el), 8.0 * cos(el)),
+		Vector3.ZERO, Vector3.FORWARD)
+	cam.current = true
+
+	_huesos_3d = _mapear_huesos(_modelo)
+	_mats_3d = _copiar_materiales(_modelo)
+	# Los mismos diales del JSON que usa la capa emisiva de 2D. No son dos ajustes:
+	# es el mismo latido, aplicado a la emision del material en vez de al alfa.
+	var pul: Dictionary = d.get("pulse", {})
+	_pulse_min = float(pul.get("min_intensity", 0.25))
+	_pulse_max = float(pul.get("max_intensity", 2.6))
+	_pulse_sharp = float(pul.get("sharpness", 2.4))
+
+
+	_sprite.texture = _vp.get_texture()
+	# El viewport ya se rindio al tamanio de pantalla que pide el JSON, asi que
+	# aqui no hay que reescalar por `screen_size` como con un PNG: basta deshacer
+	# el factor de supermuestreo.
+	_sprite.scale = Vector2.ONE / float(VIEWPORT_FACTOR)
+	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	return true
+
+
+## Lado mayor del modelo en el plano de la camara, en unidades de mundo. Se suman
+## las AABB de las mallas: es el mismo dato que el validador imprime como CAJA.
+func _extension(nodo: Node) -> float:
+	var caja := AABB()
+	var primera := true
+	for m in nodo.find_children("*", "MeshInstance3D", true, false):
+		var malla: MeshInstance3D = m
+		# La transformacion se acumula A MANO hasta la raiz del modelo: `transform`
+		# es solo la local, y `global_transform` no vale porque esto corre en
+		# `setup()`, antes de que la entidad entre en el arbol.
+		var tr := Transform3D()
+		var n: Node = malla
+		while n != null and n != nodo:
+			if n is Node3D:
+				tr = (n as Node3D).transform * tr
+			n = n.get_parent()
+		var a := tr * malla.get_aabb()
+		caja = a if primera else caja.merge(a)
+		primera = false
+	if primera:
+		return 2.0
+	return maxf(maxf(caja.size.x, caja.size.z), 0.001)
+
+
+## Duplica los materiales para que el destello sea de ESTE bicho y no de todos.
+## Rompe el batching entre entidades; el banco lo midio con esa copia puesta, asi
+## que la cifra que hay en pruebas/README.md ya la incluye.
+func _copiar_materiales(nodo: Node) -> Array[BaseMaterial3D]:
+	var salida: Array[BaseMaterial3D] = []
+	for m in nodo.find_children("*", "MeshInstance3D", true, false):
+		var malla: MeshInstance3D = m
+		var mat = malla.get_active_material(0)
+		if mat is BaseMaterial3D:
+			var copia: BaseMaterial3D = mat.duplicate()
+			# A DOS CARAS: la malla de Meshy trae el giro de las caras inconsistente
+			# y con descarte trasero salen huecos donde Blender enseniaba solido.
+			copia.cull_mode = BaseMaterial3D.CULL_DISABLED
+			malla.set_surface_override_material(0, copia)
+			salida.append(copia)
+	return salida
+
+
+## Los huesos que el cliente mueve, por nombre. Vacio si el modelo no trae
+## esqueleto — un bicho puede ser malla quieta y seguir siendo valido.
+func _mapear_huesos(nodo: Node) -> Dictionary:
+	var esqs := nodo.find_children("*", "Skeleton3D", true, false)
+	if esqs.is_empty():
+		return {}
+	var sk: Skeleton3D = esqs[0]
+	var mapa := {"sk": sk}
+	for nombre in ["ala_izq", "ala_der", "cola_1", "cola_2", "cola_3"]:
+		var idx := sk.find_bone(nombre)
+		if idx >= 0:
+			# La rotacion de REPOSO se guarda porque `set_bone_pose_rotation` fija
+			# la pose ENTERA, no un incremento: escribir un cuaternion a secas
+			# machaca el reposo del hueso y la malla sale aplastada sin haber
+			# rotado nada.
+			mapa[nombre] = {"i": idx,
+				"rest": sk.get_bone_rest(idx).basis.get_rotation_quaternion()}
+	return mapa
+
+
+## Rota un hueso COMPONIENDO sobre su reposo. `set_bone_pose_rotation` fija la
+## pose ENTERA: escribir el giro a secas machaca el reposo y la malla sale
+## aplastada — los huesos de la cola apuntan hacia atras y ese giro va en su reposo.
+func _poner_hueso(nombre: String, eje: int, ang: float) -> void:
+	if not _huesos_3d.has(nombre):
+		return
+	var h: Dictionary = _huesos_3d[nombre]
+	var v := Vector3.UP if eje == 1 else (Vector3.BACK if eje == 2 else Vector3.RIGHT)
+	_huesos_3d["sk"].set_bone_pose_rotation(h["i"],
+		(h["rest"] as Quaternion) * Quaternion(v, ang))
+
+
 ## Rehace la parte visual con la calidad actual. Lo demas â€”nombre, barras,
 ## caÃ±ones, rumboâ€” no depende del nivel y se queda como esta.
 func reconstruir() -> void:
-	for n in [_sprite]:
+	for n in [_sprite, _vp]:
 		if n != null:
 			n.queue_free()
 	_sprite = null
+	_vp = null
+	_modelo = null
+	_huesos_3d.clear()
+	_mats_3d.clear()
 	_emissive = null
 	_relieve = null      # su material moria con el sprite: dejarlo apuntando ahi
 	_flames.clear()      # eran hijos del sprite: se van con el
@@ -418,6 +627,36 @@ func _process(delta: float) -> void:
 		var k: float = _pulse_min + (_pulse_max - _pulse_min) * onda
 		_emissive.self_modulate = Color(k, k, k, 1.0)
 
+	# ---- el bicho 3D: aleteo, cola y destello, del MISMO reloj ----
+	# La fase es una sola por entidad y la comparten las alas y la emision, asi que
+	# el destello cae en el golpe de bajada por construccion. Dos relojes separados
+	# es justo lo que se arreglo en el banco: se veian desincronizados.
+	if not _huesos_3d.is_empty():
+		var reloj := Time.get_ticks_msec() * 0.001
+		# desfase por entidad (razon aurea): 30 vexors no aletean al unisono
+		var fase := fposmod(entity_id * 0.618034, 1.0)
+		var t := fposmod(reloj / CICLO_ALAS + fase, 1.0)
+
+		# Un SENO, no un 0->1->0: el aleteo oscila alrededor del reposo, arriba y
+		# abajo. Con la otra curva el ala solo baja y vuelve, y se lee como que se
+		# dobla en vez de batir.
+		var bat := deg_to_rad(ALAS_GRADOS) * sin(TAU * t)
+		_poner_hueso("ala_izq", EJE_ALAS, -bat)
+		_poner_hueso("ala_der", EJE_ALAS, bat)
+
+		var tc := reloj / COLA_CICLO + fase
+		for k in 3:
+			_poner_hueso("cola_%d" % (k + 1), EJE_COLA,
+				deg_to_rad(COLA_GRADOS) * sin(TAU * (tc - k * COLA_DESFASE)))
+
+		# Misma fase que el ala, un cuarto de vuelta despues: el pico del destello
+		# cae en el punto mas bajo del batido.
+		if not _mats_3d.is_empty():
+			var onda := pow(0.5 - 0.5 * cos(TAU * t), _pulse_sharp)
+			var e: float = _pulse_min + (_pulse_max - _pulse_min) * onda
+			for mat in _mats_3d:
+				mat.emission_energy_multiplier = e
+
 	if en_vuelo:
 		# la punta va delante: mientras la proa no mire al destino apenas avanza,
 		# y acelera segun se alinea (coseno del error). Sin esto, un Skarnox
@@ -587,6 +826,15 @@ func rumbo_visual(grados: float) -> void:
 
 func _set_visual_angle(grados: float) -> void:
 	_visual_angle = fposmod(grados, 360.0)
+
+	# Con malla 3D el que gira es el MODELO, no el sprite. Rotar el sprite giraria
+	# la imagen ya rendida —y con ella la luz, que es justo lo que el 3D viene a
+	# arreglar: la nave gira y el reflejo se queda donde estaba.
+	if _modelo != null:
+		# El sprite mira a +X y el modelo a -Z, y ademas la Y del mundo 2D crece
+		# hacia abajo: de ahi el signo y el cuarto de vuelta.
+		_modelo.rotation.y = deg_to_rad(-_visual_angle) - PI * 0.5
+		return
 	if turn_steps <= 0:
 		# giro continuo: un bicho girando despacio a 32 pasos se ve a tirones,
 		# porque cada paso dura una eternidad

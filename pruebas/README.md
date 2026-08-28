@@ -158,3 +158,34 @@ Se genera, no se edita. La fuente vive en `mex-orbit-art/source/3d-models/`:
 blender --background --factory-startup --python tools/normalize-model.py -- \
     source/3d-models/vexor.glb <cliente>/pruebas/vexor.glb 15000 512 r
 ```
+
+## La trampa del SubViewport por entidad
+
+La calidad **alta** de los bichos con `modelo` no dibuja un PNG: monta la malla en
+un `SubViewport` por entidad y le pasa su textura al `Sprite2D` de siempre, para
+que la posición, el z-index, el radio de click, las barras y los FX sigan siendo
+exactamente los de 2D.
+
+Un `SubViewport` **comparte el `World3D` de su padre salvo que se le pida uno
+propio**. Sin `own_world_3d = true`, los modelos de todos los bichos viven en el
+mismo mundo y en el mismo origen, y la cámara de cada viewport los ve **todos**:
+en pantalla salía una bola de copias del bicho, cada una en el ángulo en que iba
+su dueño, que crecía según entraban más y se empastaba a blanco de tanto solaparse.
+
+`repro_viewport.tscn` es el caso mínimo que lo reproduce y ahora lo descarta.
+Monta seis viewports y vuelca el del primero a los 0,5 s y a los 9 s. Con **uno
+solo** el fallo no aparece —el mundo compartido tiene un único modelo—, y por eso
+hay que montar varios: la versión de un bicho salía limpia y escondía el problema.
+
+Dos cifras que se corrigieron por el camino, ambas por comparar contra el
+horneado en vez de contra el banco:
+
+  · Sol a **1.0**, no a 2.6. Blender hornea el sprite de media con un sol de 3.2,
+    que por cómo normaliza equivale a ~1.0 aquí; con 2.6 el bicho salía lavado a
+    blanco y no se parecía a su propio horneado.
+  · El encuadre se **mide** del modelo (`_extension`), no se fija a ojo. Con una
+    constante el bicho desbordaba su propia barra de vida.
+
+**Lo que este banco NO mide es esta técnica.** Las cifras de arriba son N modelos
+en UN mundo con UNA cámara. Un `SubViewport` con mundo propio por entidad es otra
+cosa y bastante más cara: hay que medirla aparte antes de dar por buena la alta.

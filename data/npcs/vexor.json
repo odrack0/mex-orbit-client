@@ -3,6 +3,8 @@
   "code": "vexor",
   "texture": "res://assets/npcs/vexor-base.png",
   "emissive": "res://assets/npcs/vexor-emissive.png",
+  "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre: asi el 3D entra por debajo y la posicion, el z-index, el radio de click y los FX siguen siendo los de 2D. Sale de riguear-modelo.py sobre el remesh de Meshy.",
+  "modelo": "res://assets/npcs/vexor.glb",
   "screen_size": 178,
   "click_radius": 58,
   "_onda": "Solo se dobla el ABDOMEN. from 0.68 esta medido, no estimado: el perfil de anchura del render cae de 241 a 134 px justo ahi, que es donde acaban las placas del torax. La quitina de arriba no se menea; el abdomen segmentado si.",
