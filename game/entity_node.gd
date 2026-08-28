@@ -92,6 +92,13 @@ var _cuernos_eje := 1
 ## y disparos sigue siendo el mismo.
 var _anclas: Node2D
 var _ancho_tobera := 0.0         # ancho de la boca en pixeles, del marcador
+## Escala BASE de la llama, que el pulso de empuje MULTIPLICA en vez de sustituir.
+## En 2D vale 1 porque el factor lo pone el sprite padre; en 3D `_anclas` no tiene
+## escala, asi que lo pone aqui.
+var _escala_llama := Vector2.ONE
+## Ancho maximo del ciclo de empuje (`0.55 + 0.15 * _thrust` a tope de gas). La
+## base se calcula contra el para que la llama mida su tobera cuando va a fondo.
+const LLAMA_ANCHO_MAX := 0.70
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -436,10 +443,13 @@ func _montar_anclajes(d: Dictionary) -> void:
 			if toberas.size() > 1:
 				ancho = (toberas[-1].x - toberas[0].x) / float(toberas.size() - 1)
 		var escala_llama: float = minf(ancho / ancho_llama, tope)
+		# Se guarda como BASE, no se aplica al crear: `_process` pisa `scale` cada
+		# fotograma con el ciclo de empuje. Fijarla aqui no servia de nada —la
+		# escala buena duraba un frame— y por eso las llamas seguian saliendo de
+		# 35-45 px por mucho que se midiera la boca.
+		_escala_llama = Vector2.ONE * (escala_llama / LLAMA_ANCHO_MAX)
 		for punto in toberas:
-			var llama := _crear_llama_en(punto, trail, _anclas)
-			llama.scale = Vector2.ONE * escala_llama
-			_flames.append(llama)
+			_flames.append(_crear_llama_en(punto, trail, _anclas))
 
 
 ## Posicion de un nodo dentro del modelo, sumando la cadena de padres A MANO:
@@ -729,7 +739,7 @@ func _process(delta: float) -> void:
 		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
 		for llama in _flames:
 			llama.visible = _thrust > 0.02
-			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro)
+			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro) * _escala_llama
 			llama.self_modulate.a = 0.35 + 0.65 * _thrust
 
 	if _anim_total > 0:

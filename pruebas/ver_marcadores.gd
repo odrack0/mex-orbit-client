@@ -19,8 +19,9 @@ func _init() -> void:
 		var nom := str(x.name)
 		if nom.begins_with("tobera") or nom.begins_with("canon"):
 			var p: Vector3 = (x as Node3D).position
-			print("  %-10s modelo(%+.3f, %+.3f, %+.3f)  pantalla(%+.1f, %+.1f) px"
-				% [nom, p.x, p.y, p.z, p.x * escala, p.z * escala])
+			var es: Vector3 = (x as Node3D).scale
+			print("  %-10s pantalla(%+.1f, %+.1f) px   escala=%.3f -> ancho %.1f px"
+				% [nom, p.x * escala, p.z * escala, es.x, es.x * escala])
 			n += 1
 	print("TOTAL %d marcadores" % n)
 	print("--- todos los hijos del modelo ---")
