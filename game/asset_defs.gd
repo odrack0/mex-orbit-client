@@ -214,6 +214,46 @@ static func extension_3d(nodo: Node) -> float:
 	return maxf(maxf(caja.size.x, caja.size.z), 0.001)
 
 
+## Lo que el modelo OCUPA EN PANTALLA con la camara a esa elevacion, en unidades
+## de mundo. Es lo que hay que encuadrar cuando la camara no es cenital.
+##
+## `extension_3d` mide la HUELLA (X y Z) y a 90 grados eso es exactamente lo que
+## se ve. En cuanto la camara baja deja de serlo: una torre de 1,92 de alto sobre
+## una planta de 1,05 se sale por arriba, porque su altura pasa a proyectarse
+## sobre la pantalla. Se proyectan las ocho esquinas de la caja al espacio de la
+## camara y se toma el lado mayor — exacto y sin casos especiales.
+static func extension_vista(nodo: Node, elevacion: float) -> float:
+	var caja := AABB()
+	var primera := true
+	for m in nodo.find_children("*", "MeshInstance3D", true, false):
+		var malla: MeshInstance3D = m
+		var tr := Transform3D()
+		var n: Node = malla
+		while n != null and n != nodo:
+			if n is Node3D:
+				tr = (n as Node3D).transform * tr
+			n = n.get_parent()
+		var a := tr * malla.get_aabb()
+		caja = a if primera else caja.merge(a)
+		primera = false
+	if primera:
+		return 2.0
+	# La misma camara que monta `mundo_3d`, para medir lo que ella va a ver.
+	var el := deg_to_rad(elevacion)
+	var ojo := Vector3(0.0, 8.0 * sin(el), 8.0 * cos(el))
+	var vista := Transform3D().looking_at(-ojo, Vector3.FORWARD)
+	vista.origin = ojo
+	var inv := vista.affine_inverse()
+	var ancho := 0.0
+	var alto := 0.0
+	for i in 8:
+		var e := caja.get_endpoint(i)
+		var v := inv * e
+		ancho = maxf(ancho, absf(v.x) * 2.0)
+		alto = maxf(alto, absf(v.y) * 2.0)
+	return maxf(maxf(ancho, alto), 0.001)
+
+
 ## Los materiales del modelo, DUPLICADOS por instancia, para poder pulsar la
 ## emision de cada asset sin tocar a los demas: un material de Godot se comparte
 ## entre todas las instancias que lo usan.

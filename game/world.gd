@@ -1849,7 +1849,9 @@ func _montar_estacion_3d(d: Dictionary) -> bool:
 		return false
 	var lado := int(round(float(d.get("world_size", 820)) * EST_MARGEN))
 	var sonda := escena.instantiate()
-	var ext := AssetDefs.extension_3d(sonda) * EST_MARGEN
+	# Lo que la camara VE a esa elevacion, no la huella: la estacion es una torre
+	# y en oblicuo su altura ocupa pantalla.
+	var ext := AssetDefs.extension_vista(sonda, EST_ELEVACION) * EST_MARGEN
 	sonda.queue_free()
 	var m := AssetDefs.mundo_3d(escena, lado, ext, EST_ELEVACION,
 		Quality.nivel("emissive") >= 1)
@@ -1976,11 +1978,17 @@ const AT_PRESAS := ["vex", "vexor"]
 ## Lado de la caja con la que se retrata el casco para la prueba del relieve.
 const CAJA := 128
 
-## Margen del encuadre de la estacion, y elevacion de su camara. 90 = cenital,
-## como todo lo demas del juego. El render anterior era OBLICUO y eso era
-## justamente lo que cantaba al lado de unas naves vistas desde arriba.
+## Margen del encuadre de la estacion y ELEVACION de su camara, en grados: 90 es
+## cenital y por debajo empieza el escorzo.
+##
+## La estacion es el unico asset que NO se mira desde arriba, y es una decision
+## de direccion de arte, no un descuido: es una torre, y una torre vista en
+## cenital es un punto. El resto del juego sigue siendo cenital.
+##
+## Al bajarla hay que encuadrar con `extension_vista` y no con la huella: la
+## altura pasa a ocupar pantalla y con la huella la torre se sale por arriba.
 const EST_MARGEN := 1.15
-const EST_ELEVACION := 90.0
+const EST_ELEVACION := 30.0
 
 ## Por debajo de esto un bicho se considera QUIETO entre sus dos retratos. Es un
 ## suelo de ruido, no un objetivo: dos capturas del mismo fotograma dan 0 exacto.

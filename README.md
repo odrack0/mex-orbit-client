@@ -1170,9 +1170,15 @@ sea que se **ampliaba 1,3 veces** — el problema de nitidez que ya costó una r
 no tiene resolución. Y se ahorran los **40 MB** del atlas, que era el asset más caro del juego con
 diferencia.
 
-**Cámara cenital**, como todo lo demás. El render anterior era oblicuo y eso era exactamente lo que
-chirriaba al lado de unas naves vistas desde arriba: el problema no era el render, era **mezclar dos
-ángulos de cámara en la misma escena**.
+**Cámara OBLICUA** (`EST_ELEVACION`, 30°), y es el único asset del juego que no se mira desde arriba.
+Es dirección de arte, no descuido: la estación es una **torre**, y una torre vista en cenital es un
+punto. El resto del juego sigue siendo cenital.
+
+Bajar la cámara obliga a cambiar el encuadre con ella. `extension_3d` mide la **huella** (X y Z), que
+a 90° es exactamente lo que se ve; en cuanto la cámara baja deja de serlo, porque la altura pasa a
+proyectarse sobre la pantalla y una torre de 1,92 sobre una planta de 1,05 se sale por arriba. Por
+eso la estación encuadra con `extension_vista`, que **proyecta las ocho esquinas de la caja al espacio
+de la cámara** y toma el lado mayor: exacto y sin casos especiales.
 
 El viewport es grande, pero es **uno solo**: no hay treinta estaciones en pantalla como puede haber
 treinta bichos, así que el coste que en un bicho obliga a medir aquí se paga sin discusión.
