@@ -57,6 +57,15 @@ for f in index.html index.js index.wasm index.png index.icon.png \
          index.apple-touch-icon.png index.audio.worklet.js index.audio.position.worklet.js; do
   [ -f "build/web/$f" ] && cp -f "build/web/$f" "$DEST/"
 done
+# PRECOMPRIMIR lo que comprime, y solo eso. Medido en este mismo paquete:
+#   index.wasm  37,7 MB -> 9,7  (25%)   <- 28 MB menos por tester
+#   index.js     0,3 MB -> 0,1  (24%)
+#   index.pck   93,9 MB -> 93,6 (99%)   <- ya son texturas: no se toca
+# nginx los sirve con `gzip_static on`. Al vuelo seria comprimir 38 MB en cada
+# peticion, y este servidor tiene otros dos proyectos encima.
+for f in index.wasm index.js; do
+  [ -f "$DEST/$f" ] && gzip -9 -c "$DEST/$f" > "$DEST/$f.gz.new" && mv -f "$DEST/$f.gz.new" "$DEST/$f.gz"
+done
 chmod 644 "$DEST"/*
 ls -la --time-style=long-iso "$DEST"
 for f in index.html index.wasm index.pck; do

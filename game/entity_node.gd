@@ -115,6 +115,17 @@ var _cola_grados := 9.0
 var _cola_ciclo := 1.50       # reloj propio, como en el sprite
 var _cola_desfase := 0.22     # por segmento, para que la onda recorra la cola
 var _cola_eje := 2
+## BRAZOS RADIALES (el Vorax). No es la cola con otro nombre: la cola es una
+## cadena —cada hueso cuelga del anterior y la onda viaja a lo largo— y esto es un
+## ANILLO de huesos hermanos, todos colgados de la raiz. El desfase va por indice
+## de brazo, asi que la onda recorre el bicho girando alrededor del centro.
+##
+## Mover los ocho a la vez se leeria como que respira, no como que se mueve.
+var _brazos_n := 0            # cuantos hay: se cuenta del esqueleto, no del JSON
+var _brazos_grados := 0.0     # 0 = el bicho no tiene brazos
+var _brazos_ciclo := 2.4
+var _brazos_desfase := 0.125  # 1/8: con ocho brazos, la onda da una vuelta entera
+var _brazos_eje := 2
 ## Los cuernos van al MISMO reloj que las alas, pero el EJE y el RANGO son de cada
 ## especie y se miden con repro_eje_hueso.tscn (`--solo-eje` y `--ambos`).
 ## No hay eje universal: depende de como esten plantados los cuernos.
@@ -367,6 +378,18 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 		_cuernos_min = float(cg[0])
 		_cuernos_max = float(cg[1])
 	_cuernos_eje = int(d.get("cuernos_eje", 1))
+	# Los brazos se CUENTAN del esqueleto: el JSON dice como se mueven, no cuantos
+	# son. Si el modelo se rehace con otro numero de tentaculos, el cliente se
+	# entera solo en vez de quedarse moviendo los ocho primeros.
+	_brazos_n = 0
+	while _huesos_3d.has("brazo_%d" % (_brazos_n + 1)):
+		_brazos_n += 1
+	var br: Dictionary = d.get("brazos", {})
+	_brazos_grados = float(br.get("grados", 0.0))
+	_brazos_ciclo = float(br.get("ciclo", _brazos_ciclo))
+	_brazos_desfase = float(br.get("desfase", 1.0 / maxf(float(_brazos_n), 1.0)))
+	_brazos_eje = int(br.get("eje", _brazos_eje))
+
 	var al: Dictionary = d.get("alas", {})
 	_alas_grados = float(al.get("grados", _alas_grados))
 	_alas_ciclo = float(al.get("ciclo", _alas_ciclo))
@@ -839,6 +862,14 @@ func _process(delta: float) -> void:
 			var pinza := deg_to_rad(_cuernos_min + (_cuernos_max - _cuernos_min) * k)
 			_poner_hueso("cuerno_izq", _cuernos_eje, -pinza)
 			_poner_hueso("cuerno_der", _cuernos_eje, pinza)
+
+		# Los brazos: la misma onda recorriendo el ANILLO. Desfase por indice, no
+		# por distancia al centro — todos nacen a la misma distancia.
+		if _brazos_grados > 0.0 and _brazos_n > 0:
+			var tb := reloj / _brazos_ciclo + fase
+			for k in _brazos_n:
+				_poner_hueso("brazo_%d" % (k + 1), _brazos_eje,
+					deg_to_rad(_brazos_grados) * sin(TAU * (tb - k * _brazos_desfase)))
 
 		var tc := reloj / _cola_ciclo + fase
 		for k in 3:

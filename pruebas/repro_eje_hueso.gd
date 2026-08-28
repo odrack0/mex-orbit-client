@@ -38,7 +38,30 @@ func _ready() -> void:
 	add_child(_vp)
 	var modelo := (load(_ruta) as PackedScene).instantiate()
 	_vp.add_child(modelo)
-	_sk = modelo.find_children("*", "Skeleton3D", true, false)[0]
+	var esqueletos := modelo.find_children("*", "Skeleton3D", true, false)
+	if esqueletos.is_empty():
+		push_error("el modelo %s no trae esqueleto" % _ruta)
+		get_tree().quit(1)
+		return
+	_sk = esqueletos[0]
+	# Sin comprension de lista: GDScript no las tiene, y escribirla es un error de
+	# PARSEO que tumba el script entero — misma familia que la asignacion multiple.
+	var lista_huesos: Array[String] = []
+	for i in _sk.get_bone_count():
+		lista_huesos.append(_sk.get_bone_name(i))
+	print("huesos: %s" % str(lista_huesos))
+	# La extension se MIDE del modelo. Antes era una constante (2.198) heredada
+	# de otro bicho, y con un modelo mas ancho el render salia negro sin decir por
+	# que: la camara encuadraba fuera de la malla. Es el mismo criterio que ya
+	# sigue el cliente, y por el mismo motivo.
+	var caja := AABB()
+	var primera := true
+	for m in modelo.find_children("*", "MeshInstance3D", true, false):
+		var mi: MeshInstance3D = m
+		var a := mi.global_transform * mi.get_aabb()
+		caja = a if primera else caja.merge(a)
+		primera = false
+	print("caja del modelo: pos %s tam %s" % [str(caja.position), str(caja.size)])
 
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
@@ -53,7 +76,7 @@ func _ready() -> void:
 	_vp.add_child(sol)
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 2.198
+	cam.size = maxf(maxf(caja.size.x, caja.size.z), 0.1) * 1.15
 	_vp.add_child(cam)
 	cam.look_at_from_position(Vector3(0.0, 8.0, 0.0), Vector3.ZERO, Vector3.FORWARD)
 	cam.current = true
