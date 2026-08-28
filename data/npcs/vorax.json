@@ -41,5 +41,8 @@
     "sharpness": 3.5
   },
   "normal": "res://assets/npcs/vorax-base-normal.png",
-  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
+  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset.",
+  "modelo": "res://assets/npcs/vorax.glb",
+  "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre. Esqueleto de GUSANO: raiz + seis segmentos de cola y NADA mas — sin alas ni cuernos. El perfil de la malla no da un solo salto lateral (el ancho pasa de 0,41 en la proa a 0,22 en la popa sin escalon), asi que no hay ala que doblar; forzar los diales para montarla igual habria dejado huesos sin un vertice que pese en ellos.",
+  "_horneado": "Media y baja salen del MISMO modelo (tools/hornear-sprite.py), no de un render aparte. Si algo no cuadra entre calidades se mueve el PNG, nunca el GLB: el PNG se rehornea y un ajuste hecho del otro lado se pierde solo."
 }

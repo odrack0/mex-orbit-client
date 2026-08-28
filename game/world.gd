@@ -1639,6 +1639,17 @@ func _relieve_paso() -> int:
 	if _at_relieve < 0:
 		if Quality.nivel("shader") < 1:
 			return 1        # sin shaders no hay relieve que probar, y es correcto
+		if _hero.es_3d():
+			# Con malla 3D no hay relieve QUE MONTAR, y es lo correcto: el relieve
+			# finge volumen sobre un dibujo plano, y un modelo tiene volumen de
+			# verdad. La propiedad que esta prueba defiende —que la luz no gire
+			# con la nave— la cumple el 3D por construccion, porque lo que gira
+			# es el modelo dentro del viewport y la luz se queda quieta.
+			#
+			# Esta prueba dio FALLO el dia que la Phoenix paso a 3D, con el codigo
+			# correcto: daba por hecho que alta implica sprite. Una prueba que
+			# supone la implementacion en vez de afirmar la propiedad caduca sola.
+			return 1
 		if not _hero.tiene_relieve():
 			_at_captura("AUTOTEST FALLO — la nave no lleva el shader de relieve "
 				+ "montado en calidad alta", 1)

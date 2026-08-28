@@ -1004,6 +1004,11 @@ func forzar_giro(radianes: float) -> void:
 		_relieve.set_shader_parameter("giro", radianes)
 
 
+## Si esta entidad se dibuja con MALLA 3D en vez de sprite.
+func es_3d() -> bool:
+	return _vp != null
+
+
 ## Si esta nave lleva el shader de relieve montado. La prueba lo exige en vez de
 ## saltarselo: "no hay relieve" y "el relieve funciona" no pueden dar el mismo OK.
 func tiene_relieve() -> bool:
