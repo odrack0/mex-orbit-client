@@ -1853,13 +1853,26 @@ func _montar_estacion_3d(d: Dictionary) -> bool:
 	# y en oblicuo su altura ocupa pantalla.
 	var ext := AssetDefs.extension_vista(sonda, EST_ELEVACION) * EST_MARGEN
 	sonda.queue_free()
-	var m := AssetDefs.mundo_3d(escena, lado, ext, EST_ELEVACION,
-		Quality.nivel("emissive") >= 1)
+	# El glow de la estacion se declara en su ficha: `"glow": false` lo apaga y un
+	# diccionario ajusta sus tres numeros. Con los del bicho, su reactor —que es
+	# una zona emisiva GRANDE, no una veta fina— sale reventado en un halo que se
+	# come la estructura.
+	var g = d.get("glow", {})
+	var con_glow: bool = Quality.nivel("emissive") >= 1 and g != false
+	var m := AssetDefs.mundo_3d(escena, lado, ext, EST_ELEVACION, con_glow,
+		g if g is Dictionary else {})
 	_estacion_vp = m["vp"]
 	_estacion_modelo = m["modelo"]
 	add_child(_estacion_vp)
 	_estacion.texture = _estacion_vp.get_texture()
 	_estacion_mats = AssetDefs.materiales_3d(_estacion_modelo)
+	# Ganancia de la emision de la estacion. 1 deja la del modelo; 0 la apaga.
+	# Es un dial y no una constante porque lo que enciende un reactor grande no es
+	# lo que enciende la veta de un bicho.
+	var ganancia := float(d.get("emision", 1.0))
+	if not is_equal_approx(ganancia, 1.0):
+		for mat in _estacion_mats:
+			mat.emission_energy_multiplier = ganancia
 	return true
 
 

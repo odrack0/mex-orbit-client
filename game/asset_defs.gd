@@ -126,7 +126,7 @@ static func color(hex: Variant, defecto := Color.WHITE) -> Color:
 ## `lado` es el tamanio del destino en pixeles y `extension` el lado mayor del
 ## modelo en unidades del mundo 3D. `elevacion` en grados: 90 es cenital.
 static func mundo_3d(escena: PackedScene, lado: int, extension: float,
-		elevacion: float, con_glow: bool) -> Dictionary:
+		elevacion: float, con_glow: bool, glow: Dictionary = {}) -> Dictionary:
 	var vp := SubViewport.new()
 	vp.size = Vector2i(lado, lado)
 	# Fondo transparente: el asset se compone sobre el mundo 2D, no lo tapa.
@@ -150,11 +150,16 @@ static func mundo_3d(escena: PackedScene, lado: int, extension: float,
 	ent.ambient_light_energy = 0.28   # la misma fuerza de fondo que usa el horneado
 	# GLOW: sin el, la emision se RECORTA a 1.0 y lo encendido se lee como
 	# "claro" en vez de como "encendido".
+	# Los valores por defecto se calibraron con las VETAS de un bicho: lineas
+	# finas donde el problema era que no se leyeran como encendidas. Un asset con
+	# una zona emisiva grande —el reactor de la estacion— con esos mismos numeros
+	# revienta en un halo que se sale de la geometria. Por eso son ajustables por
+	# asset y no una constante.
 	if con_glow:
 		ent.glow_enabled = true
-		ent.glow_intensity = 1.0
-		ent.glow_bloom = 0.25
-		ent.glow_hdr_threshold = 0.9
+		ent.glow_intensity = float(glow.get("intensity", 1.0))
+		ent.glow_bloom = float(glow.get("bloom", 0.25))
+		ent.glow_hdr_threshold = float(glow.get("threshold", 0.9))
 	var we := WorldEnvironment.new()
 	we.environment = ent
 	vp.add_child(we)
