@@ -1,7 +1,8 @@
 {
   "_comentario": "Phoenix: la nave inicial es una CAPSULA de rescate, no un caza. Cuatro toberas en la popa y dos tubos laser a los costados. Coordenadas de anclaje en el espacio de la TEXTURA (origen en su centro, eje Y hacia la popa), independientes de la escala del export.",
   "code": "phoenix",
-  "texture": "res://assets/ships/phoenix-v1.png",
+  "emissive": "res://assets/ships/phoenix-emissive.png",
+  "texture": "res://assets/ships/phoenix-base.png",
   "_modelo": "Malla 3D para calidad ALTA. Las toberas y las bocas de canion NO salen de `engines`/`cannons`: esos estan en pixeles de la textura 2D vieja y en 3D el sprite no gira. Salen de los marcadores tobera_*/canon_* del GLB, en unidades del modelo, colgados de un nodo que si gira con el rumbo.",
   "modelo": "res://assets/ships/phoenix.glb",
   "screen_size": 141,
@@ -48,7 +49,7 @@
   "_pendiente": "La v2 es un render de arcilla: gris neutro, SIN un solo acento de faccion. El cian solo entra por la estela de motores. Falta decidir si el casco lleva acento cian propio.",
   "_variantes": "DOS renders de la misma nave, para poder compararlos en juego. Cambiar de uno a otro es copiar `texture`, `engines` y `cannons` del bloque _v1 o _v2 a los campos de arriba: los anclajes NO son intercambiables, cada render tiene los suyos y mezclarlos pone la estela y los laseres donde no hay tobera ni canon. Cuando se decida, se borra el perdedor.",
   "_v1": {
-    "texture": "res://assets/ships/phoenix-v1.png",
+    "texture": "res://assets/ships/phoenix-base.png",
     "engines": [
       {
         "x": -58,
@@ -82,7 +83,7 @@
       }
     ],
     "_nota": "Render fotorrealista con suciedad y rotulos. 31,1 de contraste a 141 px. Cuatro toberas.",
-    "normal": "res://assets/ships/phoenix-v1-normal.png"
+    "normal": "res://assets/ships/phoenix-base-normal.png"
   },
   "_v2": {
     "texture": "res://assets/ships/phoenix-v2.png",
@@ -116,6 +117,6 @@
     "_nota": "Render limpio. 43,6 de contraste a 141 px; a 35 px se sigue leyendo como nave. Tres toberas con boca visible.",
     "normal": "res://assets/ships/phoenix-v2-normal.png"
   },
-  "normal": "res://assets/ships/phoenix-v1-normal.png",
+  "normal": "res://assets/ships/phoenix-base-normal.png",
   "_relieve": "Mapa de normales derivado del propio render (tools/gen-normal.py). No da volumen —la silueta sigue plana— pero al virar el reflejo BARRE el casco, que es lo que distingue un objeto de una calcomania. La direccion de la luz NO esta aqui: es una sola para todo el mundo y vive en AssetDefs.LUZ_MUNDO_GRADOS."
 }

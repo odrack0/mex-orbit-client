@@ -30,7 +30,7 @@ func _ready() -> void:
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	add_child(_vp)
-	var modelo := (load("res://assets/npcs/%s.glb" % _bicho) as PackedScene).instantiate()
+	var modelo := (load(_base() + ".glb") as PackedScene).instantiate()
 	_vp.add_child(modelo)
 	for m in modelo.find_children("*", "MeshInstance3D", true, false):
 		var malla: MeshInstance3D = m
@@ -75,8 +75,8 @@ func _stats(img: Image, etiqueta: String) -> void:
 		% [etiqueta, suma / maxi(n, 1), 100.0 * fuertes / maxi(n, 1), n])
 
 func _medir() -> void:
-	var base := (load("res://assets/npcs/%s-base.png" % _bicho) as Texture2D).get_image()
-	var emi := (load("res://assets/npcs/%s-emissive.png" % _bicho) as Texture2D).get_image()
+	var base := (load(_base() + "-base.png") as Texture2D).get_image()
+	var emi := (load(_base() + "-emissive.png") as Texture2D).get_image()
 	base.decompress(); emi.decompress()
 	var media := Image.create_empty(base.get_width(), base.get_height(), false, Image.FORMAT_RGBAF)
 	for y in base.get_height():
@@ -113,3 +113,9 @@ func _medir() -> void:
 		img.save_png("C:/Tools/em_glow_%02d.png" % int(g * 10))
 		_stats(img, "GLOW x%.1f" % g)
 	get_tree().quit()
+
+
+## Ruta base del asset. Con barra, es dentro de assets/ (naves, props); sin ella,
+## npcs, que es el caso comun.
+func _base() -> String:
+	return "res://assets/%s" % _bicho if "/" in _bicho else "res://assets/npcs/%s" % _bicho
