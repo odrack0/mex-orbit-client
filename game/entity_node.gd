@@ -85,6 +85,12 @@ var _huesos_3d := {}             # nombre -> {i, rest}, o vacio si no hay esquel
 var _cuernos_min := 0.0          # rango de las pinzas de la proa, en grados
 var _cuernos_max := 0.0          # (iguales = no se animan)
 var _cuernos_eje := 1
+## Nodo 2D que SI gira con el rumbo. En 2D las llamas y las bocas de canion
+## cuelgan del sprite y giran con el; en 3D el sprite ya no gira —gira el modelo
+## dentro del viewport— asi que se quedarian clavadas en pantalla mientras la nave
+## da la vuelta. Este nodo hace ese papel, y con eso el resto del codigo de llamas
+## y disparos sigue siendo el mismo.
+var _anclas: Node2D
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -157,9 +163,14 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_def = d
 	_construir_visual()
 
-	# bocas de caÃ±Ã³n del JSON (espacio de la textura; se alternan al disparar)
-	for canon in d.get("cannons", []):
-		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
+	# Bocas de canion del JSON, en espacio de la TEXTURA (se alternan al disparar).
+	# Solo si el camino 3D no las ha puesto ya: ahi salen medidas del modelo, que
+	# es la fuente, y las del JSON estan en pixeles del PNG viejo —otra escala—.
+	# Este bucle corre DESPUES de `_construir_visual`, asi que sin la condicion se
+	# sumarian a las buenas en vez de sustituirlas.
+	if _canones.is_empty():
+		for canon in d.get("cannons", []):
+			_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 	_construir_etiquetas(d, heroe, spawn)
 
 
@@ -352,6 +363,8 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_cuernos_eje = int(d.get("cuernos_eje", 1))
 
 
+	_montar_anclajes(d)
+
 	_sprite.texture = _vp.get_texture()
 	# El viewport ya se rindio al tamanio de pantalla que pide el JSON, asi que
 	# aqui no hay que reescalar por `screen_size` como con un PNG: basta deshacer
@@ -359,6 +372,58 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_sprite.scale = Vector2.ONE / float(VIEWPORT_FACTOR)
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	return true
+
+
+## Lee los marcadores `tobera_*` y `canon_*` del modelo y monta con ellos las
+## llamas de motor y las bocas de canion. Vienen en unidades del MODELO, que es lo
+## unico que sobrevive a un cambio de encuadre: los anclajes del JSON estan en
+## pixeles de la textura 2D vieja, que tiene otra escala y no valen aqui.
+func _montar_anclajes(d: Dictionary) -> void:
+	_anclas = Node2D.new()
+	add_child(_anclas)
+
+	# Pixeles de pantalla por unidad de mundo. Sale del mismo contrato que el
+	# encuadre: el lado mayor del modelo ocupa `screen_size`.
+	var escala := float(d.get("screen_size", 141)) / _extension(_modelo)
+
+	var toberas: Array[Vector2] = []
+	var canones: Array[Vector2] = []
+	for n in _modelo.find_children("*", "Node3D", true, false):
+		var nombre := str(n.name)
+		if not (nombre.begins_with("tobera") or nombre.begins_with("canon")):
+			continue
+		var p := _posicion_en_modelo(n as Node3D)
+		# El plano de la camara es cenital: la X y la Z del modelo son la X y la Y
+		# de pantalla. La Y del modelo es la altura y aqui no se ve.
+		var punto := Vector2(p.x, p.z) * escala
+		if nombre.begins_with("tobera"):
+			toberas.append(punto)
+		else:
+			canones.append(punto)
+
+	if not canones.is_empty():
+		# Se ordenan por X para que el alternado izquierda-derecha sea estable: el
+		# orden en que vengan los nodos del GLB no es de fiar.
+		canones.sort_custom(func(a, b): return a.x < b.x)
+		_canones = canones
+
+	var trail: Dictionary = d.get("engine_trail", {})
+	if Quality.nivel("engine") >= 1:
+		for punto in toberas:
+			_flames.append(_crear_llama_en(punto, trail, _anclas))
+
+
+## Posicion de un nodo dentro del modelo, sumando la cadena de padres A MANO:
+## esto corre en `setup()`, antes de que la entidad entre en el arbol, y ahi
+## `global_position` no esta evaluada.
+func _posicion_en_modelo(n: Node3D) -> Vector3:
+	var t := Vector3.ZERO
+	var actual: Node = n
+	while actual != null and actual != _modelo:
+		if actual is Node3D:
+			t += (actual as Node3D).position
+		actual = actual.get_parent()
+	return t
 
 
 ## Lado mayor del modelo en el plano de la camara, en unidades de mundo. Se suman
@@ -439,11 +504,12 @@ func _poner_hueso(nombre: String, eje: int, ang: float) -> void:
 ## Rehace la parte visual con la calidad actual. Lo demas â€”nombre, barras,
 ## caÃ±ones, rumboâ€” no depende del nivel y se queda como esta.
 func reconstruir() -> void:
-	for n in [_sprite, _vp]:
+	for n in [_sprite, _vp, _anclas]:
 		if n != null:
 			n.queue_free()
 	_sprite = null
 	_vp = null
+	_anclas = null
 	_modelo = null
 	_huesos_3d.clear()
 	_mats_3d.clear()
@@ -598,16 +664,23 @@ func _crear_barra(y: float, color: Color, pct: float) -> ColorRect:
 ## La llama de una tobera: pluma anclada a la nave que rota con ella y crece
 ## con el empuje. Su boquilla queda EN la tobera y se afila hacia la popa.
 func _crear_llama(motor: Dictionary, trail: Dictionary) -> Sprite2D:
+	return _crear_llama_en(Vector2(float(motor.get("x", 0)), float(motor.get("y", 0))),
+		trail, _sprite)
+
+
+## La misma llama, pero en un punto ya calculado y colgando de quien se le diga.
+## En 2D cuelga del sprite (que gira) y en 3D de `_anclas` (que gira en su lugar).
+func _crear_llama_en(punto: Vector2, trail: Dictionary, padre: Node2D) -> Sprite2D:
 	var llama := Sprite2D.new()
 	llama.texture = load("res://assets/fx/engine-flame.png")
-	llama.position = Vector2(float(motor.get("x", 0)), float(motor.get("y", 0)))
+	llama.position = punto
 	# el arte de la llama apunta hacia ABAJO (+Y), que es la popa: sin rotar.
 	# el pivote va en la boquilla para que crezca hacia atras, no hacia los lados
 	llama.offset = Vector2(0, llama.texture.get_height() * 0.5)
 	llama.modulate = AssetDefs.color(trail.get("color", "00E5FF"))
 	llama.material = _material_add()
 	llama.z_index = -1                   # detras del casco
-	_sprite.add_child(llama)
+	padre.add_child(llama)
 	return llama
 
 
@@ -878,6 +951,8 @@ func _set_visual_angle(grados: float) -> void:
 	# Con malla 3D el que gira es el MODELO, no el sprite. Rotar el sprite giraria
 	# la imagen ya rendida —y con ella la luz, que es justo lo que el 3D viene a
 	# arreglar: la nave gira y el reflejo se queda donde estaba.
+	if _anclas != null:
+		_anclas.rotation = deg_to_rad(_visual_angle)
 	if _modelo != null:
 		# Solo el signo, SIN cuarto de vuelta. Medido con repro_orientacion.tscn: a
 		# giro 0 el modelo ya mira ARRIBA en pantalla, que es la misma proa que el
@@ -945,7 +1020,8 @@ func siguiente_canon() -> Vector2:
 		return position
 	var local := _canones[_canon_actual]
 	_canon_actual = (_canon_actual + 1) % _canones.size()
-	return _sprite.to_global(local)
+	# En 3D el sprite no gira: quien lleva la rotacion es `_anclas`.
+	return (_anclas if _anclas != null else _sprite).to_global(local)
 
 
 ## Chispazo en el casco: punto aleatorio del disco de click, suelto en el mundo.

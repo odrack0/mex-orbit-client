@@ -2,6 +2,8 @@
   "_comentario": "Phoenix: la nave inicial es una CAPSULA de rescate, no un caza. Cuatro toberas en la popa y dos tubos laser a los costados. Coordenadas de anclaje en el espacio de la TEXTURA (origen en su centro, eje Y hacia la popa), independientes de la escala del export.",
   "code": "phoenix",
   "texture": "res://assets/ships/phoenix-v1.png",
+  "_modelo": "Malla 3D para calidad ALTA. Las toberas y las bocas de canion NO salen de `engines`/`cannons`: esos estan en pixeles de la textura 2D vieja y en 3D el sprite no gira. Salen de los marcadores tobera_*/canon_* del GLB, en unidades del modelo, colgados de un nodo que si gira con el rumbo.",
+  "modelo": "res://assets/ships/phoenix.glb",
   "screen_size": 141,
   "click_radius": 48,
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
