@@ -93,6 +93,11 @@ const COLA_CICLO := 1.50      # reloj propio, como en el sprite
 const COLA_GRADOS := 9.0
 const COLA_DESFASE := 0.22    # por segmento, para que la onda recorra la cola
 const EJE_COLA := 2
+## Los cuernos van al MISMO reloj que las alas: se abren y cierran acompasados.
+## El eje se midio con repro_eje_hueso.tscn —el 1 abre las pinzas de lado, el 0 y
+## el 2 las hunden o las tuercen— y no se dedujo de la permutacion de ejes.
+const CUERNOS_GRADOS := 14.0
+const EJE_CUERNOS := 1
 var _thrust := 0.0
 
 # bocas de caÃ±Ã³n (espacio de la textura) y a cuÃ¡l toca disparar
@@ -390,7 +395,8 @@ func _mapear_huesos(nodo: Node) -> Dictionary:
 		return {}
 	var sk: Skeleton3D = esqs[0]
 	var mapa := {"sk": sk}
-	for nombre in ["ala_izq", "ala_der", "cola_1", "cola_2", "cola_3"]:
+	for nombre in ["ala_izq", "ala_der", "cuerno_izq", "cuerno_der",
+			"cola_1", "cola_2", "cola_3"]:
 		var idx := sk.find_bone(nombre)
 		if idx >= 0:
 			# La rotacion de REPOSO se guarda porque `set_bone_pose_rotation` fija
@@ -661,6 +667,13 @@ func _process(delta: float) -> void:
 		var bat := deg_to_rad(ALAS_GRADOS) * sin(TAU * t)
 		_poner_hueso("ala_izq", EJE_ALAS, -bat)
 		_poner_hueso("ala_der", EJE_ALAS, bat)
+
+		# Las pinzas de la proa, del mismo `t` que las alas. Menos grados que ellas
+		# a proposito: la zona son 0,186 unidades de un modelo de 1,911, unos 17 px
+		# en pantalla, y lo que la hace legible es que cambia la SILUETA, no el
+		# recorrido. Pasarse la convierte en un aspaviento.
+		_poner_hueso("cuerno_izq", EJE_CUERNOS, -deg_to_rad(CUERNOS_GRADOS) * sin(TAU * t))
+		_poner_hueso("cuerno_der", EJE_CUERNOS, deg_to_rad(CUERNOS_GRADOS) * sin(TAU * t))
 
 		var tc := reloj / COLA_CICLO + fase
 		for k in 3:

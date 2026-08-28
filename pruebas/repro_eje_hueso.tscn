@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://pruebas/repro_eje_hueso.gd" id="1"]
+
+[node name="Eje" type="Node2D"]
+script = ExtResource("1")
