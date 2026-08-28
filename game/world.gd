@@ -1252,6 +1252,8 @@ var _at_relieve_resto := 0.0
 var _at_relieve_previo := 0.0
 var _at_giro_a := 0.0
 var _at_primer_frame := false
+## Ejemplar fabricado para el retrato cuando la especie no anda cerca.
+var _at_maniqui: EntityNode = null
 var _at_cambio_calidad := false
 var _at_calidad_previa := "alta"
 var _at_caza_desde := 0.0
@@ -1299,12 +1301,22 @@ func _autotest(delta: float) -> void:
 				# el mapa el vecino podia ser un Skarnox de 47 s de TTK y el
 				# autotest se comia su propio limite de tiempo peleando
 				var cercano := _mejor_presa()
-				if cercano != null:
-					_at_target = cercano.entity_id
-					_at_caza_desde = _autotest_t
-					_at_caza_dist = _hero.position.distance_to(cercano.position)
-					_volar_a(cercano.position + Vector2(120, 0))
-					_at_fase = 1
+				if cercano == null:
+					# NO SE VE EL MAPA ENTERO.
+					#
+					# Con relevancia por rango el bot solo conoce lo que tiene a
+					# 2000 unidades. Quedarse quieto esperando presa era una
+					# moneda al aire: con 15 Vex repartidos en 20800x12800, la
+					# probabilidad de tener uno a la vista al entrar es ~51%.
+					# Patrullar es lo que haria un jugador, y de paso ejercita el
+					# spawn/despawn por rango — que es justo lo que hay que probar.
+					_at_patrullar()
+					return
+				_at_target = cercano.entity_id
+				_at_caza_desde = _autotest_t
+				_at_caza_dist = _hero.position.distance_to(cercano.position)
+				_volar_a(cercano.position + Vector2(120, 0))
+				_at_fase = 1
 		1:
 			var vex: EntityNode = _entidades.get(_at_target)
 			if vex == null:
@@ -1863,6 +1875,30 @@ const MIN_EFECTO := 0.02
 ## la nave menos la componente de la presa en la linea que las une. Si esa
 ## componente iguala o supera a la nave, la presa es inalcanzable y se descarta
 ## en vez de perseguirla.
+## Itinerario de patrulla: un recorrido FIJO por el sector, no puntos al azar.
+## Un fallo del gate tiene que poder repetirse, y con destinos sorteados cada
+## corrida barre un mapa distinto. Volando a 320 con 2000 de rango, cada tramo
+## peina un pasillo de 4000 de ancho: con quince Vex sueltos, el primero suele
+## aparecer antes de terminar el primer tramo.
+const AT_PATRULLA: Array[Vector2] = [
+	Vector2(4000, 3000), Vector2(16000, 3000), Vector2(16000, 9500),
+	Vector2(4000, 9500), Vector2(10400, 6400),
+]
+
+var _at_patrulla_i := -1
+
+
+func _at_patrullar() -> void:
+	if _at_patrulla_i >= 0 and _hero.position.distance_to(_at_destino_patrulla()) > 400.0:
+		return                            # sigue en camino al waypoint actual
+	_at_patrulla_i = (_at_patrulla_i + 1) % AT_PATRULLA.size()
+	_volar_a(_at_destino_patrulla())
+
+
+func _at_destino_patrulla() -> Vector2:
+	return AT_PATRULLA[_at_patrulla_i].clamp(Vector2.ZERO, _limites)
+
+
 func _mejor_presa() -> EntityNode:
 	var elegida: EntityNode = null
 	var mejor := INF
@@ -2042,8 +2078,27 @@ func _autotest_bestiario() -> void:
 	var especie: String = AT_BESTIARIO[_at_bicho]
 	var bicho := _primero_de_especie(especie)
 	if bicho == null:
-		_at_captura("FALLO — no hay ningun %s en el mapa" % especie, 1)
-		return
+		# EL BESTIARIO YA NO DEPENDE DE LO QUE HAYA EN EL MAPA.
+		#
+		# Es una prueba de ARTE: lo que demuestra es que el sprite, el shader y
+		# las etiquetas de cada especie se montan bien. Que hubiera un ejemplar
+		# de las nueve a la vista era andamio del 1-1 de pruebas, y se cayo por
+		# dos sitios a la vez: la relevancia por rango solo deja ver ~2000
+		# unidades, y el diseno del sector manda 3-4 especies por mapa (a veces
+		# una). Retratar las nueve NUNCA iba a poder salir del mundo.
+		#
+		# Asi que se fabrica el ejemplar aqui, con el mismo `EntityNode` y el
+		# mismo JSON de assets que usa el juego: lo que se retrata es
+		# exactamente lo que se veria volando.
+		#
+		# UNO por especie, no uno por fotograma. Esta rama corre en CADA frame
+		# de los ~2 s que dura el retrato: crear aqui sin comprobar dejaba un
+		# centenar de maniquies apilados en el mismo punto, y en la foto se leian
+		# las etiquetas de la especie anterior por debajo de la nueva.
+		if _at_maniqui == null or _at_maniqui.type_id != especie:
+			_soltar_maniqui()
+			_at_maniqui = _maniqui_de_especie(especie)
+		bicho = _at_maniqui
 	_camara.position = bicho.position
 	if _at_camara_t < 0.0:
 		_at_camara_t = _autotest_t
@@ -2064,6 +2119,7 @@ func _autotest_bestiario() -> void:
 	else:
 		_retrato(especie, "-b")
 	# siguiente bicho
+	_soltar_maniqui()
 	_at_camara_t = -1.0
 	_at_primer_frame = false
 	_at_bicho += 1
@@ -2074,6 +2130,37 @@ func _retrato(especie: String, sufijo: String) -> void:
 	if Session.calidad_forzada != "":
 		sufijo = "-" + Session.calidad_forzada + sufijo
 	img.save_png(Session.autotest_screenshot.replace(".png", "-%s%s.png" % [especie, sufijo]))
+
+
+## Suelta el ejemplar fabricado, si lo hubo. No vive en `_entidades`: no es del
+## mundo, es del retrato.
+func _soltar_maniqui() -> void:
+	if _at_maniqui != null:
+		_at_maniqui.queue_free()
+		_at_maniqui = null
+
+
+## Un ejemplar de laboratorio para el retrato, cuando la especie no anda cerca.
+## Se arma con un `EntitySpawn` de verdad para que pase por el MISMO `setup` que
+## cualquier bicho del mundo: si el retrato saliera de un camino distinto, no
+## probaria lo que se cree que prueba.
+func _maniqui_de_especie(code: String) -> EntityNode:
+	var sp := MexProtocol.EntitySpawn.new()
+	sp.entity_id = 0
+	sp.kind = MexProtocol.EntityKind.NPC
+	sp.type_id = code
+	sp.name = code.capitalize()
+	sp.faction = 0
+	# lejos del heroe y de la estacion, para que nada se cuele en el encuadre
+	sp.x = int(_limites.x * 0.5)
+	sp.y = int(_limites.y * 0.25)
+	sp.hp_pct = 1.0
+	sp.shield_pct = 1.0
+	sp.speed = 0
+	var nodo := EntityNode.new()
+	nodo.setup(sp, false)
+	add_child(nodo)
+	return nodo
 
 
 ## Primer NPC de una especie, para los retratos de QA del autotest.

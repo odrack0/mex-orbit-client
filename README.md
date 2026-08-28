@@ -59,6 +59,23 @@ tres minutos, y para calibrar un shader eso es un peaje: se paga una y otra vez 
 `-Bestiario` solo pone la cámara sobre cada especie y sale — **veinte segundos**. Comparten el mismo
 código de retrato (`_autotest_bestiario`), así que no hay dos versiones que mantener.
 
+### El bot ya no ve el sector entero
+
+Desde que el game server aplica **relevancia por rango**, el cliente solo conoce lo que tiene a
+2000 unidades. Eso rompió dos supuestos del autotest, y los dos se arreglaron sin tocar la
+relevancia:
+
+- **La caza empieza patrullando.** Con 15 Vex repartidos en 20800×12800, la probabilidad de tener
+  uno a la vista al entrar es ~51%: quedarse quieto esperando presa era una moneda al aire. Ahora
+  la fase 0 recorre un itinerario **fijo** por el sector (`AT_PATRULLA`) hasta que aparece una.
+  Fijo y no aleatorio a propósito: un fallo del gate tiene que poder repetirse, y con destinos
+  sorteados cada corrida barre un mapa distinto.
+- **El bestiario fabrica su ejemplar.** Retratar las nueve especies nunca iba a poder salir del
+  mundo: la relevancia solo deja ver unas pocas, y el diseño del sector manda **3-4 especies por
+  mapa** (a veces una). Si la especie no anda cerca, `_maniqui_de_especie` monta un `EntityNode`
+  con el mismo `setup` y el mismo JSON de assets que usa el juego — lo que se retrata es
+  exactamente lo que se vería volando, pero ya no depende de dónde cayó el dado.
+
 ### La caza: elegir presa por distancia era el error
 
 La nave vuela a 320 y un Vex vagabundea a 270. Uno que **huye** cierra a 50 unidades por segundo; otro
