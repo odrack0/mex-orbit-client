@@ -276,22 +276,3 @@ static func materiales_3d(nodo: Node) -> Array[BaseMaterial3D]:
 			malla.set_surface_override_material(0, copia)
 			salida.append(copia)
 	return salida
-
-
-## Cuelga un resplandor de CONTORNO (fresnel) como segunda pasada de cada
-## material del modelo. Devuelve los materiales del contorno, para poder pulsarlos.
-##
-## `next_pass` y no un material nuevo: el original conserva sus texturas y esto
-## solo aniade una pasada de la misma geometria, dentro de un viewport que ya se
-## estaba dibujando. Ni otro destino de render ni un desenfoque en 2D.
-static func contorno_3d(mats: Array[BaseMaterial3D], color: Color,
-		dureza: float) -> Array[ShaderMaterial]:
-	var salida: Array[ShaderMaterial] = []
-	for mat in mats:
-		var sm := ShaderMaterial.new()
-		sm.shader = load("res://game/shaders/contorno_3d.gdshader")
-		sm.set_shader_parameter("color", color)
-		sm.set_shader_parameter("dureza", dureza)
-		mat.next_pass = sm
-		salida.append(sm)
-	return salida
