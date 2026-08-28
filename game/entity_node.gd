@@ -91,6 +91,7 @@ var _cuernos_eje := 1
 ## da la vuelta. Este nodo hace ese papel, y con eso el resto del codigo de llamas
 ## y disparos sigue siendo el mismo.
 var _anclas: Node2D
+var _ancho_tobera := 0.0         # ancho de la boca en pixeles, del marcador
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -398,6 +399,9 @@ func _montar_anclajes(d: Dictionary) -> void:
 		var punto := Vector2(p.x, p.z) * escala
 		if nombre.begins_with("tobera"):
 			toberas.append(punto)
+			# El ancho de la boca viaja en la ESCALA del marcador (`marcar-anclajes`
+			# lo mide y lo guarda ahi, que es un sitio estandar de glTF).
+			_ancho_tobera = maxf(_ancho_tobera, (n as Node3D).scale.x * escala)
 		else:
 			canones.append(punto)
 
@@ -408,9 +412,34 @@ func _montar_anclajes(d: Dictionary) -> void:
 		_canones = canones
 
 	var trail: Dictionary = d.get("engine_trail", {})
-	if Quality.nivel("engine") >= 1:
+	if Quality.nivel("engine") >= 1 and not toberas.is_empty():
+		toberas.sort_custom(func(a, b): return a.x < b.x)
+		# CADA LLAMA MIDE LO QUE LE TOCA. `_anclas` no lleva escala —sus hijos van
+		# en pixeles de pantalla ya calculados— asi que la llama se escala sola, y
+		# el arte viene a 64 px de ancho, pensado para una nave dibujada a 512.
+		# Sin escalar salia 3,6 veces mas grande de la cuenta y las cuatro se
+		# fundian de dos en dos: se veian DOS motores en una nave con cuatro bocas.
+		# Y con la escala de 2D (0,275 -> 17,6 px) tampoco llegaban: la separacion
+		# entre toberas del Phoenix es de 10 px y seguirian solapando.
+		# La llama mide lo que mide SU TOBERA, no lo que hay entre toberas. Con la
+		# separacion salian mas gruesas que las bocas de las que salen: en el
+		# Phoenix, 12,8 px de llama para una boca de 8,7. El ancho viene medido en
+		# el marcador; si falta, se cae a la separacion.
+		var ancho_llama := 64.0
+		var tex_llama := load("res://assets/fx/engine-flame.png") as Texture2D
+		if tex_llama != null:
+			ancho_llama = maxf(1.0, float(tex_llama.get_width()))
+		var tope := float(d.get("screen_size", 141)) / 512.0
+		var ancho := _ancho_tobera
+		if ancho <= 0.0:
+			ancho = tope * ancho_llama
+			if toberas.size() > 1:
+				ancho = (toberas[-1].x - toberas[0].x) / float(toberas.size() - 1)
+		var escala_llama: float = minf(ancho / ancho_llama, tope)
 		for punto in toberas:
-			_flames.append(_crear_llama_en(punto, trail, _anclas))
+			var llama := _crear_llama_en(punto, trail, _anclas)
+			llama.scale = Vector2.ONE * escala_llama
+			_flames.append(llama)
 
 
 ## Posicion de un nodo dentro del modelo, sumando la cadena de padres A MANO:

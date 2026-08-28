@@ -14,7 +14,9 @@ var _esperas := 0
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--modelo="):
-			_ruta = "res://assets/npcs/%s" % arg.trim_prefix("--modelo=")
+			var m := arg.trim_prefix("--modelo=")
+			# con barra, la ruta es dentro de assets/ (naves, props...); sin ella, npcs
+			_ruta = "res://assets/%s" % m if "/" in m else "res://assets/npcs/%s" % m
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(410, 410)
 	_vp.transparent_bg = true
