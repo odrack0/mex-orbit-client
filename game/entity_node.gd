@@ -91,11 +91,6 @@ var _cuernos_eje := 1
 ## da la vuelta. Este nodo hace ese papel, y con eso el resto del codigo de llamas
 ## y disparos sigue siendo el mismo.
 var _anclas: Node2D
-var _ancho_tobera := 0.0         # ancho de la boca en pixeles, del marcador
-## Escala BASE de la llama, que el pulso de empuje MULTIPLICA en vez de sustituir.
-## En 2D vale 1 porque el factor lo pone el sprite padre; en 3D `_anclas` no tiene
-## escala, asi que lo pone aqui.
-var _escala_llama := Vector2.ONE
 ## Ancho maximo del ciclo de empuje (`0.55 + 0.15 * _thrust` a tope de gas). La
 ## base se calcula contra el para que la llama mida su tobera cuando va a fondo.
 const LLAMA_ANCHO_MAX := 0.70
@@ -176,14 +171,7 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_def = d
 	_construir_visual()
 
-	# Bocas de canion del JSON, en espacio de la TEXTURA (se alternan al disparar).
-	# Solo si el camino 3D no las ha puesto ya: ahi salen medidas del modelo, que
-	# es la fuente, y las del JSON estan en pixeles del PNG viejo —otra escala—.
-	# Este bucle corre DESPUES de `_construir_visual`, asi que sin la condicion se
-	# sumarian a las buenas en vez de sustituirlas.
-	if _canones.is_empty():
-		for canon in d.get("cannons", []):
-			_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
+	_montar_canones_json()
 	_construir_etiquetas(d, heroe, spawn)
 
 
@@ -399,6 +387,7 @@ func _montar_anclajes(d: Dictionary) -> void:
 	# encuadre: el lado mayor del modelo ocupa `screen_size`.
 	var escala := float(d.get("screen_size", 141)) / _extension(_modelo)
 
+	var ancho_boca := 0.0
 	var toberas: Array[Vector2] = []
 	var canones: Array[Vector2] = []
 	for n in _modelo.find_children("*", "Node3D", true, false):
@@ -413,7 +402,7 @@ func _montar_anclajes(d: Dictionary) -> void:
 			toberas.append(punto)
 			# El ancho de la boca viaja en la ESCALA del marcador (`marcar-anclajes`
 			# lo mide y lo guarda ahi, que es un sitio estandar de glTF).
-			_ancho_tobera = maxf(_ancho_tobera, (n as Node3D).scale.x * escala)
+			ancho_boca = maxf(ancho_boca, (n as Node3D).scale.x * escala)
 		else:
 			canones.append(punto)
 
@@ -442,7 +431,7 @@ func _montar_anclajes(d: Dictionary) -> void:
 		if tex_llama != null:
 			ancho_llama = maxf(1.0, float(tex_llama.get_width()))
 		var tope := float(d.get("screen_size", 141)) / 512.0
-		var ancho := _ancho_tobera
+		var ancho := ancho_boca
 		if ancho <= 0.0:
 			ancho = tope * ancho_llama
 			if toberas.size() > 1:
@@ -452,12 +441,12 @@ func _montar_anclajes(d: Dictionary) -> void:
 		# fotograma con el ciclo de empuje. Fijarla aqui no servia de nada —la
 		# escala buena duraba un frame— y por eso las llamas seguian saliendo de
 		# 35-45 px por mucho que se midiera la boca.
-		_escala_llama = Vector2.ONE * (escala_llama / (LLAMA_ANCHO_MAX * LLAMA_RELLENO))
+		var base := Vector2.ONE * (escala_llama / (LLAMA_ANCHO_MAX * LLAMA_RELLENO))
 		for punto in toberas:
 			# Medio ancho de boca hacia PROA, para que el chorro salga de dentro de
 			# la campana y no arranque justo en su filo. El marcador esta en el
 			# vertice mas trasero de la tobera, que es su borde, no su garganta.
-			_flames.append(_crear_llama_en(punto - Vector2(0.0, ancho * 0.5), trail, _anclas))
+			_flames.append(_crear_llama_en(punto - Vector2(0.0, ancho * 0.5), trail, _anclas, base))
 
 
 ## Posicion de un nodo dentro del modelo, sumando la cadena de padres A MANO:
@@ -548,6 +537,19 @@ func _poner_hueso(nombre: String, eje: int, ang: float) -> void:
 		(h["rest"] as Quaternion) * Quaternion(v, ang))
 
 
+## Bocas de canion del JSON, en espacio de la TEXTURA. Solo si el camino 3D no las
+## ha puesto ya: ahi salen medidas del modelo, que es la fuente.
+##
+## Se llama en CADA reconstruccion, no solo en `setup()`. Antes solo en setup, y al
+## cambiar de calidad `_canones` se quedaba con las del 3D —que estan en pixeles de
+## pantalla, no de textura— asi que media disparaba desde donde no debia.
+func _montar_canones_json() -> void:
+	if not _canones.is_empty():
+		return
+	for canon in _def.get("cannons", []):
+		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
+
+
 ## Rehace la parte visual con la calidad actual. Lo demas â€”nombre, barras,
 ## caÃ±ones, rumboâ€” no depende del nivel y se queda como esta.
 func reconstruir() -> void:
@@ -563,10 +565,12 @@ func reconstruir() -> void:
 	_emissive = null
 	_relieve = null      # su material moria con el sprite: dejarlo apuntando ahi
 	_flames.clear()      # eran hijos del sprite: se van con el
+	_canones.clear()     # se rehacen: en 3D salen del modelo y en 2D del JSON
 	_ondas.clear()
 	_anim_total = 0
 	_anim_vaiven = false
 	_construir_visual()
+	_montar_canones_json()
 	# el sprite vuelve al fondo: si no, se dibujaria sobre las barras y el nombre
 	move_child(_sprite, 0)
 	_set_visual_angle(_visual_angle)
@@ -711,16 +715,25 @@ func _crear_barra(y: float, color: Color, pct: float) -> ColorRect:
 ## La llama de una tobera: pluma anclada a la nave que rota con ella y crece
 ## con el empuje. Su boquilla queda EN la tobera y se afila hacia la popa.
 func _crear_llama(motor: Dictionary, trail: Dictionary) -> Sprite2D:
+	# `scale` por motor: lo escribe el horno para que la llama de MEDIA mida lo
+	# mismo que la de alta. Estaba en el JSON desde siempre y no se leia.
 	return _crear_llama_en(Vector2(float(motor.get("x", 0)), float(motor.get("y", 0))),
-		trail, _sprite)
+		trail, _sprite, Vector2.ONE * float(motor.get("scale", 1.0)))
 
 
 ## La misma llama, pero en un punto ya calculado y colgando de quien se le diga.
 ## En 2D cuelga del sprite (que gira) y en 3D de `_anclas` (que gira en su lugar).
-func _crear_llama_en(punto: Vector2, trail: Dictionary, padre: Node2D) -> Sprite2D:
+func _crear_llama_en(punto: Vector2, trail: Dictionary, padre: Node2D,
+		base := Vector2.ONE) -> Sprite2D:
 	var llama := Sprite2D.new()
 	llama.texture = load("res://assets/fx/engine-flame.png")
 	llama.position = punto
+	# La escala base viaja EN LA LLAMA, no en una variable de la entidad. Estaba
+	# en la entidad y `reconstruir()` no la resetea: al pasar de alta a media, la
+	# llama heredaba el factor del 3D y ademas lo multiplicaba por la escala del
+	# sprite, quedandose en 3,9 px de ancho. Lo que no se resetea, no debe vivir
+	# fuera del nodo que se rehace.
+	llama.set_meta("base", base)
 	# el arte de la llama apunta hacia ABAJO (+Y), que es la popa: sin rotar.
 	# el pivote va en la boquilla para que crezca hacia atras, no hacia los lados
 	llama.offset = Vector2(0, llama.texture.get_height() * 0.5)
@@ -747,7 +760,8 @@ func _process(delta: float) -> void:
 		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
 		for llama in _flames:
 			llama.visible = _thrust > 0.02
-			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro) * _escala_llama
+			var base: Vector2 = llama.get_meta("base", Vector2.ONE)
+			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro) * base
 			llama.self_modulate.a = 0.35 + 0.65 * _thrust
 
 	if _anim_total > 0:
