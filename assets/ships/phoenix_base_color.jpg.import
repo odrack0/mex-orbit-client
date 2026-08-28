@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d4dcpsno5rqks"
-path="res://.godot/imported/phoenix_emissive_material.png-d90388d8bcf24f4d2a1a03f879048967.ctex"
+uid="uid://dgfwra4j5msdd"
+path="res://.godot/imported/phoenix_base_color.jpg-9b704fa9723a92c0d1754f0ad44b1b74.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "2a73c2bd9cbe11858f3f92715fdbfabd"
+"md5": "f8b9a85e54b18be877cc2d8ea0dbcec6"
 }
 
 [deps]
 
-source_file="res://assets/ships/phoenix_emissive_material.png"
-dest_files=["res://.godot/imported/phoenix_emissive_material.png-d90388d8bcf24f4d2a1a03f879048967.ctex"]
+source_file="res://assets/ships/phoenix_base_color.jpg"
+dest_files=["res://.godot/imported/phoenix_base_color.jpg-9b704fa9723a92c0d1754f0ad44b1b74.ctex"]
 
 [params]
 
