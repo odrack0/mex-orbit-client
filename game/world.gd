@@ -70,6 +70,11 @@ var _estacion_anim_t := 0.0
 var _estacion_vp: SubViewport                    # mundo 3D de la estacion, o null
 var _estacion_modelo: Node
 var _estacion_mats: Array[BaseMaterial3D] = []
+var _est_emision := 1.0
+var _est_pulso_min := 0.55
+var _est_pulso_max := 1.8
+var _est_pulso_vel := 1.1
+var _est_pulso_dureza := 1.6
 var _reactor_min := 0.55
 var _reactor_max := 1.8
 var _reactor_speed := 1.1
@@ -1255,6 +1260,20 @@ func _process(delta: float) -> void:
 		_estacion_anim_t += delta
 		_estacion.frame = int(_estacion_anim_t * _estacion_anim_fps) % _estacion_anim_total
 
+	# La estacion 3D RESPIRA por su emision. Es el mismo latido que tenia la capa
+	# emisiva en 2D —los mismos diales `pulse` de su ficha— aplicado a la emision
+	# del material en vez de al alfa de un sprite encima.
+	#
+	# Sin esto la emision es un color pintado en la textura: se ve encendida en la
+	# foto y muerta en movimiento. Lo que hace que una luz parezca luz no es el
+	# brillo, es que cambie.
+	if not _estacion_mats.is_empty():
+		var t := Time.get_ticks_msec() * 0.001 * _est_pulso_vel
+		var w := pow(0.5 + 0.5 * sin(t), _est_pulso_dureza)
+		var e: float = _est_emision * (_est_pulso_min + (_est_pulso_max - _est_pulso_min) * w)
+		for mat in _estacion_mats:
+			mat.emission_energy_multiplier = e
+
 	# el reactor de la estacion respira
 	if _estacion_reactor != null:
 		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _reactor_speed)
@@ -1880,10 +1899,20 @@ func _montar_estacion_3d(d: Dictionary) -> bool:
 	# Ganancia de la emision de la estacion. 1 deja la del modelo; 0 la apaga.
 	# Es un dial y no una constante porque lo que enciende un reactor grande no es
 	# lo que enciende la veta de un bicho.
-	var ganancia := float(d.get("emision", 1.0))
-	if not is_equal_approx(ganancia, 1.0):
-		for mat in _estacion_mats:
-			mat.emission_energy_multiplier = ganancia
+	# La ganancia y el latido se guardan; los aplica `_process`, porque una luz que
+	# no cambia se lee como color pintado y no como luz.
+	# Sin materiales el latido no late y NADIE se entera: la emision sigue siendo
+	# la del modelo, que a simple vista se ve igual de encendida en una foto fija.
+	# Callado cuando va bien, ruidoso cuando no — que es lo contrario de un print
+	# informativo que se ignora en cada arranque.
+	if _estacion_mats.is_empty():
+		push_warning("estacion 3D sin materiales: la emision no va a latir")
+	_est_emision = float(d.get("emision", 1.0))
+	var pul: Dictionary = d.get("pulse", {})
+	_est_pulso_min = float(pul.get("min_intensity", 0.55))
+	_est_pulso_max = float(pul.get("max_intensity", 1.8))
+	_est_pulso_vel = float(pul.get("speed", 1.1))
+	_est_pulso_dureza = float(pul.get("sharpness", 1.6))
 	return true
 
 
