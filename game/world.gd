@@ -671,6 +671,7 @@ func _on_spawn(sp) -> void:
 
 func _on_despawn(dp) -> void:
 	if _entidades.has(dp.entity_id):
+		_anotar_si_se_ve(_entidades[dp.entity_id], "EntityDespawn(razon %d)" % dp.reason)
 		_entidades[dp.entity_id].queue_free()
 		_entidades.erase(dp.entity_id)
 	# Si se va lo que tenías fichado, la selección se va con ello. Hoy el server
@@ -783,6 +784,10 @@ func _on_destroyed(msg) -> void:
 	if nodo != null and nodo == _hero:
 		_hero = null              # el spawn de la reaparicion lo vuelve a crear
 	if nodo != null:
+		if Quality.nivel("explosion") < 1:
+			# sin explosión dibujada, una muerte se ve EXACTAMENTE como una
+			# desaparición: si el bicho que se esfumó fue esto, hay que saberlo
+			_anotar_si_se_ve(nodo, "EntityDestroyed sin explosión (calidad)")
 		_explotar(nodo.position)
 		nodo.queue_free()
 		_entidades.erase(msg.entity_id)
@@ -791,6 +796,34 @@ func _on_destroyed(msg) -> void:
 		_laser_on = false
 		if _hero != null:
 			_hero.set_attack_target(null)   # sin presa, el rumbo vuelve al vuelo
+
+
+## Deja constancia de que algo se fue de la pantalla ESTANDO a la vista.
+##
+## No es logging de adorno: con relevancia por rango, el server no puede retirar
+## nada dentro del encuadre —el radio visible son ~1250 unidades y el umbral de
+## salida son 2200— así que si esto escribe una línea, el server hizo algo que no
+## debía y aquí está el frame que lo hizo. Y si alguien VE esfumarse un bicho y
+## este archivo sigue vacío, entonces el nodo no se borró: se dejó de dibujar, y
+## el sitio donde mirar es otro (el SubViewport 3D de vex/vexor/vorax).
+func _anotar_si_se_ve(nodo: EntityNode, motivo: String) -> void:
+	if _hero == null or nodo == _hero:
+		return
+	var visible_rect := get_viewport_rect().size / _camara.zoom
+	var radio := visible_rect.length() * 0.5
+	var d := _hero.position.distance_to(nodo.position)
+	if d > radio:
+		return                    # se fue fuera de pantalla: es lo esperado
+	var f := FileAccess.open("res://logs/anomalias.log", FileAccess.READ_WRITE)
+	if f == null:
+		f = FileAccess.open("res://logs/anomalias.log", FileAccess.WRITE)
+	if f == null:
+		return                    # sin sitio donde anotar, no se estorba al juego
+	f.seek_end()
+	f.store_line("%s · %s (%s) a %d u · radio visible %d u · %s"
+		% [Time.get_datetime_string_from_system(), nodo.type_id, nodo.entity_id,
+			int(d), int(radio), motivo])
+	f.close()
 
 
 func _explotar(pos: Vector2) -> void:
@@ -884,7 +917,12 @@ func _on_collect_result(res) -> void:
 ## empezo a usar el mismo TOO_FAR, ese texto pasaba a mentir. Un codigo dice de
 ## que FAMILIA es el fallo; solo quien lo emite sabe de que iba.
 func _on_error(e) -> void:
-	_at_salto_rechazado = _at_salto_rechazado or e.code == MexProtocol.ErrorCode.TOO_FAR
+	# `request_id != 0` = es la RESPUESTA a algo que pedimos (el salto). Con 0, el
+	# server cuenta algo por su cuenta — hoy, que el láser espera fuera de alcance.
+	# Sin esa distinción, ese aviso daba por bueno el salto y la prueba mentía:
+	# justo lo que advierte el comentario de arriba sobre compartir un código.
+	_at_salto_rechazado = _at_salto_rechazado \
+		or (e.code == MexProtocol.ErrorCode.TOO_FAR and e.request_id != 0)
 	if e.detail != "":
 		_estado(e.detail, NTheme.HOSTILE if e.code != MexProtocol.ErrorCode.GONE else NTheme.MUTED)
 		return
