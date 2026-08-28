@@ -39,6 +39,14 @@ var turn_deg_per_sec := 0.0
 var attack_target: EntityNode = null
 ## Segundos que le quedan al rumbo DEDUCIDO de los disparos (0 = no caduca).
 var _attack_ttl := 0.0
+## Donde cree el SERVER que esta este bicho (extrapolacion lineal). La posicion
+## visual la persigue; ver el comentario grande en _process.
+var _shadow := Vector2.ZERO
+## A este atraso de la sombra, el gas extra llega a +100%; girando, el deficit
+## se estabiliza aqui. Bajo el snap de 220 de reconcile a proposito.
+const CATCHUP_DIST := 150.0
+## Tope del acelerador persiguiendo la sombra, en multiplos de la velocidad.
+const CATCHUP_MAX := 1.4
 
 var _sprite: Sprite2D
 ## La definicion del JSON se guarda: al cambiar la calidad hay que rehacer la
@@ -176,6 +184,7 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	type_id = spawn.type_id
 	speed = float(spawn.speed)
 	position = Vector2(spawn.x, spawn.y)
+	_shadow = position
 	objetivo = position
 	_idle_timer = 2.0 + randf() * 5.0
 	_hp_pct = spawn.hp_pct
@@ -855,13 +864,33 @@ func _process(delta: float) -> void:
 				mat.emission_energy_multiplier = e
 
 	if en_vuelo:
-		# la punta va delante: mientras la proa no mire al destino apenas avanza,
-		# y acelera segun se alinea (coseno del error). Sin esto, un Skarnox
-		# arrancaba a 190 u/s de costado durante todo su giro.
-		var factor := 1.0
 		if turn_deg_per_sec > 0.0:
-			factor = maxf(cos(deg_to_rad(_error_de_proa(objetivo))), 0.0)
-		position = position.move_toward(objetivo, speed * factor * delta)
+			# LA SOMBRA AUTORITATIVA. El server vuela LINEAL a velocidad plena
+			# desde el instante en que el bicho elige rumbo (el original tambien:
+			# su MoveCommand interpolaba lineal por tiempo). El freno de proa de
+			# aqui abajo es pura presentacion, y si solo existiera el, cada giro
+			# grande acumulaba un deficit que no se recuperaba nunca: un Vex a
+			# 150 grados/s tarda 1,2 s en girar 180 y el server le saca ~320
+			# unidades en ese rato. La divergencia se cobraba de golpe en el
+			# siguiente EntityMove —a veces medio minuto despues— como un lerp
+			# brusco o, pasadas 220 unidades, el snap que se veia como
+			# teletransporte. Bichos brincando por todo el sector.
+			#
+			# La sombra reproduce al server tal cual; la posicion visual la
+			# persigue. El freno de proa sigue mandando en el arranque (la punta
+			# va delante, el Skarnox no despega de costado) pero el deficit
+			# empuja: a mas atraso, mas gas, con tope. Girando, el atraso se
+			# estabiliza en ~CATCHUP_DIST; alineado, se recupera en un par de
+			# segundos acelerando suave — nunca de un salto.
+			_shadow = _shadow.move_toward(objetivo, speed * delta)
+			var factor := maxf(cos(deg_to_rad(_error_de_proa(objetivo))), 0.0)
+			var deficit := position.distance_to(_shadow)
+			var vel := speed * clampf(factor + deficit / CATCHUP_DIST, 0.0, CATCHUP_MAX)
+			position = position.move_toward(_shadow, vel * delta)
+		else:
+			# naves: sin freno de proa (turn 0 = factor 1), lineal puro como el
+			# server — no divergen y no necesitan sombra
+			position = position.move_toward(objetivo, speed * delta)
 
 	if attack_target != null and not is_instance_valid(attack_target):
 		attack_target = null
@@ -1077,7 +1106,15 @@ func _avisar_giro() -> void:
 func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, teleport: bool) -> void:
 	speed = nueva_vel
 	var server_pos := Vector2(x, y)
-	if teleport or position.distance_to(server_pos) > 220.0:
+	if turn_deg_per_sec > 0.0:
+		# bichos: la verdad del server entra DURA en la sombra —es exactamente lo
+		# que la sombra representa— y la posicion visual no se toca: ya la esta
+		# persiguiendo cada frame, con gas extra si viene atrasada. El unico snap
+		# que queda es el teleport de verdad (o una sombra rota por completo).
+		_shadow = server_pos
+		if teleport or position.distance_to(server_pos) > 500.0:
+			position = server_pos
+	elif teleport or position.distance_to(server_pos) > 220.0:
 		position = server_pos
 	else:
 		position = position.lerp(server_pos, 0.35)
