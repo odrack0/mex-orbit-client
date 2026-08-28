@@ -13,6 +13,8 @@ var _grados := 30.0
 var _vp: SubViewport
 var _sk: Skeleton3D
 var _eje := -1
+var _solo := -1        # si se fija, solo ese eje
+var _ambos := false    # posa el par izq/der en espejo, como en el juego
 var _esperas := 0
 
 func _ready() -> void:
@@ -23,6 +25,10 @@ func _ready() -> void:
 			_grados = float(arg.trim_prefix("--grados="))
 		elif arg.begins_with("--modelo="):
 			_ruta = "res://assets/npcs/%s" % arg.trim_prefix("--modelo=")
+		elif arg.begins_with("--solo-eje="):
+			_solo = int(arg.trim_prefix("--solo-eje="))
+		elif arg == "--ambos":
+			_ambos = true
 
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(512, 512)
@@ -68,18 +74,28 @@ func _process(_delta: float) -> void:
 	# El REPOSO tambien se guarda: tres poses sin la de partida no se pueden
 	# comparar, que fue el primer intento.
 	_vp.get_texture().get_image().save_png(
-		"C:/Tools/eje_%s_%s_%s.png" % [_ruta.get_file().get_basename(), _hueso, "reposo" if _eje < 0 else str(_eje)])
+		"C:/Tools/eje_%s_%s_%s.png" % [_ruta.get_file().get_basename(), _hueso, "reposo" if _eje < 0 else ("g%d" % int(_grados) if _solo >= 0 else str(_eje))])
 	print("  %s guardado" % ("reposo" if _eje < 0 else "eje %d" % _eje))
 	_eje += 1
 	if _eje > 2:
 		get_tree().quit()
 		return
 	# COMPONER sobre el reposo: set_bone_pose_rotation fija la pose entera.
-	var i := _sk.find_bone(_hueso)
-	var rest := _sk.get_bone_rest(i).basis.get_rotation_quaternion()
+	var eje := _solo if _solo >= 0 else _eje
 	var v := Vector3.RIGHT
-	if _eje == 1:
+	if eje == 1:
 		v = Vector3.UP
-	elif _eje == 2:
+	elif eje == 2:
 		v = Vector3.BACK
-	_sk.set_bone_pose_rotation(i, rest * Quaternion(v, deg_to_rad(_grados)))
+	var pares := [[_hueso, 1.0]]
+	if _ambos:
+		# el par en espejo, que es como lo mueve el juego: un cuerno solo no deja
+		# juzgar el gesto
+		var otro := _hueso.replace("izq", "der") if "izq" in _hueso else _hueso.replace("der", "izq")
+		pares = [[_hueso, -1.0], [otro, 1.0]]
+	for par in pares:
+		var i: int = _sk.find_bone(par[0])
+		if i < 0:
+			continue
+		var rest := _sk.get_bone_rest(i).basis.get_rotation_quaternion()
+		_sk.set_bone_pose_rotation(i, rest * Quaternion(v, deg_to_rad(_grados) * float(par[1])))

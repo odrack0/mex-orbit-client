@@ -82,7 +82,9 @@ const ELEVACION := 90.0
 var _vp: SubViewport             # el mundo 3D de este bicho, o null
 var _modelo: Node3D              # la instancia del GLB dentro del viewport
 var _huesos_3d := {}             # nombre -> {i, rest}, o vacio si no hay esqueleto
-var _cuernos_grados := 0.0       # amplitud de las pinzas de la proa, del JSON
+var _cuernos_min := 0.0          # rango de las pinzas de la proa, en grados
+var _cuernos_max := 0.0          # (iguales = no se animan)
+var _cuernos_eje := 1
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
@@ -94,11 +96,15 @@ const COLA_CICLO := 1.50      # reloj propio, como en el sprite
 const COLA_GRADOS := 9.0
 const COLA_DESFASE := 0.22    # por segmento, para que la onda recorra la cola
 const EJE_COLA := 2
-## Los cuernos van al MISMO reloj que las alas. El eje se midio con
-## repro_eje_hueso.tscn: el 1 es el unico que gira DENTRO del plano —dy≈0 y el
-## area crece—, que es abrir de verdad; el 2 mueve mas pixeles pero tumba el
-## cuerno hacia la camara (dy +5, area −15%), que se lee como que se cae.
-const EJE_CUERNOS := 1
+## Los cuernos van al MISMO reloj que las alas, pero el EJE y el RANGO son de cada
+## especie y se miden con repro_eje_hueso.tscn (`--solo-eje` y `--ambos`).
+## No hay eje universal: depende de como esten plantados los cuernos.
+##   Vexor  eje 1, [-14, +14]  — pinzas abiertas: el 1 gira dentro del plano
+##   Vex    eje 2, [-20,   0]  — cuernos casi juntos en reposo: el 1 no los mueve
+##                               (0,5 px a 35 grados) y en el 2 el positivo los
+##                               CRUZA, asi que el recorrido solo va hacia abrir.
+## El rango se escribe entero, con sus dos extremos, en vez de una amplitud: el
+## limite seguro es justo lo que hay que dejar dicho.
 var _thrust := 0.0
 
 # bocas de caÃ±Ã³n (espacio de la textura) y a cuÃ¡l toca disparar
@@ -335,7 +341,10 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_pulse_min = float(pul.get("min_intensity", 0.25))
 	_pulse_max = float(pul.get("max_intensity", 2.6))
 	_pulse_sharp = float(pul.get("sharpness", 2.4))
-	_cuernos_grados = float(d.get("cuernos_grados", 0.0))
+	var cg: Array = d.get("cuernos_grados", [])
+	if cg.size() == 2:
+		_cuernos_min, _cuernos_max = float(cg[0]), float(cg[1])
+	_cuernos_eje = int(d.get("cuernos_eje", 1))
 
 
 	_sprite.texture = _vp.get_texture()
@@ -670,17 +679,13 @@ func _process(delta: float) -> void:
 		_poner_hueso("ala_izq", EJE_ALAS, -bat)
 		_poner_hueso("ala_der", EJE_ALAS, bat)
 
-		# Las pinzas de la proa, del mismo `t` que las alas. La amplitud es POR
-		# ESPECIE y por defecto 0: depende de la anatomia y hay que medirla.
-		#   Vexor  14 grados — la zona son 17 px en pantalla pero cambia la silueta
-		#   Vex     0 grados — sus cuernos son mas verticales y a 141 px el gesto
-		#                      no se distingue del reposo. Medido, no supuesto.
-		# Pasarse convierte el gesto en un aspaviento; animar lo que no se ve es
-		# gastar por nada.
-		if _cuernos_grados > 0.0:
-			var pinza := deg_to_rad(_cuernos_grados) * sin(TAU * t)
-			_poner_hueso("cuerno_izq", EJE_CUERNOS, -pinza)
-			_poner_hueso("cuerno_der", EJE_CUERNOS, pinza)
+		# Las pinzas de la proa, del mismo `t` que las alas. Recorre el rango de la
+		# especie de extremo a extremo; con rango vacio no se toca el hueso.
+		if _cuernos_max != _cuernos_min:
+			var k := 0.5 - 0.5 * cos(TAU * t)      # 0..1, la fase del destello
+			var pinza := deg_to_rad(_cuernos_min + (_cuernos_max - _cuernos_min) * k)
+			_poner_hueso("cuerno_izq", _cuernos_eje, -pinza)
+			_poner_hueso("cuerno_der", _cuernos_eje, pinza)
 
 		var tc := reloj / COLA_CICLO + fase
 		for k in 3:
