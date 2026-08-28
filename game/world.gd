@@ -807,9 +807,12 @@ func _numero_flotante(sobre: EntityNode, texto: String, color: Color) -> void:
 		vivo.position = sobre.position + Vector2(-60, -110)
 		return
 
-	var label := NTheme.label(texto, NTheme.mono(), 15, color)
+	# 24 y no 15: el numero vive en el MUNDO, asi que el zoom de juego (0,621) lo
+	# reduce — 15 se veian como ~9 px reales y el golpe pasaba desapercibido.
+	# Registrado en el §9 del sistema de diseño.
+	var label := NTheme.label(texto, NTheme.mono(), 24, color)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
-	label.add_theme_constant_override("outline_size", 5)
+	label.add_theme_constant_override("outline_size", 6)
 	label.custom_minimum_size = Vector2(120, 0)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.position = sobre.position + Vector2(-60, -110)
