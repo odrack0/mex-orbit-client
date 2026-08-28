@@ -1183,6 +1183,21 @@ de la cámara** y toma el lado mayor: exacto y sin casos especiales.
 El viewport es grande, pero es **uno solo**: no hay treinta estaciones en pantalla como puede haber
 treinta bichos, así que el coste que en un bicho obliga a medir aquí se paga sin discusión.
 
+### El tamaño tiene dos techos, y ninguno es el gusto
+
+`world_size` está en **2460** (tres veces el original de 820), y lo que acota cuánto más puede crecer
+no es cómo se ve:
+
+- **Su propia zona segura.** El server manda `secure_range` 1500, o sea 3000 de diámetro. A ×3 la
+  estación cabe justa dentro de su anillo; a ×4 (3280) **asomaría fuera**, y una base que se sale de
+  su propia zona segura se lee como un error del juego.
+- **El destino de render crece con el CUADRADO.** A ×3 son 2829 px de lado y 30,5 MB — vuelve a ser
+  el asset más caro del juego, ahora en render target en vez de en atlas. A ×4 serían 54,2 MB.
+
+El lado del viewport sale de `world_size × EST_MARGEN`, y esa cifra está bien pensada para el zoom
+máximo: a `ZOOM_MAX` la estación ocupa 2846 px de pantalla, así que 2829 no sobra. Al zoom por
+defecto sí sobremuestrea, que es lo que la mantiene nítida al acercarse.
+
 ### El aro cian que no era del modelo
 
 La estación apareció con un anillo cian resplandeciente que no está en su malla. **Era

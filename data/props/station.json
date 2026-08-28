@@ -3,7 +3,7 @@
   "code": "station",
   "texture": "res://assets/world/station.png",
   "emissive": "res://assets/world/station-emissive.png",
-  "world_size": 820,
+  "world_size": 2460,
   "pulse": {
     "min_intensity": 0.55,
     "max_intensity": 1.8,
@@ -34,5 +34,6 @@
   "_glow": "APAGADO. El glow del entorno reparte el brillo MAS ALLA de la geometria, y sus valores por defecto se calibraron con las vetas finas de un bicho, donde el problema era que no se leyeran como encendidas. El reactor de la estacion es una zona emisiva grande: con esos numeros salia un halo que se comia la estructura. Para subirlo un poco sin reventarlo, en vez de false va un diccionario con intensity, bloom y threshold.",
   "emision": 0.35,
   "_emision": "Ganancia de la emision del modelo: 1 la deja como viene, 0 la apaga entera. El aro reventado del reactor eran DOS cosas sumadas — la emision del modelo y el GLOW del entorno amplificandola — asi que se toca en dos sitios: `glow: false` y esta ganancia. Va en 0,35 y no en 0 porque el dial es uno para toda la textura: a 0 se apagan tambien los acentos magenta y las ventanas, y la estacion se queda muerta.",
-  "_medir_esto": "OJO al comparar capturas del autotest: el recuento de pixeles sobre la PANTALLA ENTERA no es comparable entre corridas, porque la nave se mueve y la estacion entra o sale del encuadre. Una medida que bajo un 94% resulto ser una captura donde la estacion casi no salia. Para comparar hay que recortar la estacion primero."
+  "_medir_esto": "OJO al comparar capturas del autotest: el recuento de pixeles sobre la PANTALLA ENTERA no es comparable entre corridas, porque la nave se mueve y la estacion entra o sale del encuadre. Una medida que bajo un 94% resulto ser una captura donde la estacion casi no salia. Para comparar hay que recortar la estacion primero.",
+  "_world_size": "Diametro de la estacion en unidades de MUNDO. 2460 = tres veces el original de 820. El techo lo pone su propia zona segura: el server manda secure_range 1500, o sea 3000 de diametro, asi que a x3 la estacion cabe justa dentro de su anillo y a x4 se saldria — una base que asoma fuera de su propia zona segura se lee como un error. Y el destino de render crece con el CUADRADO: a x3 son 2829 px de lado y 30,5 MB, que es el asset mas caro otra vez; a x4 serian 54,2."
 }
