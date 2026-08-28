@@ -75,6 +75,8 @@ var _est_pulso_min := 0.55
 var _est_pulso_max := 1.8
 var _est_pulso_vel := 1.1
 var _est_pulso_dureza := 1.6
+var _estacion_contorno: Array[ShaderMaterial] = []
+var _est_contorno_fuerza := 1.0
 var _reactor_min := 0.55
 var _reactor_max := 1.8
 var _reactor_speed := 1.1
@@ -1273,6 +1275,16 @@ func _process(delta: float) -> void:
 		var e: float = _est_emision * (_est_pulso_min + (_est_pulso_max - _est_pulso_min) * w)
 		for mat in _estacion_mats:
 			mat.emission_energy_multiplier = e
+		# El contorno late CON los acentos, pero con MUCHO menos recorrido. Los
+		# acentos son luces y pueden apagarse y encenderse; el contorno es el
+		# borde del metal, y hacerle el mismo viaje (que llega a 2,4) tinie la
+		# estructura entera de violeta y le quita el caracter de metal oscuro.
+		# Se veia como "la base es morada" en vez de "la base tiene los bordes
+		# encendidos". Aqui va del 0,8 al 1,2 de su fuerza.
+		var k := 0.8 + 0.4 * clampf((e - _est_pulso_min) /
+			maxf(_est_pulso_max - _est_pulso_min, 0.001), 0.0, 1.0)
+		for sm in _estacion_contorno:
+			sm.set_shader_parameter("fuerza", _est_contorno_fuerza * k)
 
 	# el reactor de la estacion respira
 	if _estacion_reactor != null:
@@ -1907,6 +1919,14 @@ func _montar_estacion_3d(d: Dictionary) -> bool:
 	# informativo que se ignora en cada arranque.
 	if _estacion_mats.is_empty():
 		push_warning("estacion 3D sin materiales: la emision no va a latir")
+	# Resplandor de contorno, si su ficha lo pide.
+	var con: Dictionary = d.get("contorno", {})
+	if not con.is_empty():
+		_estacion_contorno = AssetDefs.contorno_3d(_estacion_mats,
+			AssetDefs.color(con.get("color", "A78BFA"), NTheme.VIOLET),
+			float(con.get("dureza", 2.5)))
+		_est_contorno_fuerza = float(con.get("fuerza", 1.0))
+
 	_est_emision = float(d.get("emision", 1.0))
 	var pul: Dictionary = d.get("pulse", {})
 	_est_pulso_min = float(pul.get("min_intensity", 0.55))

@@ -1198,6 +1198,29 @@ El lado del viewport sale de `world_size × EST_MARGEN`, y esa cifra está bien 
 máximo: a `ZOOM_MAX` la estación ocupa 2846 px de pantalla, así que 2829 no sobra. Al zoom por
 defecto sí sobremuestrea, que es lo que la mantiene nítida al acercarse.
 
+### Resplandor de contorno (fresnel)
+
+`contorno_3d.gdshader` enciende cada superficie según se va **de canto** respecto a la cámara
+(`1 − N·V`): en el centro de una cara no aporta nada y en el borde aporta todo, así que traza el
+contorno de **cada tubo y cada brazo** — no una aureola alrededor de la silueta.
+
+Va como **`next_pass`** del material que el modelo ya tiene. Esa es la parte barata: no es otro
+viewport ni otro destino de render, es una segunda pasada de la misma geometría dentro de un viewport
+que ya se estaba dibujando, y el material original conserva sus texturas. La alternativa era
+desenfocar el alfa del viewport en 2D para sacar una aureola, y se descartó por coste: la estación se
+dibuja a más de 1500 px de lado y un desenfoque de varias muestras sobre esa área, cada fotograma,
+cuesta mucho más que redibujar la malla.
+
+**Dos números que hay que medir, no elegir a gusto.** Con `dureza` 2,5 demasiada superficie cuenta
+como borde y la estación entera se tiñe: los píxeles violetas pasaron de 4.341 a **18.634** y perdió
+el carácter de metal oscuro — se leía como «la base es morada» y no como «la base tiene los bordes
+encendidos». Con 5,0 quedan 8.236, que es la línea sin el baño.
+
+Y **late con mucho menos recorrido que los acentos** (0,8–1,2 de su fuerza, contra 0,25–2,4). Un
+acento es una luz y puede apagarse; el contorno es el borde del metal, y hacerle el mismo viaje lo
+convierte otra vez en un baño de color. Pero late **con** ellos, no por su cuenta: dos luces de la
+misma estructura a destiempo se leen como dos objetos.
+
 ### El aro cian que no era del modelo
 
 La estación apareció con un anillo cian resplandeciente que no está en su malla. **Era
