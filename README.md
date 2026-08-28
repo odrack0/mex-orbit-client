@@ -1157,3 +1157,36 @@ bueno para las nueve aún no está medido; lo que no puede volver a pasar es que
 adelante. Cuatro renders vacíos que se analizan como si fueran un resultado son peor que un error.
 Ahora comprueba que el recurso existe y aborta, y el encuadre se **mide** del modelo en vez de una
 constante heredada de otro bicho.
+
+## La estación como malla 3D
+
+Tercer camino de la estación, además del atlas y el PNG fijo: si su ficha declara `modelo`, en ALTA
+es una **malla en su propio viewport** cuya textura alimenta el mismo `Sprite2D` de siempre — igual
+que los bichos, y por lo mismo: el 3D entra por debajo y la posición, el z-index y el anillo de zona
+segura siguen siendo los de 2D.
+
+**Aquí gana más que en un bicho.** La estación se dibuja a 820 px y su atlas tenía celda de 632, o
+sea que se **ampliaba 1,3 veces** — el problema de nitidez que ya costó una ronda entera. Un modelo
+no tiene resolución. Y se ahorran los **40 MB** del atlas, que era el asset más caro del juego con
+diferencia.
+
+**Cámara cenital**, como todo lo demás. El render anterior era oblicuo y eso era exactamente lo que
+chirriaba al lado de unas naves vistas desde arriba: el problema no era el render, era **mezclar dos
+ángulos de cámara en la misma escena**.
+
+El viewport es grande, pero es **uno solo**: no hay treinta estaciones en pantalla como puede haber
+treinta bichos, así que el coste que en un bicho obliga a medir aquí se paga sin discusión.
+
+### La receta del mundo 3D vive en un solo sitio
+
+`AssetDefs.mundo_3d()` monta el viewport, el entorno, la luz del mundo y la cámara. Está ahí porque
+ya son **dos** los sitios que lo necesitan —`EntityNode` y la estación— y esa receta tiene demasiadas
+trampas para tenerla escrita dos veces: el mundo 3D propio, el borrado explícito del destino, el
+glow atado al nivel `emissive`, la luz compartida. Cada línea está puesta por un fallo que ya
+ocurrió, y una copia que se quede atrás los repite todos.
+
+Con ella salieron también `extension_3d()` y `materiales_3d()`. La primera **acumula la
+transformación a mano** hasta la raíz: `global_transform` no vale porque esto corre antes de que el
+nodo entre en el árbol, y usarlo devuelve la identidad soltando un error por consola que **no detiene
+nada** — el encuadre sale mal y el juego sigue. Se cayó en esa trampa al extraerla, con el comentario
+que la avisa dos líneas más arriba.

@@ -67,6 +67,9 @@ var _estacion_reactor: Sprite2D
 var _estacion_anim_total := 0
 var _estacion_anim_fps := 12.0
 var _estacion_anim_t := 0.0
+var _estacion_vp: SubViewport                    # mundo 3D de la estacion, o null
+var _estacion_modelo: Node
+var _estacion_mats: Array[BaseMaterial3D] = []
 var _reactor_min := 0.55
 var _reactor_max := 1.8
 var _reactor_speed := 1.1
@@ -376,11 +379,24 @@ func _construir_estacion() -> void:
 	anillo.queue_redraw()
 
 	_estacion = Sprite2D.new()
-	# ALTA monta el atlas; MEDIA y BAJA caen al PNG fijo con su emisiva. Misma
-	# clave de calidad que la caja y el portal: son los tres mobiliario del mapa.
+	# TRES caminos, no dos. En ALTA, si la ficha declara `modelo`, la estacion es
+	# una MALLA 3D en su propio viewport y su textura alimenta este mismo
+	# Sprite2D — igual que los bichos, y por lo mismo: el 3D entra por debajo y
+	# la posicion, el z-index y el anillo de zona segura siguen siendo los de 2D.
+	#
+	# Y aqui gana mas que en un bicho. La estacion se dibuja a 820 px, y el atlas
+	# de video le quedaba corto: su celda era de 632, o sea que se AMPLIABA 1,3
+	# veces. Un modelo no tiene resolucion, asi que a cualquier zoom sale nitida.
+	# De paso se ahorran los 40 MB del atlas, que era el asset mas caro con
+	# diferencia.
+	#
+	# NO rota, asi que el modelo se monta una vez y se queda quieto: lo que se
+	# mueve es su emision, con el mismo latido que ya tenia la capa emisiva.
 	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
 	_estacion_anim_total = 0
-	if anim.is_empty():
+	if Quality.nivel("collectable") >= 2 and _montar_estacion_3d(d):
+		anim = {}
+	elif anim.is_empty():
 		_estacion.texture = load(d.get("texture", "res://assets/world/station.png"))
 	else:
 		_estacion.texture = load(anim.get("atlas", "res://assets/world/station-anim.png"))
@@ -1817,6 +1833,34 @@ func _diferencia_casco(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 	return dif / brillo
 
 
+## La estacion como MALLA 3D. Devuelve false si no hay modelo y hay que caer al
+## sprite, que es lo que pasa mientras un asset no se haya convertido.
+##
+## El viewport es GRANDE —la estacion mide 820 px de mundo— pero es UNO solo: no
+## hay treinta estaciones en pantalla como puede haber treinta bichos, asi que
+## el coste que en un bicho obliga a medir aqui se paga sin discusion.
+func _montar_estacion_3d(d: Dictionary) -> bool:
+	var ruta := str(d.get("modelo", ""))
+	if ruta == "" or not ResourceLoader.exists(ruta):
+		return false
+	var escena: PackedScene = load(ruta)
+	if escena == null:
+		push_warning("estacion: no se pudo cargar %s; se cae al sprite" % ruta)
+		return false
+	var lado := int(round(float(d.get("world_size", 820)) * EST_MARGEN))
+	var sonda := escena.instantiate()
+	var ext := AssetDefs.extension_3d(sonda) * EST_MARGEN
+	sonda.queue_free()
+	var m := AssetDefs.mundo_3d(escena, lado, ext, EST_ELEVACION,
+		Quality.nivel("emissive") >= 1)
+	_estacion_vp = m["vp"]
+	_estacion_modelo = m["modelo"]
+	add_child(_estacion_vp)
+	_estacion.texture = _estacion_vp.get_texture()
+	_estacion_mats = AssetDefs.materiales_3d(_estacion_modelo)
+	return true
+
+
 ## RELIEVE de la estacion. Aqui NO arregla lo mismo que en la nave, y conviene
 ## tenerlo claro: la estacion no rota, asi que su luz nunca giraba con ella. Lo
 ## que arregla es la CONSISTENCIA — su render viene iluminado desde arriba en el
@@ -1931,6 +1975,12 @@ const AT_PRESAS := ["vex", "vexor"]
 
 ## Lado de la caja con la que se retrata el casco para la prueba del relieve.
 const CAJA := 128
+
+## Margen del encuadre de la estacion, y elevacion de su camara. 90 = cenital,
+## como todo lo demas del juego. El render anterior era OBLICUO y eso era
+## justamente lo que cantaba al lado de unas naves vistas desde arriba.
+const EST_MARGEN := 1.15
+const EST_ELEVACION := 90.0
 
 ## Por debajo de esto un bicho se considera QUIETO entre sus dos retratos. Es un
 ## suelo de ruido, no un objetivo: dos capturas del mismo fotograma dan 0 exacto.

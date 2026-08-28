@@ -350,7 +350,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	# El encuadre se MIDE del modelo. Con una constante a ojo el bicho salia
 	# desbordando su propia barra de vida: el contrato es que su lado mayor ocupe
 	# `screen_size` pixeles, igual que el recorte del PNG en 2D.
-	cam.size = _extension(_modelo) * MARGEN
+	cam.size = AssetDefs.extension_3d(_modelo) * MARGEN
 	_vp.add_child(cam)
 	var el := deg_to_rad(ELEVACION)
 	# `look_at_from_position`, no `look_at`: `setup()` corre ANTES de que la entidad
@@ -362,7 +362,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	cam.current = true
 
 	_huesos_3d = _mapear_huesos(_modelo)
-	_mats_3d = _copiar_materiales(_modelo)
+	_mats_3d = AssetDefs.materiales_3d(_modelo)
 	# Los mismos diales del JSON que usa la capa emisiva de 2D. No son dos ajustes:
 	# es el mismo latido, aplicado a la emision del material en vez de al alfa.
 	var pul: Dictionary = d.get("pulse", {})
@@ -422,7 +422,7 @@ func _montar_anclajes(d: Dictionary) -> void:
 
 	# Pixeles de pantalla por unidad de mundo. Sale del mismo contrato que el
 	# encuadre: el lado mayor del modelo ocupa `screen_size`.
-	var escala := float(d.get("screen_size", 141)) / _extension(_modelo)
+	var escala := float(d.get("screen_size", 141)) / AssetDefs.extension_3d(_modelo)
 
 	var ancho_boca := 0.0
 	var toberas: Array[Vector2] = []
@@ -501,46 +501,10 @@ func _posicion_en_modelo(n: Node3D) -> Vector3:
 
 ## Lado mayor del modelo en el plano de la camara, en unidades de mundo. Se suman
 ## las AABB de las mallas: es el mismo dato que el validador imprime como CAJA.
-func _extension(nodo: Node) -> float:
-	var caja := AABB()
-	var primera := true
-	for m in nodo.find_children("*", "MeshInstance3D", true, false):
-		var malla: MeshInstance3D = m
-		# La transformacion se acumula A MANO hasta la raiz del modelo: `transform`
-		# es solo la local, y `global_transform` no vale porque esto corre en
-		# `setup()`, antes de que la entidad entre en el arbol.
-		var tr := Transform3D()
-		var n: Node = malla
-		while n != null and n != nodo:
-			if n is Node3D:
-				tr = (n as Node3D).transform * tr
-			n = n.get_parent()
-		var a := tr * malla.get_aabb()
-		caja = a if primera else caja.merge(a)
-		primera = false
-	if primera:
-		return 2.0
-	return maxf(maxf(caja.size.x, caja.size.z), 0.001)
-
 
 ## Duplica los materiales para que el destello sea de ESTE bicho y no de todos.
 ## Rompe el batching entre entidades; el banco lo midio con esa copia puesta, asi
 ## que la cifra que hay en pruebas/README.md ya la incluye.
-func _copiar_materiales(nodo: Node) -> Array[BaseMaterial3D]:
-	var salida: Array[BaseMaterial3D] = []
-	for m in nodo.find_children("*", "MeshInstance3D", true, false):
-		var malla: MeshInstance3D = m
-		var mat = malla.get_active_material(0)
-		if mat is BaseMaterial3D:
-			var copia: BaseMaterial3D = mat.duplicate()
-			# A DOS CARAS: la malla de Meshy trae el giro de las caras inconsistente
-			# y con descarte trasero salen huecos donde Blender enseniaba solido.
-			copia.cull_mode = BaseMaterial3D.CULL_DISABLED
-			malla.set_surface_override_material(0, copia)
-			salida.append(copia)
-	return salida
-
-
 ## Los huesos que el cliente mueve, por nombre. Vacio si el modelo no trae
 ## esqueleto — un bicho puede ser malla quieta y seguir siendo valido.
 func _mapear_huesos(nodo: Node) -> Dictionary:

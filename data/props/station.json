@@ -26,5 +26,8 @@
     "fps": 4,
     "normal": "res://assets/world/station-anim-normal.png"
   },
-  "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva y su pulso. Como en la caja y el portal."
+  "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva y su pulso. Como en la caja y el portal.",
+  "modelo": "res://assets/world/base.glb",
+  "_modelo": "Malla 3D para calidad ALTA, en su propio SubViewport alimentando el Sprite2D de siempre. Gana mas que en un bicho: la estacion se dibuja a 820 px y el atlas de video tenia celda de 632, o sea que se AMPLIABA 1,3 veces; un modelo no tiene resolucion. Y se ahorran los 40 MB del atlas, el asset mas caro del juego. NO rota, asi que el modelo se monta y se queda quieto: lo que late es su emision.",
+  "_camara": "CENITAL (90 grados), como todo lo demas. El render anterior era OBLICUO y eso era justo lo que cantaba al lado de unas naves vistas desde arriba: el problema no era el render, era mezclar dos angulos de camara en la misma escena."
 }
