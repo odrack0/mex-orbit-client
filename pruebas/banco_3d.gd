@@ -70,6 +70,8 @@ var _proxima_traza := 0.0
 ## aleteo y la cola sin que el giro los tape.
 var _giro := 100.0
 var _doble_cara := true
+## Triangulos por bicho, contados del modelo al montarlo.
+var _tris_bicho := 0
 
 ## Los diales del Vexor, tal cual estan en data/npcs/vexor.json.
 const PULSO_MIN := 0.25
@@ -225,8 +227,19 @@ func _ready() -> void:
 		if ap != null:
 			largo = ap.current_animation_length
 			break
-	print("BANCO n=%d elev=%.0f tris=%d modelo=%s animados=%d/%d pulso=%s ciclo=%.2fs (atlas: %.2fs)"
-		% [_n, _elev, _n * 15000, _ruta.get_file(), _animados, _n, _pulso, largo, CICLO_ALAS])
+	# Los triangulos se CUENTAN del modelo, no se suponen. Estaba fijo a 15 000 por
+	# bicho y llevaba media sesion mintiendo: con el asset a 10 254 o a 50 000 el
+	# cartel seguia diciendo lo mismo, que es justo el tipo de numero que uno lee
+	# de reojo y se cree.
+	_tris_bicho = 0
+	for m in _mallas:
+		if m.mesh != null:
+			for s in m.mesh.get_surface_count():
+				_tris_bicho += m.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
+		break
+	print("BANCO n=%d elev=%.0f tris=%d (%d/bicho) modelo=%s animados=%d/%d pulso=%s ciclo=%.2fs (atlas: %.2fs)"
+		% [_n, _elev, _n * _tris_bicho, _tris_bicho, _ruta.get_file(), _animados, _n,
+		_pulso, largo, CICLO_ALAS])
 
 
 func _process(delta: float) -> void:
@@ -366,7 +379,7 @@ func _process(delta: float) -> void:
 	var media := _fps_suma / maxf(1.0, float(_fps_muestras))
 	_label.text = ("%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f en t=%.1fs)"
 		+ "\ntirones >%.0f ms:  %d en los primeros %ds  ·  %d despues") % [
-		_n, _n * 15000, _elev, int(fps), media, _p1, _fps_min, _t_peor,
+		_n, _n * _tris_bicho, _elev, int(fps), media, _p1, _fps_min, _t_peor,
 		TIRON_MS, _tirones_pronto, int(PRONTO_S), _tirones_tarde]
 
 	# En web no se cierra: no hay a quien devolverle el codigo de salida y la
