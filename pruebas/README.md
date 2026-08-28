@@ -189,3 +189,28 @@ horneado en vez de contra el banco:
 **Lo que este banco NO mide es esta técnica.** Las cifras de arriba son N modelos
 en UN mundo con UNA cámara. Un `SubViewport` con mundo propio por entidad es otra
 cosa y bastante más cara: hay que medirla aparte antes de dar por buena la alta.
+
+## Por que la alta lleva glow
+
+Media hace brillar el rojo con una capa emisiva aparte en blend **aditivo** encima
+del cuerpo, y eso satura de sobra. La alta no tiene esa capa: el brillo es la
+emisión del material, que **se recorta a 1.0** y se lee como "claro", no como
+"encendido". De ahí que el rojo de media se viera más fuerte.
+
+Medido con `medir_emision.tscn` sobre el mismo bicho — rojo medio del píxel,
+recortado a 1 en los dos lados porque es lo que la pantalla puede dar:
+
+| | rojo medio | píxeles > 0,8 |
+|---|---|---|
+| media (base + emisiva aditiva ×2,6) | 0,370 | 19,1 % |
+| alta sin glow, ×2,6 | 0,291 | 8,3 % |
+| alta sin glow, ×16 | 0,365 | 17,0 % |
+| **alta con glow, ×2,6** | **0,377** | 8,7 % |
+
+Con glow se iguala a media **sin tocar la ganancia del pulso**. Subirla a 16 llega
+a una cifra parecida y una imagen peor: satura el rojo hasta blanco y las venas
+salen rosas. La cifra empataba y la imagen no, que es justo por lo que se miran
+las dos cosas.
+
+El glow cuesta un post-proceso por viewport, y hay uno por bicho. Va atado al
+nivel `emissive`, el mismo interruptor que apaga la capa emisiva en 2D.

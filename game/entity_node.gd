@@ -267,6 +267,24 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	ent.ambient_light_color = Color(0.35, 0.40, 0.55)
 	ent.ambient_light_energy = 0.28   # la misma fuerza de fondo que usa el horneado
+
+	# GLOW: sin el, la emision se RECORTA a 1.0 y las venas se leen como "claras",
+	# no como "encendidas". Media si brilla porque alli la capa emisiva va en blend
+	# aditivo ENCIMA del cuerpo, y eso satura de sobra.
+	# Medido sobre el mismo bicho (rojo medio del pixel, recortado a 1 en ambos, que
+	# es lo que la pantalla puede dar):
+	#     media                 0.370      alta sin glow, x2.6   0.291
+	#     alta con glow, x2.6   0.377      alta sin glow, x16    0.365
+	# Es decir: con glow se iguala a media SIN tocar la ganancia del pulso. Subirla
+	# a 16 llega a una cifra parecida pero lavando las venas a rosa —satura el rojo
+	# hasta blanco— asi que la cifra empataba y la imagen no.
+	# Cuesta un post-proceso por viewport, y hay uno por bicho. Va atado al nivel
+	# `emissive`, el mismo interruptor que apaga la capa emisiva en 2D.
+	if Quality.nivel("emissive") >= 1:
+		ent.glow_enabled = true
+		ent.glow_intensity = 1.0
+		ent.glow_bloom = 0.25
+		ent.glow_hdr_threshold = 0.9
 	var we := WorldEnvironment.new()
 	we.environment = ent
 	_vp.add_child(we)
