@@ -831,9 +831,11 @@ func _set_visual_angle(grados: float) -> void:
 	# la imagen ya rendida —y con ella la luz, que es justo lo que el 3D viene a
 	# arreglar: la nave gira y el reflejo se queda donde estaba.
 	if _modelo != null:
-		# El sprite mira a +X y el modelo a -Z, y ademas la Y del mundo 2D crece
-		# hacia abajo: de ahi el signo y el cuarto de vuelta.
-		_modelo.rotation.y = deg_to_rad(-_visual_angle) - PI * 0.5
+		# Solo el signo, SIN cuarto de vuelta. Medido con repro_orientacion.tscn: a
+		# giro 0 el modelo ya mira ARRIBA en pantalla, que es la misma proa que el
+		# arte 2D (`_angulo_visual_hacia` suma +90 justo por eso), y a giro 90 apunta
+		# a la izquierda. Con la vuelta de mas el bicho perseguia de costado.
+		_modelo.rotation.y = -deg_to_rad(_visual_angle)
 		return
 	if turn_steps <= 0:
 		# giro continuo: un bicho girando despacio a 32 pasos se ve a tirones,
