@@ -1183,6 +1183,21 @@ de la cámara** y toma el lado mayor: exacto y sin casos especiales.
 El viewport es grande, pero es **uno solo**: no hay treinta estaciones en pantalla como puede haber
 treinta bichos, así que el coste que en un bicho obliga a medir aquí se paga sin discusión.
 
+### El aro cian que no era del modelo
+
+La estación apareció con un anillo cian resplandeciente que no está en su malla. **Era
+`station-emissive.png` —el reactor REDONDO de la estación vieja— montado en blend aditivo y estirado
+sobre el modelo nuevo.**
+
+Ese mismo fallo ya se había arreglado una vez, cuando la estación pasó a atlas, y el guardián que se
+puso decía «solo si no hay atlas» (`_estacion_anim_total == 0`). Al añadir el **tercer** camino no se
+actualizó, así que volvió idéntico. Y engaña igual que la primera vez: se lee como «el reactor brilla
+demasiado» cuando no es el reactor, es otra estación encima.
+
+La regla, escrita para que el cuarto camino no lo repita: **la capa emisiva 2D pertenece al PNG fijo**,
+no «a todo lo que no sea atlas». Un guardián enunciado por exclusión caduca cada vez que aparece un
+caso nuevo.
+
 ### La receta del mundo 3D vive en un solo sitio
 
 `AssetDefs.mundo_3d()` monta el viewport, el entorno, la luz del mundo y la cámara. Está ahí porque

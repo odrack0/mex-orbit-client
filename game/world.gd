@@ -426,7 +426,18 @@ func _construir_estacion() -> void:
 	#
 	# Es la misma regla que ya cumplen `EntityNode` y `PortalNode` —la animacion
 	# manda sobre el truco— y que aqui se me paso.
-	if d.has("emissive") and _estacion_anim_total == 0:
+	# SOLO en el camino del PNG fijo. Ni con atlas ni con malla 3D: en los dos la
+	# luz ya viene en el asset, y esta capa es la del reactor REDONDO de la
+	# estacion vieja — un PNG de otra estacion estirado encima, en blend aditivo.
+	#
+	# Este guardian ya existia y solo miraba el atlas (`_estacion_anim_total`).
+	# Al aniadir el tercer camino no se actualizo, asi que el aro cian volvio
+	# exactamente igual que la primera vez: se veia como "el reactor brilla
+	# demasiado" y no era el reactor, era otra estacion encima.
+	#
+	# La regla, escrita para que el cuarto camino no lo repita: la capa emisiva 2D
+	# pertenece AL PNG FIJO, no "a todo lo que no sea atlas".
+	if d.has("emissive") and _estacion_anim_total == 0 and _estacion_vp == null:
 		_estacion_reactor = Sprite2D.new()
 		_estacion_reactor.texture = load(d.emissive)
 		var mat := CanvasItemMaterial.new()
