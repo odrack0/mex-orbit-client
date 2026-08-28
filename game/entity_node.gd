@@ -110,6 +110,7 @@ const LLAMA_ANCHO_MAX := 0.70
 ## chorro visible en un 70% de esa medida y no la cubre.
 const LLAMA_RELLENO := 0.70
 var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la emision
+var _lava_3d: Array[ShaderMaterial] = []   # pases de lava que viaja, si el JSON trae `lava`
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
 ## cambia el bicho en el juego; el banco es donde se comparan, no donde se fijan.
@@ -374,6 +375,23 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 
 	_huesos_3d = _mapear_huesos(_modelo)
 	_mats_3d = AssetDefs.materiales_3d(_modelo)
+	# LAVA QUE VIAJA (`lava` en el JSON): un pase aditivo con ruido desplazado por
+	# el tiempo, colgado como next_pass de la copia del material. El pulso no se
+	# toca — este pase late en fase con el porque _process le escribe la misma
+	# intensidad. Solo enciende lo que ya emite: muestrea la emisiva del material.
+	var lv: Dictionary = d.get("lava", {})
+	if not lv.is_empty():
+		for mat in _mats_3d:
+			if mat.emission_texture == null:
+				continue    # sin emisiva no hay grietas que recorrer
+			var sm := ShaderMaterial.new()
+			sm.shader = load("res://game/shaders/lava_flujo.gdshader")
+			sm.set_shader_parameter("emisiva", mat.emission_texture)
+			sm.set_shader_parameter("cantidad", float(lv.get("amount", 1.5)))
+			sm.set_shader_parameter("escala", float(lv.get("scale", 4.0)))
+			sm.set_shader_parameter("velocidad", float(lv.get("speed", 0.25)))
+			mat.next_pass = sm
+			_lava_3d.append(sm)
 	# Los mismos diales del JSON que usa la capa emisiva de 2D. No son dos ajustes:
 	# es el mismo latido, aplicado a la emision del material en vez de al alfa.
 	var pul: Dictionary = d.get("pulse", {})
@@ -578,6 +596,7 @@ func reconstruir() -> void:
 	_modelo = null
 	_huesos_3d.clear()
 	_mats_3d.clear()
+	_lava_3d.clear()     # sus pases mueren con las copias de material de arriba
 	_emissive = null
 	_relieve = null      # su material moria con el sprite: dejarlo apuntando ahi
 	_flames.clear()      # eran hijos del sprite: se van con el
@@ -862,6 +881,9 @@ func _process(delta: float) -> void:
 			var e: float = _pulse_min + (_pulse_max - _pulse_min) * onda
 			for mat in _mats_3d:
 				mat.emission_energy_multiplier = e
+			# la lava late en fase con el pulso: mismo valor, mismo fotograma
+			for sm in _lava_3d:
+				sm.set_shader_parameter("intensidad", e)
 
 	if en_vuelo:
 		if turn_deg_per_sec > 0.0:
