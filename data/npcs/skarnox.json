@@ -19,6 +19,8 @@
     "deg_per_sec": 32
   },
   "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas.",
+  "_modelo": "Malla 3D para calidad ALTA (tiene prioridad sobre `frames`). Es una BOLA: sin alas, cola ni cuernos — esqueleto de solo raiz, y su vida visual es el pulso sobre la emision del material (grietas y nucleo, canal r del albedo). El crater mira a la camara: el crudo lo traia hacia -Y y el tumbado estandar de -90 en X lo dejo en el alto, verificado con render, no con la caja (es una esfera 1.90x1.87x1.90, el eje fino es ruido).",
+  "modelo": "res://assets/npcs/skarnox.glb",
   "texture": "res://assets/npcs/skarnox-base.png",
   "emissive": "res://assets/npcs/skarnox-emissive.png",
   "pulse": {
