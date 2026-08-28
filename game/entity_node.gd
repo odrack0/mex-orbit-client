@@ -37,6 +37,8 @@ var turn_deg_per_sec := 0.0
 ## Objetivo de ataque: mientras exista GOBIERNA el rumbo (prioridad del
 ## prototipo: objetivo de ataque > destino de vuelo), incluso con la nave quieta.
 var attack_target: EntityNode = null
+## Segundos que le quedan al rumbo DEDUCIDO de los disparos (0 = no caduca).
+var _attack_ttl := 0.0
 
 var _sprite: Sprite2D
 ## La definicion del JSON se guarda: al cambiar la calidad hay que rehacer la
@@ -861,12 +863,16 @@ func _process(delta: float) -> void:
 			factor = maxf(cos(deg_to_rad(_error_de_proa(objetivo))), 0.0)
 		position = position.move_toward(objetivo, speed * factor * delta)
 
+	if attack_target != null and not is_instance_valid(attack_target):
+		attack_target = null
+	if attack_target != null and _attack_ttl > 0.0:
+		_attack_ttl -= delta
+		if _attack_ttl <= 0.0:
+			attack_target = null
+
 	# atacando: el rumbo sigue al objetivo aunque se muevan los dos (o ninguno)
 	if attack_target != null:
-		if is_instance_valid(attack_target):
-			_encarar(attack_target.position)
-		else:
-			attack_target = null
+		_encarar(attack_target.position)
 	elif not en_vuelo and es_npc:
 		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
 		_idle_timer -= delta
@@ -876,8 +882,14 @@ func _process(delta: float) -> void:
 
 
 ## Fija (o limpia con null) el objetivo que gobierna el rumbo.
-func set_attack_target(objetivo_ataque: EntityNode) -> void:
+##
+## `segundos` > 0 lo deja CADUCAR, y es para el rumbo que se DEDUCE de los
+## disparos: un bicho encara a quien le esta pegando. Sin caducidad se quedaria
+## mirando a su verdugo mucho despues de dejar de pelear con el. La tecla de
+## disparo del heroe lo fija sin caducidad, porque ahi hay quien lo apague.
+func set_attack_target(objetivo_ataque: EntityNode, segundos := 0.0) -> void:
 	attack_target = objetivo_ataque
+	_attack_ttl = segundos
 	if attack_target != null and is_instance_valid(attack_target):
 		_encarar(attack_target.position)
 

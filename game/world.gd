@@ -8,6 +8,10 @@ extends Node2D
 const CLICK_RADIUS := 34.0        # radio de click sobre entidades (escalado por zoom)
 const HOLD_RESEND_SEC := 0.25     # cadencia del reenvio con el boton sostenido
 const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para reenviar
+## Cuanto sigue un tirador encarando a su blanco tras el ultimo disparo. Los NPC
+## disparan cada segundo, asi que tres aguanta un par de fallos y suelta rapido
+## cuando la pelea se acaba de verdad.
+const ATTACK_FACING_SEC := 3.0
 
 # Rango de zoom, CALIBRADO volando con una lectura en pantalla, no supuesto. Los
 # limites anteriores (0,1 a 3,0) eran los del primer dia: a 0,1 la nave son
@@ -762,6 +766,18 @@ func _on_attack(ev) -> void:
 	if tirador != null:
 		var ammo: String = ev.ammo_id if ev.ammo_id != "" else "ammo_cel_1"
 		Projectile2D.fire(self, tirador.siguiente_canon(), blanco.position, ammo, ev.skilled)
+		# QUIEN DISPARA, ENCARA.
+		#
+		# Un bicho que te persigue se plantaba a 300 y se ponía a girar sobre su
+		# eje con el giro perezoso, disparándote de costado. El mecanismo para
+		# evitarlo ya existía —`attack_target` manda sobre el rumbo de vuelo— pero
+		# solo lo usaba tu nave. La señal para los demás estaba aquí desde
+		# siempre: este mismo evento dice quién dispara a quién.
+		#
+		# El héroe se excluye porque su rumbo lo gobierna la tecla de disparo, que
+		# NO caduca: si no, esperar fuera de alcance le apagaría el encaramiento.
+		if tirador != _hero:
+			tirador.set_attack_target(blanco, ATTACK_FACING_SEC)
 
 	if ev.missed:
 		_numero_flotante(blanco, "MISS", HIT_RECIBES if blanco == _hero else HIT_HACES)
