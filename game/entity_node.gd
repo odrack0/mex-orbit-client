@@ -103,13 +103,18 @@ var _mats_3d: Array[BaseMaterial3D] = []   # copia por entidad, para pulsar la e
 
 ## Diales del aleteo, medidos en el banco (pruebas/banco_3d.gd). Cambiarlos aqui
 ## cambia el bicho en el juego; el banco es donde se comparan, no donde se fijan.
-const CICLO_ALAS := 2.17      # 26 fotogramas a 12 fps: el mismo ritmo que el atlas
-const ALAS_GRADOS := 34.0
-const EJE_ALAS := 1           # Y en Godot. glTF permuta ejes: la Y de Blender sale Z
-const COLA_CICLO := 1.50      # reloj propio, como en el sprite
-const COLA_GRADOS := 9.0
-const COLA_DESFASE := 0.22    # por segmento, para que la onda recorra la cola
-const EJE_COLA := 2
+## Aleteo y cola: POR ESPECIE, como los cuernos. Los valores por defecto son los
+## que se midieron con el Vexor; cualquier bicho con otra anatomia se calibra en su
+## JSON. Estaban como constantes y eso hacia que el Vex aleteara con los grados y
+## el ritmo de otro bicho — el mismo fallo que ya costo una ronda con los cuernos.
+## El defecto del ciclo, 2,17 s, son 26 fotogramas a 12 fps: el ritmo del atlas 2D.
+var _alas_grados := 34.0
+var _alas_ciclo := 2.17
+var _alas_eje := 1            # Y en Godot. glTF permuta ejes: la Y de Blender sale Z
+var _cola_grados := 9.0
+var _cola_ciclo := 1.50       # reloj propio, como en el sprite
+var _cola_desfase := 0.22     # por segmento, para que la onda recorra la cola
+var _cola_eje := 2
 ## Los cuernos van al MISMO reloj que las alas, pero el EJE y el RANGO son de cada
 ## especie y se miden con repro_eje_hueso.tscn (`--solo-eje` y `--ambos`).
 ## No hay eje universal: depende de como esten plantados los cuernos.
@@ -321,8 +326,8 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	# que por como normaliza equivale a ~1.0 aqui; con 2.6 el bicho salia lavado a
 	# blanco y no se parecia a su propio horneado. El horneado es la referencia:
 	# alta y media tienen que ser el mismo bicho, uno articulado y otro no.
-	sol.light_energy = 1.0
-	sol.rotation = Vector3(deg_to_rad(-48.0),
+	sol.light_energy = AssetDefs.LUZ_MUNDO_ENERGIA
+	sol.rotation = Vector3(deg_to_rad(AssetDefs.LUZ_MUNDO_ELEVACION),
 		deg_to_rad(AssetDefs.LUZ_MUNDO_GRADOS), 0.0)
 	sol.shadow_enabled = false
 	_vp.add_child(sol)
@@ -362,6 +367,15 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 		_cuernos_min = float(cg[0])
 		_cuernos_max = float(cg[1])
 	_cuernos_eje = int(d.get("cuernos_eje", 1))
+	var al: Dictionary = d.get("alas", {})
+	_alas_grados = float(al.get("grados", _alas_grados))
+	_alas_ciclo = float(al.get("ciclo", _alas_ciclo))
+	_alas_eje = int(al.get("eje", _alas_eje))
+	var co_: Dictionary = d.get("cola", {})
+	_cola_grados = float(co_.get("grados", _cola_grados))
+	_cola_ciclo = float(co_.get("ciclo", _cola_ciclo))
+	_cola_desfase = float(co_.get("desfase", _cola_desfase))
+	_cola_eje = int(co_.get("eje", _cola_eje))
 
 
 	_montar_anclajes(d)
@@ -809,14 +823,14 @@ func _process(delta: float) -> void:
 		var reloj := Time.get_ticks_msec() * 0.001
 		# desfase por entidad (razon aurea): 30 vexors no aletean al unisono
 		var fase := fposmod(entity_id * 0.618034, 1.0)
-		var t := fposmod(reloj / CICLO_ALAS + fase, 1.0)
+		var t := fposmod(reloj / _alas_ciclo + fase, 1.0)
 
 		# Un SENO, no un 0->1->0: el aleteo oscila alrededor del reposo, arriba y
 		# abajo. Con la otra curva el ala solo baja y vuelve, y se lee como que se
 		# dobla en vez de batir.
-		var bat := deg_to_rad(ALAS_GRADOS) * sin(TAU * t)
-		_poner_hueso("ala_izq", EJE_ALAS, -bat)
-		_poner_hueso("ala_der", EJE_ALAS, bat)
+		var bat := deg_to_rad(_alas_grados) * sin(TAU * t)
+		_poner_hueso("ala_izq", _alas_eje, -bat)
+		_poner_hueso("ala_der", _alas_eje, bat)
 
 		# Las pinzas de la proa, del mismo `t` que las alas. Recorre el rango de la
 		# especie de extremo a extremo; con rango vacio no se toca el hueso.
@@ -826,10 +840,10 @@ func _process(delta: float) -> void:
 			_poner_hueso("cuerno_izq", _cuernos_eje, -pinza)
 			_poner_hueso("cuerno_der", _cuernos_eje, pinza)
 
-		var tc := reloj / COLA_CICLO + fase
+		var tc := reloj / _cola_ciclo + fase
 		for k in 3:
-			_poner_hueso("cola_%d" % (k + 1), EJE_COLA,
-				deg_to_rad(COLA_GRADOS) * sin(TAU * (tc - k * COLA_DESFASE)))
+			_poner_hueso("cola_%d" % (k + 1), _cola_eje,
+				deg_to_rad(_cola_grados) * sin(TAU * (tc - k * _cola_desfase)))
 
 		# Misma fase que el ala, un cuarto de vuelta despues: el pico del destello
 		# cae en el punto mas bajo del batido.

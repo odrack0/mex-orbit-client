@@ -61,12 +61,21 @@ if (-not (Puerto-Vivo 3307)) {
 }
 Write-Host 'MySQL de dev (3307): OK'
 
+# Los servicios arrancan ocultos y hasta ahora su salida se TIRABA. Un fallo
+# intermitente —un NPC que no se deja atacar, otro que desaparece de golpe— no se
+# puede diagnosticar sin ella: el cliente solo borra entidades cuando el servidor
+# manda el despawn, asi que la respuesta esta ahi y no aqui.
+$logs = Join-Path $cliente 'logs'
+if (-not (Test-Path $logs)) { New-Item -ItemType Directory $logs | Out-Null }
+
 # ---- 2. api ----
 if (-not (Puerto-Vivo 5100)) {
     Write-Host 'api apagada: compilando y arrancando...'
     Push-Location $api
     dotnet build --nologo -v q | Out-Null
-    Start-Process dotnet -ArgumentList 'run', '--no-build' -WindowStyle Hidden
+    Start-Process dotnet -ArgumentList 'run', '--no-build' -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $logs 'api.log') `
+        -RedirectStandardError  (Join-Path $logs 'api.err')
     Pop-Location
     Start-Sleep -Seconds 6
 }
@@ -77,7 +86,9 @@ if (-not (Puerto-Vivo 5200)) {
     Write-Host 'game server apagado: compilando y arrancando...'
     Push-Location $server
     dotnet build --nologo -v q | Out-Null
-    Start-Process dotnet -ArgumentList 'run', '--no-build' -WindowStyle Hidden
+    Start-Process dotnet -ArgumentList 'run', '--no-build' -WindowStyle Hidden `
+        -RedirectStandardOutput (Join-Path $logs 'gameserver.log') `
+        -RedirectStandardError  (Join-Path $logs 'gameserver.err')
     Pop-Location
     Start-Sleep -Seconds 7
 }

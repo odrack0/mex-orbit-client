@@ -21,6 +21,18 @@ const RUTA_AMMO := "res://data/ammo/%s.json"
 ## sesgo a la izquierda desambigua bulto de hueco.
 const LUZ_MUNDO_GRADOS := 315.0
 
+## Elevacion y energia de esa misma luz, para el camino 3D. Viven AQUI y no en
+## entity_node por el motivo de arriba: son del MUNDO, no del asset. Estaban
+## sueltas en el codigo del viewport, separadas del azimut que si estaba aqui, y
+## eso invita a que alguien las toque por bicho sin darse cuenta de que rompe la
+## unidad de la escena.
+##
+## La energia es 1.0 y no el 2.6 del banco: Blender hornea el sprite de media con
+## un sol de 3,2, que cae cerca de 1.0 aqui, y con 2.6 el bicho salia lavado y no
+## se parecia a su propio horneado.
+const LUZ_MUNDO_ELEVACION := -48.0
+const LUZ_MUNDO_ENERGIA := 1.0
+
 
 ## El vector de la luz del mundo, listo para el shader de relieve.
 static func luz_mundo() -> Vector2:
