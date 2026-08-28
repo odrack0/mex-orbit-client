@@ -673,6 +673,15 @@ func _on_despawn(dp) -> void:
 	if _entidades.has(dp.entity_id):
 		_entidades[dp.entity_id].queue_free()
 		_entidades.erase(dp.entity_id)
+	# Si se va lo que tenías fichado, la selección se va con ello. Hoy el server
+	# protege al objetivo de salir por rango, así que esto no debería dispararse
+	# nunca — pero si algún día lo hace, el síntoma sería la tecla de disparo sin
+	# hacer nada y sin decir por qué, que es de los peores que hay.
+	if _seleccionada == dp.entity_id:
+		_seleccionada = 0
+		_laser_on = false
+		if _hero != null:
+			_hero.set_attack_target(null)
 
 
 func _on_move(mv) -> void:
