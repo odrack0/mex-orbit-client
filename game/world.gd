@@ -1296,6 +1296,7 @@ var _at_bicho := 0
 var _at_relieve := -1                      # paso de la prueba del relieve
 var _at_casco_a := PackedFloat32Array()
 var _at_relieve_resto := 0.0
+var _at_mov_bicho := {}                    # especie -> cuanto se movio entre sus dos retratos
 var _at_relieve_previo := 0.0
 var _at_giro_a := 0.0
 var _at_primer_frame := false
@@ -1692,6 +1693,37 @@ func _autotest(delta: float) -> void:
 ## Aqui no hay rotacion entre las dos fotos, asi que no hay suelo que esquivar.
 ##
 ## Devuelve 0 en curso · 1 pasada · 2 fallada (ya reportada).
+## Cuanto cambio el retrato entre sus DOS fotogramas, como fraccion del brillo.
+## Cero exacto = el bicho esta congelado.
+##
+## Se mide sobre la caja central y no sobre la pantalla entera: el campo de
+## estrellas tiene paralaje y se mueve solo, asi que la pantalla siempre
+## "cambia" y la medida no diria nada del bicho.
+func _movimiento_retrato() -> float:
+	var esp: String = AT_BESTIARIO[_at_bicho]
+	var a := _leer_png(Session.autotest_screenshot.replace(".png", "-%s-alta.png" % esp))
+	var b := _leer_png(Session.autotest_screenshot.replace(".png", "-%s-alta-b.png" % esp))
+	if a == null or b == null or a.get_size() != b.get_size():
+		return NAN
+	var w := a.get_width()
+	var h := a.get_height()
+	var dif := 0.0
+	var brillo := 0.0
+	for y in range(int(h * 0.30), int(h * 0.70), 2):
+		for x in range(int(w * 0.35), int(w * 0.65), 2):
+			var la := a.get_pixel(x, y).get_luminance()
+			var lb := b.get_pixel(x, y).get_luminance()
+			dif += absf(la - lb)
+			brillo += la
+	return dif / maxf(brillo, 0.0001)
+
+
+func _leer_png(ruta: String) -> Image:
+	if not FileAccess.file_exists(ruta):
+		return null
+	return Image.load_from_file(ruta)
+
+
 func _relieve_paso() -> int:
 	if _hero == null:
 		return 1
@@ -1899,6 +1931,10 @@ const AT_PRESAS := ["vex", "vexor"]
 
 ## Lado de la caja con la que se retrata el casco para la prueba del relieve.
 const CAJA := 128
+
+## Por debajo de esto un bicho se considera QUIETO entre sus dos retratos. Es un
+## suelo de ruido, no un objetivo: dos capturas del mismo fotograma dan 0 exacto.
+const MOV_MINIMO := 0.004
 
 ## Fotogramas de asiento antes de la primera foto del relieve.
 const ASENTAR := 3
@@ -2115,10 +2151,23 @@ func _autotest_bestiario() -> void:
 			if relieve == 2:
 				return          # fallo, ya reportado
 			_at_camara_libre = false
-			_at_captura("BESTIARIO OK — %d retratos%s · relieve (efecto %.3f)"
+			# QUIETOS: los que no se movieron entre sus dos retratos. Se reporta la
+			# lista, no se falla: hay bichos que legitimamente no animan, y el
+			# umbral bueno todavia no esta medido en las nueve especies. Lo que no
+			# puede seguir pasando es que nadie se entere.
+			var quietos: Array[String] = []
+			var detalle: Array[String] = []
+			for esp in _at_mov_bicho:
+				var m: float = _at_mov_bicho[esp]
+				detalle.append("%s %.3f" % [esp, m])
+				if m < MOV_MINIMO:
+					quietos.append(str(esp))
+			print("MOVIMIENTO por especie: %s" % ", ".join(detalle))
+			_at_captura("BESTIARIO OK — %d retratos%s · relieve (efecto %.3f) · quietos: %s"
 				% [AT_BESTIARIO.size(),
 				" + cambio de calidad en caliente" if _at_cambio_calidad else "",
-				_at_relieve_resto], 0)
+				_at_relieve_resto,
+				"ninguno" if quietos.is_empty() else ", ".join(quietos)], 0)
 		else:
 			_at_fase = 11
 		return
@@ -2165,7 +2214,18 @@ func _autotest_bestiario() -> void:
 		return
 	else:
 		_retrato(especie, "-b")
-	# siguiente bicho
+		# Y AQUI SE AFIRMA que se movio. Las dos fotos ya se tomaban —el
+		# comentario de arriba lo dice— pero solo se guardaban: comparar quedaba
+		# para el ojo de quien las mirase, y nadie las mira una por una.
+		#
+		# Es la averia que se colo con el Vorax: sus ocho brazos no se movian
+		# porque el cliente mapeaba una lista FIJA de nombres de hueso y los
+		# `brazo_*` no estaban. En la foto se veia un bicho perfecto, con sus
+		# brazos en pose de reposo, y la pose de reposo de un bicho radial no se
+		# distingue de una pose animada mirando UN fotograma.
+		var mov := _movimiento_retrato()
+		if not is_nan(mov):
+			_at_mov_bicho[especie] = mov
 	_soltar_maniqui()
 	_at_camara_t = -1.0
 	_at_primer_frame = false

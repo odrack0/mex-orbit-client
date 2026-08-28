@@ -1131,6 +1131,27 @@ el modelo se rehace con otro número de tentáculos, el cliente se entera solo.
 | `grados` | **16** | acotado por los VECINOS, no por lo que se lea. Los brazos más juntos están a 18-20° uno de otro, así que un barrido grande los cruza. A 205 px la silueta cambia un 8,0% con 18° y un 10,6% con 45°: rendimientos decrecientes justo donde empieza el riesgo |
 | `desfase` | 1/n | la onda da una vuelta entera al anillo |
 
+### Los tentáculos no se movían, y la foto decía que sí
+
+Los `brazo_*` **nunca llegaron al cliente**: `_mapear_huesos` recorría una lista fija de nombres
+—alas, cuernos y `cola_1..3`— así que `_poner_hueso` salía por la puerta de atrás en cada fotograma.
+Ahora se mapea lo que el **esqueleto** trae, que además hace que un hueso nuevo funcione sin tocar el
+cliente.
+
+Lo que hace este fallo peligroso es su síntoma: **un bicho quieto se ve exactamente igual que un
+bicho bien animado con amplitud pequeña**, y en un bicho radial la pose de reposo tampoco delata
+nada. La captura del bestiario salía perfecta.
+
+Por eso el bestiario ahora **afirma el movimiento**. Ya tomaba dos fotogramas —su comentario decía
+que una foto fija no demuestra que algo se mueva— pero solo los guardaba: comparar quedaba para el
+ojo de quien los mirase, y nadie mira nueve pares de PNG uno por uno. Ahora mide la diferencia entre
+los dos dentro de la caja del bicho (no en la pantalla entera: el campo de estrellas tiene paralaje y
+se mueve solo) y reporta la lista de **quietos**.
+
+Medido en las nueve: `vex 0,515 · ferox 0,127 · skarnox 0,110 · vorax 0,097 · gravon 0,083 ·
+gravit 0,085 · mordax 0,055 · vexor 0,036 · skarn 0,034`. Se reporta y no se falla porque el umbral
+bueno para las nueve aún no está medido; lo que no puede volver a pasar es que nadie se entere.
+
 **Y `repro_eje_hueso` guardaba PNG negros diciendo «guardado».** Prefijaba `npcs/` siempre, así que
 `--modelo=npcs/vorax.glb` daba `assets/npcs/npcs/vorax.glb`, el modelo no cargaba y la escena seguía
 adelante. Cuatro renders vacíos que se analizan como si fueran un resultado son peor que un error.

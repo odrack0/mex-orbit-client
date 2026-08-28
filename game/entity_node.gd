@@ -548,17 +548,21 @@ func _mapear_huesos(nodo: Node) -> Dictionary:
 	if esqs.is_empty():
 		return {}
 	var sk: Skeleton3D = esqs[0]
+	# Se mapea lo que el ESQUELETO trae, no una lista escrita aqui. La lista fija
+	# —alas, cuernos y cola_1..3— dejo fuera a los `brazo_*` del Vorax sin decir
+	# nada: `_poner_hueso` salia por la puerta de atras en cada fotograma y los
+	# tentaculos no se movian. El unico sintoma era un bicho quieto, que es lo
+	# mismo que se ve cuando la animacion esta bien y la amplitud es pequenia.
+	#
+	# Recorrer el esqueleto ademas hace que un hueso nuevo funcione sin tocar el
+	# cliente, que es como ya se cuentan los brazos.
 	var mapa := {"sk": sk}
-	for nombre in ["ala_izq", "ala_der", "cuerno_izq", "cuerno_der",
-			"cola_1", "cola_2", "cola_3"]:
-		var idx := sk.find_bone(nombre)
-		if idx >= 0:
-			# La rotacion de REPOSO se guarda porque `set_bone_pose_rotation` fija
-			# la pose ENTERA, no un incremento: escribir un cuaternion a secas
-			# machaca el reposo del hueso y la malla sale aplastada sin haber
-			# rotado nada.
-			mapa[nombre] = {"i": idx,
-				"rest": sk.get_bone_rest(idx).basis.get_rotation_quaternion()}
+	# La rotacion de REPOSO se guarda porque `set_bone_pose_rotation` fija la pose
+	# ENTERA, no un incremento: escribir un cuaternion a secas machaca el reposo
+	# del hueso y la malla sale aplastada sin haber rotado nada.
+	for idx in sk.get_bone_count():
+		mapa[sk.get_bone_name(idx)] = {"i": idx,
+			"rest": sk.get_bone_rest(idx).basis.get_rotation_quaternion()}
 	return mapa
 
 
