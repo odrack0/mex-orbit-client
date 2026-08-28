@@ -34,14 +34,28 @@ var _materiales: Array[BaseMaterial3D] = []
 ## Pares [ala_izq, ala_der] por bicho, o [] si el modelo no viene partido.
 var _alas: Array = []
 ## Cuanto se pliegan, en grados.
-const ALAS_GRADOS := 34.0
+var ALAS_GRADOS := 34.0
 
 ## Segmentos de cola por bicho, de la union hacia la punta.
 var _colas: Array = []
+
+## ---- esqueleto ----
+## Cuando el modelo trae huesos (de riguear-modelo.py) no hay piezas que rotar:
+## hay una sola malla y se mueven los HUESOS. La diferencia que importa no es de
+## API sino de resultado: con piezas, un vertice pertenece entero a una y al
+## rotar se abre rendija en la union; con huesos, un vertice de la bisagra pesa
+## entre dos y la superficie se estira. No hay costura porque no hubo corte.
+var _esqueletos: Array[Skeleton3D] = []
+var _huesos: Array = []          # por bicho: {ala_izq, ala_der, cola_1..N} -> indice
+## Que eje local mueve cada cosa. Se deja fuera porque el marco local de un hueso
+## depende de como se creo y de la permutacion de ejes de glTF: es mas barato
+## medirlo que razonarlo.
+var _eje_alas := 1               # 0=X 1=Y 2=Z
+var _eje_cola := 2
 ## Grados POR SEGMENTO. Se acumulan por la cadena: con 3 segmentos la punta llega
 ## al triple. Poco por segmento y varios segmentos se lee como algo que ondula;
 ## mucho en uno solo se lee como una bisagra.
-const COLA_GRADOS := 9.0
+var COLA_GRADOS := 9.0
 ## Un ciclo cada 1,5 s: es el `speed: 4.2` de undulate en vexor.json (2*PI/4,2).
 ## NO va sincronizada con las alas, igual que hoy en el sprite: son dos partes del
 ## cuerpo con su propio ritmo, y eso es lo que hace que se lea como bicho.
@@ -108,6 +122,14 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
+		elif arg.begins_with("--eje-alas="):
+			_eje_alas = int(arg.trim_prefix("--eje-alas="))
+		elif arg.begins_with("--eje-cola="):
+			_eje_cola = int(arg.trim_prefix("--eje-cola="))
+		elif arg.begins_with("--cola-grados="):
+			COLA_GRADOS = float(arg.trim_prefix("--cola-grados="))
+		elif arg.begins_with("--alas-grados="):
+			ALAS_GRADOS = float(arg.trim_prefix("--alas-grados="))
 		elif arg == "--traza":
 			_traza = true
 		elif arg == "--una-cara":
@@ -246,6 +268,21 @@ func _process(delta: float) -> void:
 			var a: float = deg_to_rad(ALAS_GRADOS) * bat
 			_alas[i][0].rotation.z = -a
 			_alas[i][1].rotation.z = a
+
+		# ---- esqueleto: mismas curvas, distinta manera de aplicarlas ----
+		if i < _esqueletos.size() and _esqueletos[i] != null:
+			var sk: Skeleton3D = _esqueletos[i]
+			var mapa: Dictionary = _huesos[i]
+			if _traza and i == 0 and _t > _proxima_traza:
+				print("  ESQ  entra al bloque, mapa=%s  t=%.2f" % [mapa.keys(), t])
+			var bat := sin(TAU * t)
+			var a := deg_to_rad(ALAS_GRADOS) * bat
+			_poner_hueso(sk, mapa, "ala_izq", _eje_alas, -a)
+			_poner_hueso(sk, mapa, "ala_der", _eje_alas, a)
+			var tc := _t / COLA_CICLO + _fase[i]
+			for k in 3:
+				var ang := deg_to_rad(COLA_GRADOS) * sin(TAU * (tc - k * COLA_DESFASE))
+				_poner_hueso(sk, mapa, "cola_%d" % (k + 1), _eje_cola, ang)
 
 		# ---- la cola ----
 		# Sobre Y, la vertical: vista desde arriba la cola serpentea de lado a
@@ -388,6 +425,33 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 	else:
 		_alas.append([])
 
+	# ---- esqueleto, si lo trae ----
+	var esqs := nodo.find_children("*", "Skeleton3D", true, false)
+	if not esqs.is_empty():
+		var sk: Skeleton3D = esqs[0]
+		var mapa := {}
+		for nombre in ["ala_izq", "ala_der", "cola_1", "cola_2", "cola_3"]:
+			var idx := sk.find_bone(nombre)
+			if idx >= 0:
+				# Se guarda la rotacion de REPOSO. `set_bone_pose_rotation` fija la
+				# pose entera, no un incremento: los huesos de la cola apuntan
+				# hacia atras, asi que su reposo ya lleva rotacion, y escribir un
+				# cuaternion "a secas" la machacaba. La malla salia aplastada SIN
+				# haber rotado nada, que es lo que despisto — parecia un problema
+				# de pesos y era de composicion.
+				mapa[nombre] = {"i": idx, "rest": sk.get_bone_rest(idx).basis.get_rotation_quaternion()}
+		_esqueletos.append(sk)
+		_huesos.append(mapa)
+		if i == 0:
+			var todos := []
+			for h in sk.get_bone_count():
+				todos.append(sk.get_bone_name(h))
+			print("DIAG  esqueleto: %d huesos %s  ->  mapeados %s"
+				% [sk.get_bone_count(), todos, mapa.keys()])
+	else:
+		_esqueletos.append(null)
+		_huesos.append({})
+
 	# La cola viene ENCADENADA en el GLB (cola_2 cuelga de cola_1), asi que basta
 	# rotar cada segmento un poco: la cadena compone las rotaciones sola.
 	var segmentos: Array = []
@@ -451,6 +515,30 @@ func _arrancar_animacion(nodo: Node, i: int) -> void:
 	ap.seek(ap.current_animation_length * float(i) / float(_n), true)
 	_players[_players.size() - 1] = ap
 	_animados += 1
+
+
+## Rota un hueso COMPONIENDO sobre su reposo, no sustituyendolo.
+func _poner_hueso(sk: Skeleton3D, mapa: Dictionary, nombre: String, eje: int, ang: float) -> void:
+	if not mapa.has(nombre):
+		return
+	var h: Dictionary = mapa[nombre]
+	var q: Quaternion = (h["rest"] as Quaternion) * _giro_eje(eje, ang)
+	sk.set_bone_pose_rotation(h["i"], q)
+	if _traza and nombre == "cola_1" and _t > _proxima_traza:
+		var leida := sk.get_bone_pose_rotation(h["i"])
+		print("  HUESO cola_1 idx=%d  ang=%.1f deg  puesta=%s  leida=%s  igual=%s"
+			% [h["i"], rad_to_deg(ang), str(q).substr(0, 28), str(leida).substr(0, 28),
+			q.is_equal_approx(leida)])
+
+
+## Cuaternion de giro alrededor de un eje local por indice (0=X 1=Y 2=Z).
+func _giro_eje(eje: int, ang: float) -> Quaternion:
+	var v := Vector3.RIGHT
+	if eje == 1:
+		v = Vector3.UP
+	elif eje == 2:
+		v = Vector3.BACK
+	return Quaternion(v, ang)
 
 
 ## Media del PEOR `pct`% de fotogramas, en fps. Es la cifra que se compara entre
