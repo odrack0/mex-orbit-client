@@ -46,5 +46,8 @@ static func _tiles(lista: Array) -> Array:
 			"p_factor": float(t.get("p_factor", 6.0)),
 			"scale": float(t.get("scale", 1.0)),
 			"alpha": float(t.get("alpha", 1.0)),
+			# atlas de variantes (F3): rejilla grid x grid con `celdas` nubes
+			"celdas": int(t.get("celdas", 1)),
+			"grid": int(t.get("grid", 2)),
 		})
 	return salida

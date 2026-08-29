@@ -134,7 +134,13 @@ func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -
 	var tex: Texture2D = t.tex
 	if tex == null:
 		return
-	var lado := float(tex.get_width()) * float(t.get("scale", 1.0)) * TILE_FACTOR
+	# ATLAS DE VARIANTES (el arma del original contra la repeticion): si el JSON
+	# declara `celdas`, la textura es una rejilla `grid`x`grid` de nubes y cada
+	# tile del mosaico sortea la suya — como la seleccion de tiles del original.
+	var celdas := int(t.get("celdas", 1))
+	var grid := int(t.get("grid", 1 if celdas <= 1 else 2))
+	var lado_px := float(tex.get_width()) / float(grid)
+	var lado := lado_px * float(t.get("scale", 1.0)) * TILE_FACTOR
 	var alfa := float(t.get("alpha", 1.0))
 	var span := _limites * MARGEN
 	var origen := -_limites * (MARGEN - 1.0) * 0.5
@@ -144,7 +150,11 @@ func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -
 		for cy in ny:
 			if rng.randf() < TILE_HUECOS:
 				continue
-			var s := Mundo3D.sprite_plano(tex, lado)
+			var s := Mundo3D.sprite_plano(tex, lado, grid)
+			if celdas > 1:
+				s.hframes = grid
+				s.vframes = grid
+				s.frame = rng.randi_range(0, celdas - 1)
 			s.position = Vector3(origen.x + (float(cx) + 0.5) * lado,
 				y_base + rng.randf_range(JITTER_MIN, JITTER_MAX),
 				origen.y + (float(cy) + 0.5) * lado)
