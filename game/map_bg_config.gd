@@ -1,5 +1,5 @@
 # Traduce el JSON del mapa (data/maps/<code>.json — heredero del maps-config.xml)
-# al formato que consume MapBackground. Si el mapa no tiene JSON, solo polvo estelar.
+# al formato que consume Fondo3D (F3). Si el mapa no tiene JSON, solo el cielo.
 class_name MapBgConfig
 
 

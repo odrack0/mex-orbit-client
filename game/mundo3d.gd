@@ -52,13 +52,16 @@ func _init() -> void:
 	instancia = self
 
 
+var _env: Environment
+
+
 func _ready() -> void:
-	var ent := Environment.new()
-	ent.background_mode = Environment.BG_COLOR
-	ent.background_color = Color.BLACK
-	AssetDefs.ambiente_mundo(ent)
+	_env = Environment.new()
+	_env.background_mode = Environment.BG_COLOR
+	_env.background_color = Color.BLACK
+	AssetDefs.ambiente_mundo(_env)
 	var we := WorldEnvironment.new()
-	we.environment = ent
+	we.environment = _env
 	add_child(we)
 	# LA luz del mundo, una sola (el dial de AssetDefs). Sin sombras (G§7).
 	add_child(AssetDefs.sol_mundo())
@@ -143,6 +146,19 @@ func zoom_directo(v: float) -> void:
 		_zoom_tween.kill()
 	zoom = v
 	_zoom_objetivo = zoom
+
+
+## El CIELO procedural (F3): estrellas con twinkle en el Sky del Environment,
+## tenidas con el tinte del mapa. El ambiente de AssetDefs no se toca — el Sky
+## solo pinta el fondo.
+func poner_cielo(tinte: Color) -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://game/shaders/cielo.gdshader")
+	mat.set_shader_parameter("tinte", Vector3(tinte.r, tinte.g, tinte.b))
+	var sky := Sky.new()
+	sky.sky_material = mat
+	_env.background_mode = Environment.BG_SKY
+	_env.sky = sky
 
 
 # ---- proyecciones (G§4) ----

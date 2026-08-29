@@ -204,7 +204,7 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `DOBLE_CLICK_MS` | `game/world.gd` | 500 | Doble click sobre una entidad = fijarla y atacar (el gesto canónico); el primer click solo selecciona |
 | Flash + chispas de explosión | `world.gd::_explotar` | flash ⌀ 6×radio en 0.25 s · 24 chispas 100–200 u/s | Las capas extra de la explosión multi-capa del original, aditivas y procedurales (cero assets); escalan con el `click_radius` de la víctima |
 | Marcador de selección | `entity_node.gd::set_selected` | 1.5× → 1× en 0.3 s | El fijado "cierra" sobre el blanco, como el original |
-| Fondo (F1) | `world.gd::_construir_fondo` | telón a y=−3500, ×1.8 del mapa | El arte del mapa como plano profundo: paralaje REAL por profundidad. `MapBackground`/`Starfield2D` (y sus diales de twinkle/fade/profundidad) quedaron fuera de servicio en F1; F3 monta el fondo del original (skybox, star dust, tilemaps) |
+| Fondo (F3) | `game/fondo3d.gd` | capas −3500+550·i · jitter −500..−200 · telón −4200 · polvo 1500 en caja 4200³/rejilla 1000 · TILE_FACTOR 1.5 · huecos 25% | El fondo del original completo: cielo con twinkle (`cielo.gdshader`, dos máscaras móviles), mosaicos de nebulosa con jitter vertical POR TILE (el paralaje lo hace la cámara), planetas/sol a cota por su `p_factor`, cadena de flares proyectada, y polvo estelar anclado al mundo que se recentra a saltos de rejilla. Determinista por mapa (semilla = hash del code). `MapBackground`/`Starfield2D` murieron |
 | `AQ_*` | `game/quality.gd` | ventana 20 s · baja <10 fps · sube >60 | Auto-calidad con histéresis: escalera de 4 recortes **transitorios** (mosaicos → llamas → explosiones → atlas/3D) aplicados como tope sobre el preset, sin tocar lo persistido. Sin foco no mide; en autotest no corre |
 | Encuadre del minimapa | `ui/minimap_window.gd` | 12.5% de cada lado · `--txt` 45% | Las 4 esquinas del viewport llevadas al mapa (registrado en §8 del sistema de diseño) |
 
@@ -235,6 +235,17 @@ perspectiva de los aliens cambia con el zoom, que fue el detonante de todo).
 gana el **pool de 3 luces de efectos** con destellos de disparo y explosión (clave `luces` en la
 calidad: 0/1/pool, que también gobierna la luz del héroe y entra en la escalera de auto-calidad), y
 la estación se recalibró a huella 1100 (la torre ya no se come la pantalla a zoom cercano).
+
+**FASE 3 (mismo día)**: el fondo es **profundidad de verdad** (`fondo3d.gd`): cielo procedural con
+el twinkle del original (`cielo.gdshader` — dos máscaras de ruido móviles multiplicadas, teñido por
+mapa), mosaicos de nebulosa a `−3500 + capa·550` con **jitter vertical por tile** (−500..−200: el
+paralaje entre tiles lo produce la cámara, la joya del tilemap del original), planetas y sol a cota
+según su `p_factor` heredado, la cadena de flares del sol proyectada al HUD (oclusión pendiente
+F4), y el **polvo estelar** como partículas sueltas al mundo alrededor del foco, recentradas a
+saltos de rejilla — la capa que vende el vuelo. Todo del `data/maps/<code>.json` de siempre y
+determinista por mapa. Gates `-Autotest` y `-Salto` en verde. **Deuda de arte conocida**: las
+nebulosas actuales no son tileables y el mosaico enseña costuras — pide arte con bordes que casen
+(o atlas de variantes), no más código.
 
 ## El puerto de los guidelines 3D (ago-2026)
 

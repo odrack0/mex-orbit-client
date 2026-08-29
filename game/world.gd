@@ -28,7 +28,7 @@ var _hero: EntityNode
 var _mundo: Mundo3D
 var _capa_juego: Node2D       # HUD del mundo (barras, nombres, numeros), proyectado
 var _foco := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
-var _fondo3d: Node3D          # telon de fondo F1 (F3 lo hace de verdad)
+var _fondo3d: Fondo3D         # el fondo completo del original (F3)
 var _seq := 0
 var _limites := Vector2(20800, 12800)
 
@@ -167,34 +167,16 @@ func _ready() -> void:
 	_conn.connect_to(Session.game_host, Session.game_ticket)
 
 
-## El telon de fondo de F1: el arte del mapa como plano profundo bajo el mundo.
-## Paralaje REAL por profundidad — la camara hace el resto. F3 monta el fondo
-## completo del original (skybox con twinkle, star dust en mosaico, tilemaps).
+## El fondo del mapa (F3): el Fondo3D completo del original — cielo con
+## twinkle, telon, nebulosas a profundidad real, planetas, sol con flares y el
+## polvo estelar anclado al mundo. Todo del data/maps/<code>.json de siempre.
 func _construir_fondo(map_code: String) -> void:
 	if _fondo3d != null:
 		return                     # una reconexion reenvia EnterMap: no duplicar capas
-	_fondo3d = Node3D.new()
+	_fondo3d = Fondo3D.new()
 	_mundo.add_child(_fondo3d)
-	var d := AssetDefs.mapa(map_code)
-	var ruta := str(d.get("main", ""))
-	if ruta == "" or not ResourceLoader.exists(ruta):
-		return
-	var tex: Texture2D = load(ruta)
-	var telon := MeshInstance3D.new()
-	var q := QuadMesh.new()
-	# cubre el mapa entero con margen, a -3500 de profundidad (la cota de los
-	# tilemaps del original): al volar deriva por paralaje real
-	var alto := _limites.y * 1.8
-	q.size = Vector2(alto * float(tex.get_width()) / float(tex.get_height()), alto)
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_texture = tex
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	q.material = mat
-	telon.mesh = q
-	telon.rotation.x = -PI / 2
-	telon.position = Vector3(_limites.x * 0.5, -3500.0, _limites.y * 0.5)
-	_fondo3d.add_child(telon)
+	# semilla por mapa: el mismo sector monta el mismo cielo en cada visita
+	_fondo3d.build(MapBgConfig.para(map_code, _limites), _limites, map_code.hash())
 
 
 func _construir_hud() -> void:
@@ -1371,6 +1353,8 @@ func _process(delta: float) -> void:
 	_process_hold_move(delta)
 	_process_pending_collect()
 	_process_autopilot()
+	if _fondo3d != null:
+		_fondo3d.update(_foco, delta)
 
 	# la base animada avanza sus fotogramas
 	if _estacion_anim_total > 0 and _estacion_sprite != null:
