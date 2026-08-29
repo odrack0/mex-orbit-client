@@ -316,9 +316,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
-	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	ent.ambient_light_color = Color(0.35, 0.40, 0.55)
-	ent.ambient_light_energy = 0.28   # la misma fuerza de fondo que usa el horneado
+	AssetDefs.ambiente_mundo(ent)
 
 	# GLOW: sin el, la emision se RECORTA a 1.0 y las venas se leen como "claras",
 	# no como "encendidas". Media si brilla porque alli la capa emisiva va en blend

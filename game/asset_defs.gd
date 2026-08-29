@@ -33,10 +33,38 @@ const LUZ_MUNDO_GRADOS := 315.0
 const LUZ_MUNDO_ELEVACION := -48.0
 const LUZ_MUNDO_ENERGIA := 1.0
 
+## La luz de FONDO del mundo 3D y el tonemap, hermanas de las de arriba y con el
+## mismo contrato: son del MUNDO, no del asset. Estaban copiadas a mano en OCHO
+## sitios (entity_node, mundo_3d y seis escenas de pruebas — el banco ademas con
+## 0.35 propio), asi que subir el ambiente exigia acertar ocho ediciones o la
+## homologacion mentia segun que escena midiera.
+##
+## 0.65 y FILMIC contra el 0.28 lineal original: el mundo entero se percibia mas
+## muerto que los modelos en el visor — un visor es un estudio con luz por todas
+## partes, y con 0.28 una roca oscura no recibia casi nada. El ambiente sigue
+## frio (azul grisaceo) para que el espacio se lea como espacio.
+## OJO: cambiar esto descalibra el HORNO_AMBIENTE de cada bicho horneado — media
+## se rehornea y se rehomologa con medir_emision, no se deja a ojo.
+const LUZ_MUNDO_AMBIENTE_COLOR := Color(0.35, 0.40, 0.55)
+const LUZ_MUNDO_AMBIENTE := 0.65
+
 
 ## El vector de la luz del mundo, listo para el shader de relieve.
 static func luz_mundo() -> Vector2:
 	return Vector2.RIGHT.rotated(deg_to_rad(LUZ_MUNDO_GRADOS))
+
+
+## La luz de fondo y el tonemap del mundo, aplicados a un Environment. UN solo
+## sitio para los NUEVE sitios que montan un mundo 3D: cambiar el ambiente aqui
+## cambia el juego, las pruebas y la homologacion a la vez, que es la unica
+## manera de que sigan midiendo lo mismo.
+static func ambiente_mundo(ent: Environment) -> void:
+	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	ent.ambient_light_color = LUZ_MUNDO_AMBIENTE_COLOR
+	ent.ambient_light_energy = LUZ_MUNDO_AMBIENTE
+	# FILMIC y no lineal: el lineal recorta el hombro y aplana los medios — es
+	# la otra mitad de "se ve mas muerto que en el visor", que tonemapea filmico.
+	ent.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 
 
 ## El material de relieve para una textura de normales, o null si no hay mapa.
@@ -145,9 +173,7 @@ static func mundo_3d(escena: PackedScene, lado: int, extension: float,
 
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
-	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	ent.ambient_light_color = Color(0.35, 0.40, 0.55)
-	ent.ambient_light_energy = 0.28   # la misma fuerza de fondo que usa el horneado
+	ambiente_mundo(ent)
 	# GLOW: sin el, la emision se RECORTA a 1.0 y lo encendido se lee como
 	# "claro" en vez de como "encendido".
 	# Los valores por defecto se calibraron con las VETAS de un bicho: lineas

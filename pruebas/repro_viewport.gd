@@ -37,9 +37,7 @@ func _montar(padre: Node2D, i: int) -> SubViewport:
 
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
-	ent.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	ent.ambient_light_color = Color(0.35, 0.40, 0.55)
-	ent.ambient_light_energy = 0.28
+	AssetDefs.ambiente_mundo(ent)
 	var we := WorldEnvironment.new()
 	we.environment = ent
 	vp.add_child(we)

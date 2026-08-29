@@ -176,9 +176,9 @@ func _ready() -> void:
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
 	e.background_color = Color(0.043, 0.051, 0.071)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.35, 0.40, 0.55)
-	e.ambient_light_energy = 0.35
+	# La luz de fondo del MUNDO, no una del banco: tenia un 0.35 propio y el banco
+	# medias con una luz que el juego no usaba.
+	AssetDefs.ambiente_mundo(e)
 	# El fondo lo pinta la CAMARA, no solo el entorno: en el renderizador de
 	# compatibilidad el color del Environment no llegaba al borrado y la escena
 	# salia sobre un gris azulado —el color de la luz ambiente— en vez de sobre el
