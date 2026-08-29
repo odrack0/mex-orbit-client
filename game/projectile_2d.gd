@@ -43,9 +43,9 @@ static func fire(_parent: Node, desde: Vector2, hasta: Vector2,
 		AssetDefs.color(haz.get("color", "FA0000"))
 	p.add_child(cuerpo)
 	# el arte apunta a +X; la guiñada alrededor de Y con el ángulo de pantalla
-	# deja el haz sobre la línea de tiro (juego (dx,dy) -> mundo (dx,-dy))
-	p.rotation.y = delta.angle()
-	p.position = Vector3(desde.x, 15.0, -desde.y)
+	# deja el haz sobre la línea de tiro (juego (dx,dy) -> mundo (dx,+dy))
+	p.rotation.y = -delta.angle()
+	p.position = Vector3(desde.x, 15.0, desde.y)
 	Mundo3D.instancia.add_child(p)
 	return p
 
@@ -54,6 +54,6 @@ func _process(delta: float) -> void:
 	_t += delta
 	var k := minf(_t / _duracion, 1.0)
 	var pos := _desde.lerp(_hasta, k)
-	position = Vector3(pos.x, 15.0, -pos.y)
+	position = Vector3(pos.x, 15.0, pos.y)
 	if k >= 1.0:
 		queue_free()

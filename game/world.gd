@@ -193,7 +193,7 @@ func _construir_fondo(map_code: String) -> void:
 	q.material = mat
 	telon.mesh = q
 	telon.rotation.x = -PI / 2
-	telon.position = Vector3(_limites.x * 0.5, -3500.0, -_limites.y * 0.5)
+	telon.position = Vector3(_limites.x * 0.5, -3500.0, _limites.y * 0.5)
 	_fondo3d.add_child(telon)
 
 
@@ -393,7 +393,7 @@ func _construir_estacion() -> void:
 	# la estacion y su zona segura, con las particularidades de su JSON
 	var d := AssetDefs.prop("station")
 	_estacion = Node3D.new()
-	_estacion.position = Vector3(_estacion_pos.x, 0.0, -_estacion_pos.y)
+	_estacion.position = Vector3(_estacion_pos.x, 0.0, _estacion_pos.y)
 	_mundo.add_child(_estacion)
 
 	# El anillo de la zona segura, ahora GEOMETRIA en el plano: un toro fino que
@@ -883,7 +883,7 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 	anim.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	anim.shaded = false
 	anim.pixel_size = 1.4
-	anim.position = Vector3(pos.x, 20.0, -pos.y)
+	anim.position = Vector3(pos.x, 20.0, pos.y)
 	_mundo.add_child(anim)
 	anim.play("boom")
 	anim.animation_finished.connect(anim.queue_free)
@@ -902,7 +902,7 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 		_tex_flash.fill_from = Vector2(0.5, 0.5)
 		_tex_flash.fill_to = Vector2(0.5, 0.0)
 	var flash := Mundo3D.quad_aditivo(_tex_flash, 256.0)
-	flash.position = Vector3(pos.x, 25.0, -pos.y)
+	flash.position = Vector3(pos.x, 25.0, pos.y)
 	flash.scale = Vector3.ONE * 0.01
 	_mundo.add_child(flash)
 	# el diametro final ~6x el radio de click (la proporcion del original:
@@ -952,7 +952,7 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 	chispas.lifetime = 0.8
 	chispas.process_material = _pm_chispas
 	chispas.draw_pass_1 = _malla_chispa()
-	chispas.position = Vector3(pos.x, 20.0, -pos.y)
+	chispas.position = Vector3(pos.x, 20.0, pos.y)
 	chispas.emitting = true
 	_mundo.add_child(chispas)
 	chispas.finished.connect(chispas.queue_free)
@@ -992,7 +992,7 @@ func _crear_caja(box_id: int, pos: Vector2) -> void:
 	caja.position = pos
 	add_child(caja)
 	var cuerpo := Node3D.new()
-	cuerpo.position = Vector3(pos.x, 1.0, -pos.y)
+	cuerpo.position = Vector3(pos.x, 1.0, pos.y)
 	_mundo.add_child(cuerpo)
 	caja.tree_exited.connect(func(): if is_instance_valid(cuerpo): cuerpo.queue_free())
 

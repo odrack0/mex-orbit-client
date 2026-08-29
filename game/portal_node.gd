@@ -85,7 +85,7 @@ func _construir() -> void:
 	var tam := float(d.get("world_size", 380))
 
 	_cuerpo = Node3D.new()
-	_cuerpo.position = Vector3(position.x, 1.0, -position.y)
+	_cuerpo.position = Vector3(position.x, 1.0, position.y)
 	Mundo3D.instancia.add_child(_cuerpo)
 
 	# ALTA monta el atlas del encendido; MEDIA y BAJA caen al aro fijo.

@@ -4,8 +4,11 @@
 # el acoplamiento tilt-zoom: al acercar, la camara baja hacia el horizonte y
 # TODO el mundo cambia de perspectiva a la vez.
 #
-# Mapeo de coordenadas (G§2), literal del original: juego (x, y) -> 3D
-# (x, altura, -y), 1 unidad 3D = 1 unidad de juego. Naves a y=0.
+# Mapeo de coordenadas: juego (x, y) -> 3D (x, altura, +y), 1 unidad 3D = 1
+# unidad de juego, naves a y=0. OJO: el original mapeaba z = -y porque Away3D
+# es un motor ZURDO (Flash); Godot es diestro, y con z = -y una camara estandar
+# no puede mostrar x->derecha e y->abajo a la vez — el mundo salia ESPEJADO
+# respecto al minimapa (se cazo volando). z = +y es el equivalente diestro.
 class_name Mundo3D
 extends Node3D
 
@@ -72,8 +75,11 @@ func actualizar(foco: Vector2) -> void:
 	var t := deg_to_rad(TILT - reduc)
 	var p := deg_to_rad(PAN)
 	var d := DIST / zoom
-	var mira := Vector3(_foco.x, 0.0, -_foco.y)
-	var pos := mira + Vector3(d * sin(t) * sin(p), -d * cos(t), -d * sin(t) * cos(p))
+	var mira := Vector3(_foco.x, 0.0, _foco.y)
+	# la camara queda del lado del ESPECTADOR (z+, el borde inferior de la
+	# pantalla) mirando hacia el fondo: x->derecha, y de juego->abajo, como el
+	# minimapa y el original
+	var pos := mira + Vector3(d * sin(t) * sin(p), -d * cos(t), d * sin(t) * cos(p))
 	camara.look_at_from_position(pos, mira, Vector3.UP)
 
 
@@ -104,7 +110,7 @@ func zoom_directo(v: float) -> void:
 
 ## Mundo (juego) -> pixel de pantalla.
 func a_pantalla(p: Vector2, altura := 0.0) -> Vector2:
-	return camara.unproject_position(Vector3(p.x, altura, -p.y))
+	return camara.unproject_position(Vector3(p.x, altura, p.y))
 
 
 ## Pixel de pantalla -> mundo (juego), por interseccion rayo-plano y=altura.
@@ -118,7 +124,7 @@ func a_mundo(px: Vector2, altura := 0.0) -> Vector2:
 	if t < 0.0:
 		return Vector2.INF
 	var hit := o + dir * t
-	return Vector2(hit.x, -hit.z)
+	return Vector2(hit.x, hit.z)
 
 
 ## Unidades de juego que mide UN pixel en el centro de la pantalla (para radios

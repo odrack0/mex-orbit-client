@@ -188,7 +188,7 @@ func _construir_visual() -> void:
 	_giro3d = Node3D.new()
 	_cuerpo.add_child(_giro3d)
 	Mundo3D.instancia.add_child(_cuerpo)
-	_cuerpo.position = Vector3(position.x, 0.0, -position.y)
+	_cuerpo.position = Vector3(position.x, 0.0, position.y)
 
 	if Quality.nivel("npc") >= 2 and str(d.get("modelo", "")) != "":
 		if _construir_malla_3d(d):
@@ -592,7 +592,7 @@ func _process(delta: float) -> void:
 			_girar_a(_visual_angle + (randf() - 0.5) * 360.0)
 
 	# ---- sincronia del cuerpo 3D y del HUD ----
-	_cuerpo.position = Vector3(position.x, 0.0, -position.y)
+	_cuerpo.position = Vector3(position.x, 0.0, position.y)
 	if turn_deg_per_sec == 0.0 and not _congelado:
 		_process_banking(delta, en_vuelo)
 		_process_hover(delta, en_vuelo)
@@ -808,7 +808,7 @@ func impacto_casco() -> void:
 	var offset := Vector2.from_angle(rnd * TAU) * (click_radius * 0.5 * rnd)
 	var anim := _sheet_anim3d("res://assets/fx/hull-impact.png", 96, 8, 0.45)
 	var p := position + offset
-	anim.position = Vector3(p.x, 12.0, -p.y)
+	anim.position = Vector3(p.x, 12.0, p.y)
 	Mundo3D.instancia.add_child(anim)
 	anim.tree_exited.connect(func(): _impactos_casco -= 1)
 
@@ -821,7 +821,7 @@ func impacto_escudo(desde: Vector2) -> void:
 	_impactos_escudo += 1
 	var dir := (desde - position).normalized()
 	var anim := _sheet_anim3d("res://assets/fx/shield-impact.png", 128, 8, 0.3)
-	anim.position = Vector3(dir.x * click_radius, 12.0, -dir.y * click_radius)
+	anim.position = Vector3(dir.x * click_radius, 12.0, dir.y * click_radius)
 	anim.modulate = NTheme.SHIELD
 	_cuerpo.add_child(anim)
 	anim.tree_exited.connect(func(): _impactos_escudo -= 1)
