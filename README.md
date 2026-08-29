@@ -193,6 +193,48 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `flicker.*` | `data/npcs/*.json` | Skarn 0.35 · Vex 0.45 · Ferox 0.40 | Ruido que hace temblar el brillo: cuánto, con qué grano y a qué ritmo |
 | `rings.*` | `data/npcs/*.json` | Solo el Gravit: 0.9 | Anillos concéntricos girando: velocidad, bandas, radios inicial y final, y cuánto se frena cada banda |
 | `TURN_FLIGHT_DEG_PER_SEC` | `game/entity_node.gd` | 420 °/s | Giro **al emprender vuelo**: brioso en todos, para que la proa vaya delante |
+| `BANK_MAX` / `BANK_EASE` | `game/entity_node.gd` | ±20° · 0.2 s | **Banking** de crucero: el alabeo es el error angular pendiente del giro, con tope y ease exponencial (constantes del cliente 3D original) |
+| `BANK_COMBATE_*` | `game/entity_node.gd` | ganancia −2 · ±10° · 0.08 s | Banking **atacando en movimiento**: invertido (se abre hacia el blanco), más contenido y más rápido |
+| `HOVER_AMP` / `HOVER_CICLO` | `game/entity_node.gd` | 5 px · 2 s | Flotación idle Lissajous del dibujo (solo naves, solo paradas, fase propia, fundido 0.5 s al arrancar) |
+| `LLAMA_IDLE` | `game/entity_node.gd` | 0.7 | Ralenti del motor de una nave de **jugador** parada (NPC apaga a 0); en vuelo, 1 |
+| `GLOW_HP_MIN` | `game/entity_node.gd` | 0.35 | Suelo del brillo emisivo a 0% de casco: malherido se apaga, no se muere de golpe. Multiplica el pulso en 2D **y** 3D |
+| `HUD_ZOOM_REF` | `game/entity_node.gd` | 0.621 | El HUD de entidad (nombre+barras) mide LO MISMO en pantalla a cualquier zoom; la referencia es `ZOOM_DEFECTO` para que el encuadre por defecto no cambie. **Deben casar** |
+| `ZOOM_TWEEN_SEC` | `game/world.gd` | 0.3 s | El zoom llega con tween Quad ease-out (el gesto del original); el rango y el paso siguen siendo los calibrados volando |
+| `SHAKE_*` | `game/world.gd` | amp 5 · 40 pasos × 24 ms | Shake de cámara **solo al recibir daño el héroe**: espiral en el `offset` de la cámara, amplitud −1 cada 10 pasos (receta exacta del original) |
+| `DOBLE_CLICK_MS` | `game/world.gd` | 500 | Doble click sobre una entidad = fijarla y atacar (el gesto canónico); el primer click solo selecciona |
+| Flash + chispas de explosión | `world.gd::_explotar` | flash ⌀ 6×radio en 0.25 s · 24 chispas 100–200 u/s | Las capas extra de la explosión multi-capa del original, aditivas y procedurales (cero assets); escalan con el `click_radius` de la víctima |
+| Marcador de selección | `entity_node.gd::set_selected` | 1.5× → 1× en 0.3 s | El fijado "cierra" sobre el blanco, como el original |
+| `TWINKLE_AMP` / `TWINKLE_SPEED` | `game/starfield_2d.gd` | 0.25 · 2.0 | Temblor de brillo por estrella con fase propia (el twinkle del skybox original, a escala de 300 puntos) |
+| Profundidad del fondo | `map_background.gd::_z_por_profundidad` | z = 1000/pFactor | El orden de dibujo del original: lo lejano primero. Antes mandaba el orden de inserción y una capa cercana podía quedar detrás de un planeta lejano |
+| Fade-in del fondo | `map_background.gd::_fundido` | fondos 1 s · planetas 0.5 s | Al entrar al mapa las capas entran, no aparecen de golpe |
+| `AQ_*` | `game/quality.gd` | ventana 20 s · baja <10 fps · sube >60 | Auto-calidad con histéresis: escalera de 4 recortes **transitorios** (mosaicos → llamas → explosiones → atlas/3D) aplicados como tope sobre el preset, sin tocar lo persistido. Sin foco no mide; en autotest no corre |
+| Encuadre del minimapa | `ui/minimap_window.gd` | 12.5% de cada lado · `--txt` 45% | Las 4 esquinas del viewport llevadas al mapa (registrado en §8 del sistema de diseño) |
+
+## El puerto de los guidelines 3D (ago-2026)
+
+La sensación del cliente 3D de DarkOrbit está destilada en
+`mex-orbit-docs/03-guidelines/darkorbit-3d-guidelines.md` (ingeniería inversa completa, con
+constantes literales). De ahí se portó, con sus números exactos: **banking** por error angular,
+**flotación idle**, **ralenti de motor**, **shake de daño**, **zoom con tween**, **HUD de entidad
+constante en pantalla**, **explosión multi-capa**, **glow ligado al casco**, **doble click de
+ataque**, **cierre del marcador**, **orden de profundidad del fondo** (`1000/pFactor`),
+**fade-ins**, **twinkle**, **encuadre del minimapa**, **carga asíncrona del GLB con placeholder**
+(el PNG de media, que el horno ya fabrica del mismo modelo) y la **auto-calidad por FPS**.
+
+Lo que NO se portó, a sabiendas — cada uno con su porqué ya registrado:
+
+- **El ease de giro de 0.2 s del 3D.** El giro de nave v1 (0.1 s fijo + 32 pasos) está calibrado y
+  **validado volando**; es el look del prototipo y manda sobre el guideline.
+- **El rango de zoom [1,3] y los pasos ×1.2/×0.8.** El rango v1 (0.621–1.157, ×1.1) se calibró
+  volando contra este arte; del original se porta el *gesto* (el tween), no los números.
+- **El snap a píxel de toda la cadena.** En DO funcionaba porque 1 unidad = 1 píxel a zoom 1; aquí
+  el zoom es fraccional (0.621) y redondear a enteros de mundo no cae en píxeles de pantalla — no
+  hay shimmer que arreglar por esa vía.
+- **La estela ribbon (12×30 ms).** La estela sigue retirada (ver su sección); si vuelve, la receta
+  del ribbon del original es el punto de partida, con su vida larga frente a la eslora.
+- **El UV-scroll de beams.** El disparo v1 es un proyectil que viaja 0.15 s (modelo del prototipo,
+  registrado en Diales); no hay haz sostenido al que rascarle las UV.
+- **La estación** carga su GLB en síncrono a propósito: es una, y llega con el `EnterMap`.
 
 ## Mobiliario del mapa: portal y caja de carga
 

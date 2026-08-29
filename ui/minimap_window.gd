@@ -187,6 +187,25 @@ func _dibujar() -> void:
 		_canvas.draw_circle(hp, 3.0, NTheme.CYAN)
 		_canvas.draw_arc(hp, 5.5 + sin(_t * 3.0) * 1.2, 0, TAU, 24, Color(NTheme.CYAN, 0.5), 1.0)
 
+	# EL ENCUADRE de la camara (§8): las cuatro esquinas del viewport llevadas al
+	# mapa, dibujando solo el 12.5% de cada lado desde cada esquina — el gesto
+	# del original; un marco entero taparia el contenido. Con el zoom, el marco
+	# crece y encoge: es la unica lectura de "cuanto estoy viendo" del juego.
+	var camn: Camera2D = _world.camara()
+	if camn != null:
+		var half: Vector2 = _world.get_viewport_rect().size / (2.0 * camn.zoom.x)
+		var esquinas: Array[Vector2] = [
+			_a_mapa(camn.position - half).clamp(Vector2.ZERO, s),
+			_a_mapa(camn.position + Vector2(half.x, -half.y)).clamp(Vector2.ZERO, s),
+			_a_mapa(camn.position + half).clamp(Vector2.ZERO, s),
+			_a_mapa(camn.position + Vector2(-half.x, half.y)).clamp(Vector2.ZERO, s),
+		]
+		var ce := Color(NTheme.TXT, 0.45)
+		for i in 4:
+			var e := esquinas[i]
+			for vecino in [esquinas[(i + 1) % 4], esquinas[(i + 3) % 4]]:
+				_canvas.draw_line(e, e + (vecino - e) * 0.125, ce, 1.0)
+
 
 ## Rombo: la forma del mobiliario fijo, para no confundirlo con naves ni cajas.
 func _rombo(centro: Vector2, r: float, color: Color) -> void:

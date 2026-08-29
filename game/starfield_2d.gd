@@ -11,6 +11,11 @@ const COUNT := 300
 const IDLE_VELOCITY := Vector2(8, 4)
 const CAMERA_FACTOR := 30.0
 const LOGICAL_WIDTH := 1280.0
+## TWINKLE (guideline 3D): el brillo de cada estrella tiembla con fase propia.
+## En el original lo hacia el skybox con dos mascaras moviles; aqui, con 300
+## puntos dibujados a mano, un seno por particula da el mismo cielo vivo.
+const TWINKLE_AMP := 0.25
+const TWINKLE_SPEED := 2.0
 
 var tint := Color(0.4, 0.95, 1.0)   # cian del 1-1
 var tint_ratio := 0.35              # fraccion de particulas tintadas
@@ -20,6 +25,7 @@ var _velocity := IDLE_VELOCITY
 var _size := Vector2.ZERO
 var _view_scale := 1.0
 var _prev_camera := Vector2.INF
+var _t := 0.0
 
 
 func resize(viewport: Vector2) -> void:
@@ -38,12 +44,14 @@ func resize(viewport: Vector2) -> void:
 				Vector2(randf() * _size.x, randf() * _size.y),
 				depth * 3.0 + 0.5,
 				color,
+				randf() * TAU,        # fase del twinkle, propia de cada estrella
 			])
 
 
 func advance(camera: Vector2, delta: float) -> void:
 	if _size.x <= 0.0 or _parts.is_empty():
 		return
+	_t += delta
 	if _prev_camera != Vector2.INF \
 			and absf(_prev_camera.x - camera.x) <= _size.x \
 			and absf(_prev_camera.y - camera.y) <= _size.y:
@@ -72,4 +80,7 @@ func _set_speed(v: Vector2) -> void:
 func _draw() -> void:
 	var dot := Vector2.ONE * maxf(_view_scale, 1.0)
 	for p: Array in _parts:
-		draw_rect(Rect2(p[0], dot), p[2])
+		# el temblor de brillo: nunca apaga la estrella, solo la hace respirar
+		var brillo := 1.0 - TWINKLE_AMP + TWINKLE_AMP * sin(_t * TWINKLE_SPEED + (p[3] as float))
+		var c: Color = p[2]
+		draw_rect(Rect2(p[0], dot), Color(c.r * brillo, c.g * brillo, c.b * brillo))

@@ -48,9 +48,76 @@ const ETIQUETAS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
 var preset := "alta"
 var _cuenta := 0
 
+## ---- Auto-calidad por FPS (guideline 3D, §12.2 del original) ----
+## Promedia el FPS en ventanas de 20 s: por debajo de 10 sube UN escalon de
+## recorte; por encima de 60 baja uno — histeresis: solo recupera con holgura.
+## El recorte es TRANSITORIO: se aplica como TOPE sobre los niveles del preset y
+## no se persiste — el preset por cuenta no se toca, que es la leccion del
+## autotest que dejaba residuo. Sin foco no se mide (una ventana de fondo con
+## los fps capados no es una maquina lenta), y en autotest no corre.
+const AQ_VENTANA_SEC := 20.0
+const AQ_FPS_BAJA := 10.0
+const AQ_FPS_SUBE := 60.0
+## La escalera de recortes, del mas barato al mas doloroso. Cada peldanio es un
+## mapa de TOPES por clave; lo que no aparece no se toca.
+const AQ_ESCALERA := [
+	{},
+	{"background": 1},
+	{"background": 1, "engine": 0},
+	{"background": 1, "engine": 0, "explosion": 0},
+	{"background": 1, "engine": 0, "explosion": 0, "npc": 1, "collectable": 1},
+]
+var auto_reduccion := 0
+var _aq_acum := 0.0
+var _aq_suma := 0.0
+var _aq_muestras := 0
+
 
 func nivel(clave: String) -> int:
-	return int(niveles.get(clave, 2))
+	var base := int(niveles.get(clave, 2))
+	if auto_reduccion <= 0:
+		return base
+	var topes: Dictionary = AQ_ESCALERA[auto_reduccion]
+	return mini(base, int(topes.get(clave, base)))
+
+
+func _process(delta: float) -> void:
+	# medir en autotest o con calidad forzada contaminaria justo lo que prueban
+	if Session.autotest_modo != "" or Session.calidad_forzada != "":
+		return
+	if not get_window().has_focus():
+		return
+	_aq_acum += delta
+	if _aq_acum < 1.0:
+		return                      # una muestra por segundo basta
+	_aq_acum = 0.0
+	_aq_suma += Engine.get_frames_per_second()
+	_aq_muestras += 1
+	if float(_aq_muestras) < AQ_VENTANA_SEC:
+		return
+	var media := _aq_suma / float(_aq_muestras)
+	_aq_suma = 0.0
+	_aq_muestras = 0
+	if media < AQ_FPS_BAJA and auto_reduccion < AQ_ESCALERA.size() - 1:
+		_reduccion_a(auto_reduccion + 1, media)
+	elif media > AQ_FPS_SUBE and auto_reduccion > 0:
+		_reduccion_a(auto_reduccion - 1, media)
+
+
+func _reduccion_a(nuevo: int, media: float) -> void:
+	# se avisa con las claves cuyo nivel EFECTIVO cambio, para que el mundo
+	# reconstruya exactamente lo que toca — el mismo cable que el cambio manual
+	var antes := {}
+	for k in niveles:
+		antes[k] = nivel(k)
+	auto_reduccion = nuevo
+	var claves := []
+	for k in niveles:
+		if nivel(k) != int(antes[k]):
+			claves.append(k)
+	print("AutoCalidad: reduccion %d (media %.0f fps)" % [auto_reduccion, media])
+	if not claves.is_empty():
+		cambiada.emit(claves)
 
 
 ## Carga los ajustes de esta cuenta. Se llama al entrar al mundo, no en _ready:

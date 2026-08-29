@@ -18,6 +18,37 @@ const DEAD_ZONE := 2.0
 ## desplazan de lado, como un cangrejo. La proa va delante SIEMPRE.
 const TURN_FLIGHT_DEG_PER_SEC := 420.0
 
+## BANKING (guidelines 3D del original, §5.2): el alabeo ES el error angular
+## pendiente del giro, con tope y suavizado propio. Crucero: ganancia 1, tope
+## ±20, ease 0.2 s. Atacando en movimiento: ganancia -2 (se inclina AL REVES,
+## abriendose hacia el blanco), tope ±10 y respuesta 0.08 s. Vuelve solo a nivel
+## cuando el error muere. Solo naves (turn_deg_per_sec = 0): una roca no alabea.
+const BANK_MAX := 20.0
+const BANK_EASE := 0.2
+const BANK_COMBATE_GANANCIA := -2.0
+const BANK_COMBATE_MAX := 10.0
+const BANK_COMBATE_EASE := 0.08
+
+## FLOTACION idle (guidelines 3D, §5.3): vaiven Lissajous del DIBUJO, solo con
+## la nave parada, con fase propia por entidad y fundido de ~0.5 s al arrancar.
+## Mueve el sprite, no la entidad: la posicion es del server y de la prediccion.
+const HOVER_AMP := 5.0
+const HOVER_CICLO := 2.0
+
+## Llama al ralenti (guidelines 3D, §6.2): parada, una nave de JUGADOR mantiene
+## el motor encendido a 0.7; un NPC lo apaga del todo. En vuelo, 1.
+const LLAMA_IDLE := 0.7
+
+## El brillo emisivo ACOMPANIA al casco (guidelines 3D, §7.1): a 0% de HP la
+## emision cae a este suelo. Un bicho malherido se apaga, no se muere de golpe.
+const GLOW_HP_MIN := 0.35
+
+## El HUD de entidad (nombre y barras) mide LO MISMO en pantalla a cualquier
+## zoom (guidelines 3D, §11): se contraescala por el zoom de camara. La
+## referencia es el zoom por defecto del mundo (ZOOM_DEFECTO = 0.621), para que
+## el encuadre de juego se vea exactamente como antes de este cambio.
+const HUD_ZOOM_REF := 0.621
+
 # barras de estado (dos: casco y escudo)
 const BARRA_ANCHO := 60.0
 const BARRA_ALTO := 3.0
@@ -66,6 +97,23 @@ var max_shield_abs := 0
 var _visual_angle := 0.0          # grados de pantalla de la proa
 var _turn_tween: Tween
 var _idle_timer := 0.0
+var _visual_target := 0.0         # a donde va el giro en curso: la fuente del banking
+var _roll := 0.0                  # alabeo actual, en grados
+var _hover_fase := 0.0
+var _hover_gain := 0.0
+var _hud: Node2D                  # nombre + barras, contraescalados por el zoom
+var _hud_zoom := 0.0
+var _sel_k := 1.0                 # cierre del marcador de seleccion (1.5 -> 1)
+var _congelado := false           # la prueba del relieve exige la nave INMOVIL
+## GLB pidiendose en un hilo (carga asincrona); "" = nada pendiente.
+var _glb_pendiente := ""
+## Cache por RUTA de los GLB ya cargados y de las peticiones en vuelo: el hitch
+## de parseo se paga una vez por especie y en un hilo, no en el frame del spawn.
+static var _glb_cache := {}
+static var _glb_solicitados := {}
+## Cache de SpriteFrames de los FX de impacto: son inmutables y se compartian
+## reconstruyendose por IMPACTO (hasta 14 veces por bicho en un combate).
+static var _sheets := {}
 
 # motores: una LLAMA por tobera, anclada a la nave y creciendo con el empuje.
 #
@@ -188,6 +236,7 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	_shadow = position
 	objetivo = position
 	_idle_timer = 2.0 + randf() * 5.0
+	_hover_fase = randf() * TAU       # cada nave flota a su ritmo, no en coro
 	_hp_pct = spawn.hp_pct
 
 	var d := AssetDefs.entidad(spawn.type_id)
@@ -257,6 +306,7 @@ func _construir_visual() -> void:
 	var alto_tex := float(_sprite.texture.get_height()) / maxf(float(_sprite.vframes), 1.0)
 	var factor: float = float(d.get("screen_size", 141)) / alto_tex
 	_sprite.scale = Vector2.ONE * factor
+	_sprite.set_meta("esc_base", factor)            # la base del banking
 	add_child(_sprite)
 
 	# capa emisiva (si la define su JSON y su PNG existe de verdad). Un bicho de
@@ -287,9 +337,19 @@ func _construir_visual() -> void:
 ## Monta la malla 3D en un SubViewport y la cuelga del Sprite2D. Devuelve false
 ## si el modelo no carga, para que se caiga al camino de siempre.
 func _construir_malla_3d(d: Dictionary) -> bool:
-	var escena: PackedScene = load(str(d["modelo"]))
+	# CARGA ASINCRONA (guidelines 3D, §8.4): el GLB no se parsea en el frame del
+	# spawn. Se pide en un hilo y MIENTRAS tanto la entidad monta su camino 2D
+	# —el PNG de media, que el horno saca del MISMO modelo— como placeholder; al
+	# llegar el recurso, `reconstruir()` la sube a 3D sin que el mundo lo note.
+	var ruta := str(d["modelo"])
+	var escena: PackedScene = _glb_cache.get(ruta)
 	if escena == null:
-		push_warning("EntityNode: no se pudo cargar %s; se cae al sprite" % d["modelo"])
+		if not _glb_solicitados.has(ruta):
+			if ResourceLoader.load_threaded_request(ruta) != OK:
+				push_warning("EntityNode: no se pudo pedir %s; se queda el sprite" % ruta)
+				return false
+			_glb_solicitados[ruta] = true
+		_glb_pendiente = ruta
 		return false
 
 	var lado := int(round(float(d.get("screen_size", 141)) * MARGEN)) * VIEWPORT_FACTOR
@@ -458,6 +518,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	# aqui no hay que reescalar por `screen_size` como con un PNG: basta deshacer
 	# el factor de supermuestreo.
 	_sprite.scale = Vector2.ONE / float(VIEWPORT_FACTOR)
+	_sprite.set_meta("esc_base", _sprite.scale.x)   # la base del banking
 	_sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	return true
 
@@ -635,6 +696,12 @@ func reconstruir() -> void:
 func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 	# nombre y barra DEBAJO de la nave, como el prototipo (con contorno negro
 	# para que se lean sobre el fondo estelar). El offset sale del tamaÃ±o real.
+	#
+	# Todo el HUD de la entidad cuelga de `_hud`, que `_process` contraescala por
+	# el zoom de camara: el mundo hace zoom, el nombre y las barras NO (guideline
+	# 3D del original). A ZOOM_DEFECTO la escala es 1 y se ve como siempre.
+	_hud = Node2D.new()
+	add_child(_hud)
 	var mitad: float = float(d.get("screen_size", 141)) * 0.5
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
@@ -643,7 +710,7 @@ func _construir_etiquetas(d: Dictionary, heroe: bool, spawn) -> void:
 	_nombre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_nombre.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_nombre.add_theme_constant_override("outline_size", 4)
-	add_child(_nombre)
+	_hud.add_child(_nombre)
 
 	# las barras van ENCIMA de la nave (el nombre abajo): escudo arriba, casco
 	# abajo. Son DOS: el nano-casco del prototipo no existe en v1.
@@ -759,12 +826,12 @@ func _crear_barra(y: float, color: Color, pct: float) -> ColorRect:
 	pista.color = Color(0, 0, 0, 0.55)
 	pista.position = Vector2(-BARRA_ANCHO * 0.5 - 1, y - 1)
 	pista.size = Vector2(BARRA_ANCHO + 2, BARRA_ALTO + 2)
-	add_child(pista)
+	_hud.add_child(pista)
 	var barra := ColorRect.new()
 	barra.color = color
 	barra.position = Vector2(-BARRA_ANCHO * 0.5, y)
 	barra.size = Vector2(BARRA_ANCHO * pct, BARRA_ALTO)
-	add_child(barra)
+	_hud.add_child(barra)
 	return barra
 
 
@@ -807,11 +874,28 @@ static func _material_add() -> CanvasItemMaterial:
 
 
 func _process(delta: float) -> void:
+	# el GLB pedido en hilo: al llegar, la entidad se sube a 3D reconstruyendo su
+	# parte visual. Hasta entonces vuela con su PNG, que es el mismo bicho.
+	if _glb_pendiente != "":
+		_atender_glb()
+
 	var en_vuelo := position.distance_to(objetivo) > 0.5
 
-	# acelerador: el empuje sube en vuelo y cae al frenar (modelo del prototipo)
+	# HUD de entidad constante en pantalla: se contraescala por el zoom de camara
+	# (solo cuando el zoom cambia; el tween del zoom lo mueve unos frames).
+	var cam := get_viewport().get_camera_2d()
+	if cam != null and _hud != null and cam.zoom.x != _hud_zoom:
+		_hud_zoom = cam.zoom.x
+		_hud.scale = Vector2.ONE * (HUD_ZOOM_REF / maxf(_hud_zoom, 0.01))
+
+	# acelerador: el empuje sube en vuelo y cae al frenar (modelo del prototipo).
+	# Parada, una nave de jugador queda al RALENTI (0.7); un NPC apaga del todo.
 	if not _flames.is_empty():
-		_thrust = clampf(_thrust + (3.0 if en_vuelo else -4.0) * delta, 0.0, 1.0)
+		var empuje_objetivo := 1.0 if en_vuelo else (0.0 if es_npc else LLAMA_IDLE)
+		if _thrust < empuje_objetivo:
+			_thrust = minf(_thrust + 3.0 * delta, empuje_objetivo)
+		else:
+			_thrust = maxf(_thrust - 4.0 * delta, empuje_objetivo)
 		# la llama crece a lo largo con el empuje y respira; el ancho apenas cambia
 		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
 		for llama in _flames:
@@ -819,6 +903,12 @@ func _process(delta: float) -> void:
 			var base: Vector2 = llama.get_meta("base", Vector2.ONE)
 			llama.scale = Vector2(0.55 + 0.15 * _thrust, _thrust * respiro) * base
 			llama.self_modulate.a = 0.35 + 0.65 * _thrust
+
+	# sensacion de NAVE (guidelines 3D): banking por error de giro + flotacion
+	# idle. Los bichos (turn_deg_per_sec > 0) tienen su propio lenguaje corporal.
+	if turn_deg_per_sec == 0.0 and not _congelado:
+		_process_banking(delta, en_vuelo)
+		_process_hover(delta, en_vuelo)
 
 	if _anim_total > 0:
 		_anim_t += delta
@@ -855,6 +945,8 @@ func _process(delta: float) -> void:
 		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed + entity_id * 1.7)
 		onda = pow(onda, _pulse_sharp)
 		var k: float = _pulse_min + (_pulse_max - _pulse_min) * onda
+		# el brillo acompania al casco (guideline 3D): malherido, el nucleo se apaga
+		k *= lerpf(GLOW_HP_MIN, 1.0, _hp_pct)
 		_emissive.self_modulate = Color(k, k, k, 1.0)
 
 	# ---- el bicho 3D: aleteo, cola y destello, del MISMO reloj ----
@@ -900,6 +992,8 @@ func _process(delta: float) -> void:
 		if not _mats_3d.is_empty():
 			var onda := pow(0.5 - 0.5 * cos(TAU * t), _pulse_sharp)
 			var e: float = _pulse_min + (_pulse_max - _pulse_min) * onda
+			# el brillo acompania al casco (guideline 3D), igual que en 2D
+			e *= lerpf(GLOW_HP_MIN, 1.0, _hp_pct)
 			for mat in _mats_3d:
 				mat.emission_energy_multiplier = e
 			# la lava late en fase con el pulso: mismo valor, mismo fotograma
@@ -951,6 +1045,69 @@ func _process(delta: float) -> void:
 		if _idle_timer <= 0.0:
 			_idle_timer = 2.0 + randf() * 5.0
 			_girar_a(_visual_angle + (randf() - 0.5) * 360.0)
+
+
+## Recoge el GLB que se pidio en hilo. La peticion es UNA por ruta (estatica);
+## cada entidad de la especie espera aqui y la primera que lo ve cargado lo mete
+## en la cache para todas.
+func _atender_glb() -> void:
+	if _glb_cache.has(_glb_pendiente):
+		_glb_pendiente = ""
+		reconstruir()
+		return
+	var st := ResourceLoader.load_threaded_get_status(_glb_pendiente)
+	if st == ResourceLoader.THREAD_LOAD_LOADED:
+		_glb_cache[_glb_pendiente] = ResourceLoader.load_threaded_get(_glb_pendiente)
+		_glb_pendiente = ""
+		reconstruir()
+	elif st != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		push_warning("EntityNode: fallo la carga en hilo de %s; se queda el sprite"
+			% _glb_pendiente)
+		_glb_pendiente = ""
+
+
+## BANKING: el alabeo persigue al error angular pendiente del giro con el ease
+## incremental del original (QuadEaseOut sobre dt) y su tope. En 3D es alabeo REAL
+## del modelo alrededor de su eje longitudinal; en 2D, visto desde arriba, una
+## nave alabeada ESTRECHA su silueta: se encoge el ancho del sprite por cos(roll).
+func _process_banking(delta: float, en_vuelo: bool) -> void:
+	var error := fposmod(_visual_target - _visual_angle + 180.0, 360.0) - 180.0
+	var objetivo_roll: float
+	var d: float
+	if en_vuelo and attack_target != null:
+		objetivo_roll = clampf(error * BANK_COMBATE_GANANCIA,
+			-BANK_COMBATE_MAX, BANK_COMBATE_MAX)
+		d = BANK_COMBATE_EASE
+	else:
+		objetivo_roll = clampf(error, -BANK_MAX, BANK_MAX)
+		d = BANK_EASE
+	var k := minf(1.0, (delta / d) * (2.0 - delta / d))
+	_roll += (objetivo_roll - _roll) * k
+	if _modelo != null:
+		# rumbo y alabeo compuestos: primero la guiniada del rumbo, luego el roll
+		# alrededor del eje longitudinal del modelo (Z: la proa mira a -Z)
+		_modelo.basis = Basis(Vector3.UP, -deg_to_rad(_visual_angle)) \
+			* Basis(Vector3.BACK, deg_to_rad(_roll))
+	elif _sprite != null:
+		_sprite.scale.x = float(_sprite.get_meta("esc_base", _sprite.scale.y)) \
+			* cos(deg_to_rad(_roll))
+
+
+## FLOTACION idle: Lissajous suave del dibujo, solo parada, con fundido al
+## arrancar y al detenerse (0.5 s). Dos frecuencias casi iguales para que el
+## vaiven no sea una diagonal perfecta.
+func _process_hover(delta: float, en_vuelo: bool) -> void:
+	_hover_gain = move_toward(_hover_gain, 0.0 if en_vuelo else 1.0, 2.0 * delta)
+	if _sprite == null:
+		return
+	if _hover_gain <= 0.0:
+		if _sprite.position != Vector2.ZERO:
+			_sprite.position = Vector2.ZERO
+		return
+	_hover_fase += delta / HOVER_CICLO
+	var a := _hover_fase
+	_sprite.position = Vector2(sin(a) * cos(a), sin(a * 1.13) * cos(a * 0.87)) \
+		* (HOVER_AMP * _hover_gain)
 
 
 ## Fija (o limpia con null) el objetivo que gobierna el rumbo.
@@ -1021,6 +1178,8 @@ func _girar_a(grados: float, dps := 0.0) -> void:
 	var delta := fposmod(destino_ang - _visual_angle + 180.0, 360.0) - 180.0
 	if is_zero_approx(delta):
 		return
+	# el banking lee de aqui su "error pendiente": a donde va el giro en curso
+	_visual_target = fposmod(_visual_angle + delta, 360.0)
 	var duracion := TURN_TIME
 	var vel := dps if dps > 0.0 else turn_deg_per_sec
 	if vel > 0.0:
@@ -1043,6 +1202,14 @@ func _girar_a(grados: float, dps := 0.0) -> void:
 ## relieve roto. Las llamas tampoco valen: son aditivas y si giran, asi que
 ## falsean en la otra direccion.
 func solo_casco(activo: bool) -> void:
+	# La prueba compara dos fotos de la nave EN EL MISMO SITIO: el hover y el
+	# banking la moverian entre foto y foto y el caso roto dejaria de ser cero
+	# exacto. Congelados y a neutro mientras dura la medida.
+	_congelado = activo
+	if activo and _sprite != null:
+		_sprite.position = Vector2.ZERO
+		_roll = 0.0
+		_sprite.scale.x = float(_sprite.get_meta("esc_base", _sprite.scale.y))
 	for hijo in get_children():
 		if hijo != _sprite and hijo is CanvasItem:
 			hijo.visible = not activo
@@ -1105,6 +1272,7 @@ func angulo_visual() -> float:
 func rumbo_visual(grados: float) -> void:
 	if _turn_tween != null and _turn_tween.is_valid():
 		_turn_tween.kill()
+	_visual_target = fposmod(grados, 360.0)   # sin giro en curso = sin banking
 	_set_visual_angle(grados)
 
 
@@ -1224,18 +1392,25 @@ func impacto_escudo(desde: Vector2) -> void:
 
 
 static func _sheet_anim(ruta: String, lado: int, frames: int, duracion: float) -> AnimatedSprite2D:
-	var sf := SpriteFrames.new()
-	sf.add_animation("x")
-	sf.set_animation_loop("x", false)
-	sf.set_animation_speed("x", frames / duracion)
-	var hoja: Texture2D = load(ruta)
-	for i in frames:
-		var f := AtlasTexture.new()
-		f.atlas = hoja
-		f.region = Rect2(i * lado, 0, lado, lado)
-		sf.add_frame("x", f)
+	# El SpriteFrames se CACHEA por hoja: es inmutable y se compartia
+	# reconstruyendose por impacto — hasta 14 veces por bicho en un combate.
+	var sf: SpriteFrames = _sheets.get(ruta)
+	if sf == null:
+		sf = SpriteFrames.new()
+		sf.add_animation("x")
+		sf.set_animation_loop("x", false)
+		sf.set_animation_speed("x", frames / duracion)
+		var hoja: Texture2D = load(ruta)
+		for i in frames:
+			var f := AtlasTexture.new()
+			f.atlas = hoja
+			f.region = Rect2(i * lado, 0, lado, lado)
+			sf.add_frame("x", f)
+		_sheets[ruta] = sf
 	var anim := AnimatedSprite2D.new()
 	anim.sprite_frames = sf
+	# aditivo: los FX luminosos SUMAN luz (la ley del 95% del original)
+	anim.material = _material_add()
 	anim.z_index = 3
 	anim.play("x")
 	anim.animation_finished.connect(anim.queue_free)
@@ -1243,15 +1418,27 @@ static func _sheet_anim(ruta: String, lado: int, frames: int, duracion: float) -
 
 
 ## Seleccion local: esquinas de mira alrededor de la entidad (estilo N).
+## El marcador ENTRA cerrando sobre el blanco —1.5x a 1x en 0.3 s—, el gesto de
+## fijado del original (guideline 3D, §4.8).
 func set_selected(sel: bool) -> void:
 	_seleccionada = sel
+	if sel:
+		_sel_k = 1.5
+		var tw := create_tween()
+		tw.tween_method(_sel_paso, 1.5, 1.0, 0.3) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	queue_redraw()
+
+
+func _sel_paso(k: float) -> void:
+	_sel_k = k
 	queue_redraw()
 
 
 func _draw() -> void:
 	if not _seleccionada:
 		return
-	var r := 58.0
+	var r := 58.0 * _sel_k
 	var l := 16.0
 	var c := NTheme.HOSTILE if not es_heroe else NTheme.CYAN
 	for esquina in [Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)]:

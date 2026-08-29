@@ -29,6 +29,22 @@ const ZOOM_PASO := 1.1
 # Se entra en el extremo alejado, no en medio: ese es el encuadre con el que se
 # juega, y acercar es algo que el jugador hace a proposito para mirar algo.
 const ZOOM_DEFECTO := ZOOM_MIN
+## El zoom LLEGA con tween (guideline 3D del original): 0.3 s Quad ease-out
+## sobre el factor. El paso y el rango siguen siendo los calibrados volando; lo
+## que porta del original es el gesto — suave, no a saltos.
+const ZOOM_TWEEN_SEC := 0.3
+
+## SHAKE de camara al recibir dano (guideline 3D, §3): espiral de amplitud
+## 5 -> 0 en 40 pasos de 24 ms (la amplitud baja 1 cada 10 pasos). Va en el
+## OFFSET de la camara: no ensucia ni el lerp de seguimiento ni el mundo.
+## Solo cuando te pegan A TI — el shake ajeno no existe.
+const SHAKE_AMP := 5.0
+const SHAKE_PASO_SEC := 0.024
+const SHAKE_PASOS := 40
+
+## Doble click (<500 ms) sobre una entidad = fijarla Y atacar, el gesto canonico
+## del original. El primer click solo selecciona, como siempre.
+const DOBLE_CLICK_MS := 500
 
 var _conn: GameConnection
 var _entidades := {}          # entity_id -> EntityNode
@@ -42,6 +58,12 @@ var _limites := Vector2(20800, 12800)
 var _hold_move := false
 var _hold_timer := 0.0
 var _saltando := false
+var _zoom_objetivo := ZOOM_DEFECTO
+var _zoom_tween: Tween
+var _shake_paso := -1          # -1 = sin shake en curso
+var _shake_t := 0.0
+var _ultimo_click_ent := 0     # doble click: la entidad y el instante del anterior
+var _ultimo_click_ms := 0
 ## Cursor simulado para la prueba del vuelo sostenido (INF = raton de verdad).
 var _at_cursor := Vector2.INF
 var _last_sent_target := Vector2.INF
@@ -677,6 +699,7 @@ func _process_autopilot() -> void:
 
 # ---- accesores para el minimapa ----
 func limites() -> Vector2: return _limites
+func camara() -> Camera2D: return _camara
 func heroe() -> EntityNode: return _hero
 func entidades() -> Dictionary: return _entidades
 func cajas() -> Dictionary: return _cajas
@@ -789,6 +812,9 @@ func _on_attack(ev) -> void:
 		blanco.impacto_escudo(tirador.position)
 	else:
 		blanco.impacto_casco()
+	# te pegaron A TI: la camara lo acusa (el shake ajeno no existe, como el original)
+	if blanco == _hero:
+		_shake_arrancar()
 	_numero_flotante(blanco, str(ev.damage), HIT_RECIBES if blanco == _hero else HIT_HACES)
 
 
@@ -839,7 +865,7 @@ func _on_destroyed(msg) -> void:
 			# sin explosión dibujada, una muerte se ve EXACTAMENTE como una
 			# desaparición: si el bicho que se esfumó fue esto, hay que saberlo
 			_anotar_si_se_ve(nodo, "EntityDestroyed sin explosión (calidad)")
-		_explotar(nodo.position)
+		_explotar(nodo.position, nodo.click_radius)
 		nodo.queue_free()
 		_entidades.erase(msg.entity_id)
 	if _seleccionada == msg.entity_id:
@@ -877,7 +903,16 @@ func _anotar_si_se_ve(nodo: EntityNode, motivo: String) -> void:
 	f.close()
 
 
-func _explotar(pos: Vector2) -> void:
+## La explosion multi-capa del original (guidelines 3D, §9.4): el flipbook del
+## pipeline + un FLASH central de un instante + una rafaga de CHISPAS radiales
+## aditivas. El flash escala con el radio de click de la victima — un Skarnox no
+## revienta como un Vex.
+var _tex_flash: GradientTexture2D
+var _pm_chispas: ParticleProcessMaterial
+var _tex_chispa: GradientTexture2D
+
+
+func _explotar(pos: Vector2, radio := 42.0) -> void:
 	if Quality.nivel("explosion") < 1:
 		return                    # el evento sigue ocurriendo; solo no se dibuja
 	var anim := AnimatedSprite2D.new()
@@ -888,6 +923,85 @@ func _explotar(pos: Vector2) -> void:
 	add_child(anim)
 	anim.play("boom")
 	anim.animation_finished.connect(anim.queue_free)
+
+	# FLASH: un resplandor radial que nace a cero, revienta en 0.25 s y muere.
+	# Es la capa que "vende" el estallido; textura procedural, cero assets.
+	if _tex_flash == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(1.0, 0.95, 0.8, 1.0))
+		g.set_color(1, Color(1.0, 0.5, 0.1, 0.0))
+		_tex_flash = GradientTexture2D.new()
+		_tex_flash.gradient = g
+		_tex_flash.width = 256
+		_tex_flash.height = 256
+		_tex_flash.fill = GradientTexture2D.FILL_RADIAL
+		_tex_flash.fill_from = Vector2(0.5, 0.5)
+		_tex_flash.fill_to = Vector2(0.5, 0.0)
+	var flash := Sprite2D.new()
+	flash.texture = _tex_flash
+	flash.material = _material_add()
+	flash.position = pos
+	flash.z_index = 5
+	flash.scale = Vector2.ZERO
+	add_child(flash)
+	# el diametro final ~6x el radio de click (la proporcion del original:
+	# flash de 250 para naves de ~80 de radio)
+	var escala_flash := radio * 6.0 / 256.0
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(flash, "scale", Vector2.ONE * escala_flash, 0.25) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(flash, "modulate:a", 0.0, 0.2).set_delay(0.05)
+	tw.chain().tween_callback(flash.queue_free)
+
+	# CHISPAS: rafaga radial de un disparo, velocidades y vidas aleatorias (la
+	# desincronizacion estadistica del original), color blanco -> calido -> nada.
+	if _pm_chispas == null:
+		_pm_chispas = ParticleProcessMaterial.new()
+		_pm_chispas.direction = Vector3(1, 0, 0)
+		_pm_chispas.spread = 180.0
+		_pm_chispas.initial_velocity_min = 100.0
+		_pm_chispas.initial_velocity_max = 200.0
+		_pm_chispas.gravity = Vector3.ZERO
+		_pm_chispas.scale_min = 0.02
+		_pm_chispas.scale_max = 0.05
+		_pm_chispas.lifetime_randomness = 0.8
+		var rampa := Gradient.new()
+		rampa.set_color(0, Color(1.0, 1.0, 0.9, 1.0))
+		rampa.add_point(0.4, Color(1.0, 0.7, 0.3, 0.8))
+		rampa.set_color(1, Color(1.0, 0.3, 0.1, 0.0))
+		var rt := GradientTexture1D.new()
+		rt.gradient = rampa
+		_pm_chispas.color_ramp = rt
+		var gc := Gradient.new()
+		gc.set_color(0, Color.WHITE)
+		gc.set_color(1, Color(1, 1, 1, 0))
+		_tex_chispa = GradientTexture2D.new()
+		_tex_chispa.gradient = gc
+		_tex_chispa.width = 32
+		_tex_chispa.height = 32
+		_tex_chispa.fill = GradientTexture2D.FILL_RADIAL
+		_tex_chispa.fill_from = Vector2(0.5, 0.5)
+		_tex_chispa.fill_to = Vector2(0.5, 0.0)
+	var chispas := GPUParticles2D.new()
+	chispas.amount = 24
+	chispas.one_shot = true
+	chispas.explosiveness = 1.0
+	chispas.lifetime = 0.8
+	chispas.process_material = _pm_chispas
+	chispas.texture = _tex_chispa
+	chispas.material = _material_add()
+	chispas.position = pos
+	chispas.z_index = 4
+	chispas.emitting = true
+	add_child(chispas)
+	chispas.finished.connect(chispas.queue_free)
+
+
+static func _material_add() -> CanvasItemMaterial:
+	var m := CanvasItemMaterial.new()
+	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return m
 
 
 func _on_box_spawn(msg) -> void:
@@ -1016,15 +1130,30 @@ func _unhandled_input(event: InputEvent) -> void:
 			MOUSE_BUTTON_LEFT:
 				_handle_click(get_global_mouse_position())
 			MOUSE_BUTTON_WHEEL_UP:
-				_camara.zoom = (_camara.zoom * ZOOM_PASO).clamp(
-					Vector2(ZOOM_MIN, ZOOM_MIN), Vector2(ZOOM_MAX, ZOOM_MAX))
+				_zoom_a(_zoom_objetivo * ZOOM_PASO)
 			MOUSE_BUTTON_WHEEL_DOWN:
-				_camara.zoom = (_camara.zoom / ZOOM_PASO).clamp(
-					Vector2(ZOOM_MIN, ZOOM_MIN), Vector2(ZOOM_MAX, ZOOM_MAX))
+				_zoom_a(_zoom_objetivo / ZOOM_PASO)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		# Ctrl = laser (el atajo por defecto del prototipo)
 		if event.keycode == KEY_CTRL:
 			_toggle_laser()
+
+
+## El zoom compone sobre el OBJETIVO, no sobre el valor en vuelo: una rafaga de
+## rueda no pierde peldanios aunque el tween anterior no haya terminado.
+func _zoom_a(objetivo: float) -> void:
+	_zoom_objetivo = clampf(objetivo, ZOOM_MIN, ZOOM_MAX)
+	if _zoom_tween != null:
+		_zoom_tween.kill()
+	_zoom_tween = create_tween()
+	_zoom_tween.tween_property(_camara, "zoom",
+		Vector2(_zoom_objetivo, _zoom_objetivo), ZOOM_TWEEN_SEC) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+func _shake_arrancar() -> void:
+	_shake_paso = 0
+	_shake_t = 0.0
 
 
 func _toggle_laser() -> void:
@@ -1054,10 +1183,18 @@ func _handle_click(world_pos: Vector2) -> void:
 		_pending_box_pos = caja.position
 		_estado("Recogiendo caja…", NTheme.MUTED)
 		return
-	# ¿click sobre una entidad? seleccionar, no volar (como el prototipo)
+	# ¿click sobre una entidad? seleccionar, no volar (como el prototipo).
+	# DOBLE click sobre la misma = fijarla y ATACAR, el gesto canonico del original.
 	var bajo := _entity_at(world_pos)
 	if bajo != null:
+		var ahora := Time.get_ticks_msec()
+		var doble: bool = bajo.entity_id == _ultimo_click_ent \
+			and ahora - _ultimo_click_ms < DOBLE_CLICK_MS
+		_ultimo_click_ent = bajo.entity_id
+		_ultimo_click_ms = ahora
 		_seleccionar(bajo)
+		if doble and not _laser_on:
+			_toggle_laser()
 		return
 	# ¿click sobre un portal? Si ya estamos encima, ACTIVAR; si no, rumbo a el.
 	var portal := _portal_at(world_pos)
@@ -1302,6 +1439,19 @@ func _process(delta: float) -> void:
 	if _hero != null and not _at_camara_libre:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
+
+	# el shake vive en el OFFSET de la camara: la espiral del original, paso a paso
+	if _shake_paso >= 0:
+		_shake_t += delta
+		while _shake_t >= SHAKE_PASO_SEC and _shake_paso >= 0:
+			_shake_t -= SHAKE_PASO_SEC
+			_shake_paso += 1
+			if _shake_paso >= SHAKE_PASOS:
+				_shake_paso = -1
+				_camara.offset = Vector2.ZERO
+		if _shake_paso >= 0:
+			var amp := maxf(SHAKE_AMP - float(_shake_paso / 10), 0.0)
+			_camara.offset = Vector2(cos(_shake_paso), sin(_shake_paso)) * amp
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
@@ -1728,12 +1878,14 @@ func _autotest(delta: float) -> void:
 				# retrataria un encuadre que ya no existe, que es peor que no
 				# retratar nada.
 				_camara.zoom = Vector2(ZOOM_MAX, ZOOM_MAX)
+				_zoom_objetivo = ZOOM_MAX      # el tween del zoom compone sobre esto
 				_at_fase = 96
 		96:
 			if _autotest_t - _at_ultimo_vuelo > 0.4:
 				var img_z := get_viewport().get_texture().get_image()
 				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
 				_camara.zoom = Vector2(ZOOM_DEFECTO, ZOOM_DEFECTO)
+				_zoom_objetivo = ZOOM_DEFECTO
 				_at_fase = 93
 		93:
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"

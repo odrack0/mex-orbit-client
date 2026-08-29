@@ -56,8 +56,10 @@ func build(config: Dictionary) -> void:
 		_main = Sprite2D.new()
 		_main.texture = config.main
 		_main.centered = false
+		_main.z_index = -1000        # el cielo, detras de TODO el paralaje
 		add_child(_main)
 		_world = config.world
+		_fundido(_main, 1.0, 1.0)
 	# planetas (los renders llegan por prompts; sin textura se omiten).
 	# Cada uno es tambien OCLUSOR del destello: si tapa al sol, la cadena
 	# de lentes se apaga — como el bitmap collider del original.
@@ -68,7 +70,9 @@ func build(config: Dictionary) -> void:
 		planeta.texture = p.tex
 		var escala_p: float = p.get("scale", 1.0)
 		planeta.scale = Vector2.ONE * escala_p
+		planeta.z_index = _z_por_profundidad(float(p.p_factor))
 		add_child(planeta)
+		_fundido(planeta, 1.0, 0.5)
 		_layers.append({"node": planeta, "p_factor": p.p_factor, "offset": p.pos})
 		_occluders.append({"node": planeta, "radius": planeta.texture.get_width() * escala_p * 0.5})
 	# mosaicos medio y cercano encima
@@ -92,13 +96,14 @@ func build(config: Dictionary) -> void:
 			ghost.scale = Vector2.ONE * g[1]
 			ghost.modulate = g[2]
 			ghost.material = _material_add()
-			ghost.z_index = 1     # la cadena va sobre las capas de fondo
+			ghost.z_index = 900   # la cadena va sobre TODAS las capas de paralaje
 			add_child(ghost)
 			_ghosts.append(ghost)
 	# el polvo estelar SIEMPRE, encima de todo el fondo (tinte del JSON del mapa)
 	_starfield = Starfield2D.new()
 	_starfield.tint = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
 	_starfield.tint_ratio = float(config.get("starfield_tint_ratio", 0.35))
+	_starfield.z_index = 1000
 	add_child(_starfield)
 
 
@@ -115,9 +120,28 @@ func _add_tile(t: Dictionary, world: Vector2) -> void:
 	var span_x: float = world.x / float(t.p_factor) * escala + 8192.0
 	var span_y: float = world.y / float(t.p_factor) * escala + 8192.0
 	tile.region_rect = Rect2(0, 0, span_x, span_y)
+	tile.z_index = _z_por_profundidad(float(t.p_factor))
 	tile.self_modulate.a = t.get("alpha", 1.0)
 	add_child(tile)
+	_fundido(tile, float(t.get("alpha", 1.0)), 1.0)
 	_layers.append({"node": tile, "p_factor": t.p_factor, "offset": Vector2(-4096, -4096)})
+
+
+## El orden de dibujo del original: profundidad = 1000 / pFactor, ascendente —
+## lo lejano primero, lo cercano encima. Antes mandaba el orden de insercion
+## (far -> planetas -> near), y una nebulosa CERCANA declarada como "far" en el
+## JSON quedaba detras de planetas mas lejanos: profundidad invertida.
+func _z_por_profundidad(p_factor: float) -> int:
+	return clampi(int(round(1000.0 / maxf(p_factor, 0.1))), -4000, 800)
+
+
+## Fade-in del original (fondos 1 s, planetas 0.5 s): al entrar al mapa las
+## capas ENTRAN, no aparecen de golpe. `self_modulate` para no pisar el alfa
+## declarado de cada mosaico.
+func _fundido(nodo: CanvasItem, alfa_final: float, segundos: float) -> void:
+	nodo.self_modulate.a = 0.0
+	var tw := nodo.create_tween()
+	tw.tween_property(nodo, "self_modulate:a", alfa_final, segundos)
 
 
 ## La formula del Flash para las capas + skybox para el fondo principal.
