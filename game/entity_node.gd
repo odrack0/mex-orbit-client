@@ -317,6 +317,16 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
 	AssetDefs.ambiente_mundo(ent)
+	# `luz` en el JSON: EXCEPCION por bicho a la luz del mundo, para el que se lee
+	# autoiluminado (el Skarnox es lava: la luz exterior le diluia el caracter).
+	# Es un override sobre el dial unico, no otra luz: sin el bloque no cambia
+	# nada. Su PRECIO es doble y va junto: media se rehornea con HORNO_SOL y
+	# HORNO_AMBIENTE equivalentes (y se homologa: medir_emision ya lee este mismo
+	# bloque), y el bicho hay que mirarlo AL LADO de un vecino normal, porque dos
+	# luces distintas se pueden leer como dos recortes pegados.
+	var luz: Dictionary = d.get("luz", {})
+	if luz.has("ambiente"):
+		ent.ambient_light_energy = float(luz["ambiente"])
 
 	# GLOW: sin el, la emision se RECORTA a 1.0 y las venas se leen como "claras",
 	# no como "encendidas". Media si brilla porque alli la capa emisiva va en blend
@@ -347,7 +357,7 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	# que por como normaliza equivale a ~1.0 aqui; con 2.6 el bicho salia lavado a
 	# blanco y no se parecia a su propio horneado. El horneado es la referencia:
 	# alta y media tienen que ser el mismo bicho, uno articulado y otro no.
-	sol.light_energy = AssetDefs.LUZ_MUNDO_ENERGIA
+	sol.light_energy = float(luz.get("sol", AssetDefs.LUZ_MUNDO_ENERGIA))
 	sol.rotation = Vector3(deg_to_rad(AssetDefs.LUZ_MUNDO_ELEVACION),
 		deg_to_rad(AssetDefs.LUZ_MUNDO_GRADOS), 0.0)
 	sol.shadow_enabled = false

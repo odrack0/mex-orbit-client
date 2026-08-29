@@ -30,6 +30,11 @@
     "speed": 0.8,
     "sharpness": 3.4
   },
+  "_luz": "EXCEPCION a la luz del mundo (override de entity_node, tambien lo lee medir_emision): el Skarnox es lava y se lee AUTOILUMINADO — a plena luz del mundo el sol le diluia el caracter. A LA MITAD del mundo (sol 0.5 de 1.0, ambiente 0.325 de 0.65, misma proporcion): la roca conserva algo de volumen exterior y la lava domina. Se probo tambien 0/0 —solo existe donde la lava enciende, muy dramatico— y quedo descartado por eleccion de arte. El precio del bloque: media se hornea con HORNO_SOL/HORNO_AMBIENTE a juego, y al bicho hay que mirarlo al lado de un vecino normal para comprobar que no se lee como recorte.",
+  "luz": {
+    "sol": 0.25,
+    "ambiente": 0.1625
+  },
   "_alas": "El Skarnox no tiene alas: `ciclo` aqui solo fija el RELOJ del destello 3D, que va atado al de las alas. Sin esto heredaba los 2.17 s del Vexor — el latido de otro bicho; 6 s es su caracter: late lento y llega alto.",
   "alas": {"ciclo": 6.0},
   "_lava": "Lava que VIAJA (solo calidad alta): pase aditivo lava_flujo.gdshader como next_pass del material. El ruido corre sobre la posicion local (los islotes de UV de Meshy partirian el flujo) y late en fase con el pulso. amount = cuanto aniade sobre el pulso, scale = tamanio de las lenguas en unidades del modelo, speed = que tan rapido viaja la claridad.",

@@ -41,11 +41,18 @@ func _ready() -> void:
 	var ent := Environment.new()
 	ent.background_mode = Environment.BG_CLEAR_COLOR
 	AssetDefs.ambiente_mundo(ent)
+	# El bloque `luz` del bicho, si lo trae: el mismo override que aplica
+	# entity_node. Sin esto la medicion compararia media contra un alta que no
+	# existe en el juego. (Con ruta con barra —ships/...— no hay JSON de npc y se
+	# queda la luz del mundo, que es lo que las naves usan.)
+	var luz: Dictionary = {} if "/" in _bicho else AssetDefs.npc(_bicho).get("luz", {})
+	if luz.has("ambiente"):
+		ent.ambient_light_energy = float(luz["ambiente"])
 	_env = ent
 	var we := WorldEnvironment.new(); we.environment = ent
 	_vp.add_child(we)
 	var sol := DirectionalLight3D.new()
-	sol.light_energy = 1.0
+	sol.light_energy = float(luz.get("sol", 1.0))
 	sol.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(315.0), 0.0)
 	_vp.add_child(sol)
 	var cam := Camera3D.new()
