@@ -188,18 +188,14 @@ func _dibujar() -> void:
 		_canvas.draw_arc(hp, 5.5 + sin(_t * 3.0) * 1.2, 0, TAU, 24, Color(NTheme.CYAN, 0.5), 1.0)
 
 	# EL ENCUADRE de la camara (§8): las cuatro esquinas del viewport llevadas al
-	# mapa, dibujando solo el 12.5% de cada lado desde cada esquina — el gesto
-	# del original; un marco entero taparia el contenido. Con el zoom, el marco
-	# crece y encoge: es la unica lectura de "cuanto estoy viendo" del juego.
-	var camn: Camera2D = _world.camara()
-	if camn != null:
-		var half: Vector2 = _world.get_viewport_rect().size / (2.0 * camn.zoom.x)
-		var esquinas: Array[Vector2] = [
-			_a_mapa(camn.position - half).clamp(Vector2.ZERO, s),
-			_a_mapa(camn.position + Vector2(half.x, -half.y)).clamp(Vector2.ZERO, s),
-			_a_mapa(camn.position + half).clamp(Vector2.ZERO, s),
-			_a_mapa(camn.position + Vector2(-half.x, half.y)).clamp(Vector2.ZERO, s),
-		]
+	# plano del juego, dibujando solo el 12.5% de cada lado desde cada esquina —
+	# el gesto del original. Con la camara en perspectiva inclinada el encuadre
+	# es un TRAPECIO, la firma visual del cliente 3D.
+	var mundo: Array[Vector2] = _world.esquinas_encuadre()
+	if mundo.size() == 4:
+		var esquinas: Array[Vector2] = []
+		for m in mundo:
+			esquinas.append(_a_mapa(m).clamp(Vector2.ZERO, s))
 		var ce := Color(NTheme.TXT, 0.45)
 		for i in 4:
 			var e := esquinas[i]

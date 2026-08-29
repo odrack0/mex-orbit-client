@@ -164,14 +164,13 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 
 | Dial | Dónde | Valor | Qué hace |
 |---|---|---|---|
-| `TURN_STEPS` | `game/entity_node.gd` | 32 | Posiciones de giro (32 = el look de 11.25° del original). 64 = giro más fino; giro continuo = quitar el redondeo en `_set_visual_angle` |
-| `TURN_TIME` | `game/entity_node.gd` | 0.1 s | Duración del tween de giro por el camino corto |
+| `TURN_TIME` | `game/entity_node.gd` | **0.2 s** | Giro de nave: ease Quad-out continuo por el camino corto — el del cliente 3D original. La cuantización de 32 pasos murió con el mundo de sprites (F1) |
 | `DEAD_ZONE` | `game/entity_node.gd` | 2 px | Destino encima de la nave en vuelo no re-orienta (anti-trompos) |
 | `HOLD_RESEND_SEC` | `game/world.gd` | 0.25 s | Cadencia del reenvío con click sostenido (tope real: rate limit 10/s del contrato) |
 | `HOLD_MIN_DELTA` | `game/world.gd` | 60 px | El destino debe moverse al menos esto para reenviar |
-| `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, escalado por el zoom |
+| `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, CONSTANTE en pantalla (× `unidades_por_pixel` de la cámara 3D) |
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
-| Zoom de cámara | `game/world.gd` | paso ×1.1, rango **0.621–1.157**, entra en 0.621 | **Calibrado volando**, no heredado: los 0.1–3 del prototipo daban una sopa de puntos por abajo y el poro de la textura por arriba. Se entra en el extremo alejado porque ese es el encuadre de juego; acercar es del jugador |
+| Cámara y zoom | `game/mundo3d.gd` | FOV 30 · d 1740/zoom · tilt 135 · zoom [1,3] ×1.2 · tween 0.3 s · tilt−20° con zoom | La cámara del DO 3D original completa (F1). El rango 0.621–1.157 era del mundo de sprites y murió con él; se entra en zoom 1 (el encuadre de juego) |
 | Acelerador de llamas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las llamas al volar/frenar (su color viene del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
@@ -198,16 +197,38 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `HOVER_AMP` / `HOVER_CICLO` | `game/entity_node.gd` | 5 px · 2 s | Flotación idle Lissajous del dibujo (solo naves, solo paradas, fase propia, fundido 0.5 s al arrancar) |
 | `LLAMA_IDLE` | `game/entity_node.gd` | 0.7 | Ralenti del motor de una nave de **jugador** parada (NPC apaga a 0); en vuelo, 1 |
 | `GLOW_HP_MIN` | `game/entity_node.gd` | 0.35 | Suelo del brillo emisivo a 0% de casco: malherido se apaga, no se muere de golpe. Multiplica el pulso en 2D **y** 3D |
-| `HUD_ZOOM_REF` | `game/entity_node.gd` | 0.621 | El HUD de entidad (nombre+barras) mide LO MISMO en pantalla a cualquier zoom; la referencia es `ZOOM_DEFECTO` para que el encuadre por defecto no cambie. **Deben casar** |
+| HUD de entidad | `entity_node.gd::_construir_hud` | barras a −52 px · nombre a +44 px | Vive en la capa proyectada (píxeles de pantalla): tamaño constante a cualquier zoom por construcción (F1) |
 | `ZOOM_TWEEN_SEC` | `game/world.gd` | 0.3 s | El zoom llega con tween Quad ease-out (el gesto del original); el rango y el paso siguen siendo los calibrados volando |
 | `DOBLE_CLICK_MS` | `game/world.gd` | 500 | Doble click sobre una entidad = fijarla y atacar (el gesto canónico); el primer click solo selecciona |
 | Flash + chispas de explosión | `world.gd::_explotar` | flash ⌀ 6×radio en 0.25 s · 24 chispas 100–200 u/s | Las capas extra de la explosión multi-capa del original, aditivas y procedurales (cero assets); escalan con el `click_radius` de la víctima |
 | Marcador de selección | `entity_node.gd::set_selected` | 1.5× → 1× en 0.3 s | El fijado "cierra" sobre el blanco, como el original |
-| `TWINKLE_AMP` / `TWINKLE_SPEED` | `game/starfield_2d.gd` | 0.25 · 2.0 | Temblor de brillo por estrella con fase propia (el twinkle del skybox original, a escala de 300 puntos) |
-| Profundidad del fondo | `map_background.gd::_z_por_profundidad` | z = 1000/pFactor | El orden de dibujo del original: lo lejano primero. Antes mandaba el orden de inserción y una capa cercana podía quedar detrás de un planeta lejano |
-| Fade-in del fondo | `map_background.gd::_fundido` | fondos 1 s · planetas 0.5 s | Al entrar al mapa las capas entran, no aparecen de golpe |
+| Fondo (F1) | `world.gd::_construir_fondo` | telón a y=−3500, ×1.8 del mapa | El arte del mapa como plano profundo: paralaje REAL por profundidad. `MapBackground`/`Starfield2D` (y sus diales de twinkle/fade/profundidad) quedaron fuera de servicio en F1; F3 monta el fondo del original (skybox, star dust, tilemaps) |
 | `AQ_*` | `game/quality.gd` | ventana 20 s · baja <10 fps · sube >60 | Auto-calidad con histéresis: escalera de 4 recortes **transitorios** (mosaicos → llamas → explosiones → atlas/3D) aplicados como tope sobre el preset, sin tocar lo persistido. Sin foco no mide; en autotest no corre |
 | Encuadre del minimapa | `ui/minimap_window.gd` | 12.5% de cada lado · `--txt` 45% | Las 4 esquinas del viewport llevadas al mapa (registrado en §8 del sistema de diseño) |
+
+## FASE 1: el cliente ES 3D (29-ago-2026)
+
+Dictamen y plan en `mex-orbit-docs/03-guidelines/plan-cliente-3d.md`. El mundo dejó de ser un
+canvas de sprites con SubViewports por bicho: ahora es **una escena 3D única** (`game/mundo3d.gd`)
+mirada por la **cámara del DarkOrbit 3D original**: perspectiva FOV 30°, elevación 45°
+(tilt 135), distancia `1740/zoom`, zoom continuo **[1,3]** con rueda ×1.2/÷1.2 y tween 0.3 s, y el
+**acoplamiento tilt↔zoom** (al acercar, la cámara baja hasta 20° hacia el horizonte — la
+perspectiva de los aliens cambia con el zoom, que fue el detonante de todo).
+
+- **Entidades**: malla GLB en alta (vex, vexor, vorax, la Phoenix, la estación); **quad tumbado**
+  con su PNG/atlas para el resto — el placeholder del original. Banking y hover ahora son 3D de
+  verdad; las llamas y las bocas de cañón salen de los marcadores del GLB en espacio real.
+- **HUD proyectado**: nombres, barras, números de combate, marcador de selección y etiquetas de
+  portal viven en una capa 2D reposicionada con `unproject` — tamaño constante en pantalla.
+- **Click**: rayo→plano y=0 (`Mundo3D.a_mundo`); radios de click en píxeles constantes
+  (`CLICK_RADIUS × unidades_por_pixel`). Minimapa con el **trapecio** del encuadre.
+- **Murió con el canvas**: la Camera2D y el rango 0.621–1.157, el giro cuantizado de 32 pasos
+  (ahora ease continuo 0.2 s, el del original 3D), el shader de relieve y su prueba (la propiedad
+  se cumple por construcción), `MapBackground`/`Starfield2D` (F1 pone un telón a −3500; F3 monta
+  el fondo real), el SubViewport por entidad y el reactor 2D de la estación.
+- **Gates**: `-Autotest` completo, `-Salto` y bestiario alta en verde sobre la escena única.
+- **Calibración pendiente conocida**: `world_size` de la estación (2460) se dimensionó para
+  sprite cenital; a zoom cercano con cámara baja es una montaña — se recalibra volando en F2.
 
 ## El puerto de los guidelines 3D (ago-2026)
 

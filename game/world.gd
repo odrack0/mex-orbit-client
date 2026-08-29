@@ -5,7 +5,7 @@
 # cursor quieto tambien avanza), con reenvio por umbral de distancia.
 extends Node2D
 
-const CLICK_RADIUS := 34.0        # radio de click sobre entidades (escalado por zoom)
+const CLICK_RADIUS := 34.0        # radio de click sobre entidades, en PIXELES de pantalla
 const HOLD_RESEND_SEC := 0.25     # cadencia del reenvio con el boton sostenido
 const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para reenviar
 ## Cuanto sigue un tirador encarando a su blanco tras el ultimo disparo. Los NPC
@@ -13,26 +13,10 @@ const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para r
 ## cuando la pelea se acaba de verdad.
 const ATTACK_FACING_SEC := 3.0
 
-# Rango de zoom, CALIBRADO volando con una lectura en pantalla, no supuesto. Los
-# limites anteriores (0,1 a 3,0) eran los del primer dia: a 0,1 la nave son
-# treinta pixeles y el mapa una sopa de puntos, y a 3,0 se ve el poro de la
-# textura y se pierde de vista todo lo que importa.
-#
-# 0,621 es exactamente cinco pasos de rueda por debajo de 1,0 (1,1^-5 = 0,6209),
-# asi que el limite de alejar cae justo en un peldanio. El de acercar no: desde
-# 1,10 el siguiente paso seria 1,21, o sea que el ultimo click se queda corto
-# contra el tope. Se deja asi a proposito — el tope lo pone el encuadre que se
-# quiere, no la escalera de la rueda.
-const ZOOM_MIN := 0.621
-const ZOOM_MAX := 1.157
-const ZOOM_PASO := 1.1
-# Se entra en el extremo alejado, no en medio: ese es el encuadre con el que se
-# juega, y acercar es algo que el jugador hace a proposito para mirar algo.
-const ZOOM_DEFECTO := ZOOM_MIN
-## El zoom LLEGA con tween (guideline 3D del original): 0.3 s Quad ease-out
-## sobre el factor. El paso y el rango siguen siendo los calibrados volando; lo
-## que porta del original es el gesto — suave, no a saltos.
-const ZOOM_TWEEN_SEC := 0.3
+# FASE 1 del plan-cliente-3d: la camara y su zoom viven en Mundo3D con las
+# constantes del original (FOV 30, elevacion 45, d = 1740/zoom, zoom [1,3] con
+# tween y acoplamiento tilt-zoom). El rango 0.621-1.157 calibrado para el mundo
+# de sprites murio con el.
 
 ## Doble click (<500 ms) sobre una entidad = fijarla Y atacar, el gesto canonico
 ## del original. El primer click solo selecciona, como siempre.
@@ -41,8 +25,10 @@ const DOBLE_CLICK_MS := 500
 var _conn: GameConnection
 var _entidades := {}          # entity_id -> EntityNode
 var _hero: EntityNode
-var _camara: Camera2D
-var _fondo: MapBackground
+var _mundo: Mundo3D
+var _capa_juego: Node2D       # HUD del mundo (barras, nombres, numeros), proyectado
+var _foco := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
+var _fondo3d: Node3D          # telon de fondo F1 (F3 lo hace de verdad)
 var _seq := 0
 var _limites := Vector2(20800, 12800)
 
@@ -50,8 +36,6 @@ var _limites := Vector2(20800, 12800)
 var _hold_move := false
 var _hold_timer := 0.0
 var _saltando := false
-var _zoom_objetivo := ZOOM_DEFECTO
-var _zoom_tween: Tween
 var _ultimo_click_ent := 0     # doble click: la entidad y el instante del anterior
 var _ultimo_click_ms := 0
 ## Cursor simulado para la prueba del vuelo sostenido (INF = raton de verdad).
@@ -78,12 +62,11 @@ var _muerto := false
 var _estacion_pos := Vector2.ZERO
 var _estacion_rango := 0.0
 var _en_base := false
-var _estacion: Sprite2D
-var _estacion_reactor: Sprite2D
+var _estacion: Node3D                            # el cuerpo de la base en la escena
+var _estacion_sprite: Sprite3D                   # el camino quad (PNG o atlas), o null
 var _estacion_anim_total := 0
 var _estacion_anim_fps := 12.0
 var _estacion_anim_t := 0.0
-var _estacion_vp: SubViewport                    # mundo 3D de la estacion, o null
 var _estacion_modelo: Node
 var _estacion_mats: Array[BaseMaterial3D] = []
 var _est_emision := 1.0
@@ -91,12 +74,8 @@ var _est_pulso_min := 0.55
 var _est_pulso_max := 1.8
 var _est_pulso_vel := 1.1
 var _est_pulso_dureza := 1.6
-var _reactor_min := 0.55
-var _reactor_max := 1.8
-var _reactor_speed := 1.1
-var _reactor_sharp := 1.6
 var _laser_on := false
-var _cajas := {}                  # box_id -> Sprite2D
+var _cajas := {}                  # box_id -> Node2D (posicion; su cuerpo vive en Mundo3D)
 var _caja_anim_total := 0         # >0 = la caja es un atlas animado
 var _caja_anim_fps := 12.0
 var _portales := {}               # portal_id -> PortalNode
@@ -171,26 +150,51 @@ func _ready() -> void:
 		frame.region = Rect2(i * 128, 0, 128, 128)
 		_frames_explosion.add_frame("boom", frame)
 
-	_camara = Camera2D.new()
-	# se entra SIEMPRE en el zoom mas alejado: es el que da el encuadre de juego,
-	# y acercar es una decision del jugador para mirar algo concreto. No se sujeta
-	# al rango con un clamp, se FIJA — un clamp dejaria pasar el 1,0 por defecto
-	# de Godot solo porque cae dentro.
-	_camara.zoom = Vector2(ZOOM_DEFECTO, ZOOM_DEFECTO)
-	add_child(_camara)
+	# LA ESCENA UNICA (F1): el mundo 3D con la camara del original. Se entra en
+	# el zoom mas alejado (1.0), que es el encuadre de juego.
+	_mundo = Mundo3D.new()
+	add_child(_mundo)
+	# la capa del HUD del mundo: barras, nombres y numeros PROYECTADOS, entre el
+	# 3D (debajo de todo) y las ventanas N (capas 11+)
+	var capa_juego := CanvasLayer.new()
+	capa_juego.layer = 5
+	add_child(capa_juego)
+	_capa_juego = Node2D.new()
+	capa_juego.add_child(_capa_juego)
+	EntityNode.capa_hud = _capa_juego
 	_construir_hud()
 	_estado("Abriendo enlace con %s..." % Session.game_host, NTheme.MUTED)
 	_conn.connect_to(Session.game_host, Session.game_ticket)
 
 
+## El telon de fondo de F1: el arte del mapa como plano profundo bajo el mundo.
+## Paralaje REAL por profundidad — la camara hace el resto. F3 monta el fondo
+## completo del original (skybox con twinkle, star dust en mosaico, tilemaps).
 func _construir_fondo(map_code: String) -> void:
-	if _fondo != null:
+	if _fondo3d != null:
 		return                     # una reconexion reenvia EnterMap: no duplicar capas
-	# el stack de capas del prototipo: mosaicos + fondo principal + planetas
-	# + sol con lentes + polvo estelar, todos con su paralaje propio
-	_fondo = MapBackground.new()
-	add_child(_fondo)
-	_fondo.build(MapBgConfig.para(map_code, _limites))
+	_fondo3d = Node3D.new()
+	_mundo.add_child(_fondo3d)
+	var d := AssetDefs.mapa(map_code)
+	var ruta := str(d.get("main", ""))
+	if ruta == "" or not ResourceLoader.exists(ruta):
+		return
+	var tex: Texture2D = load(ruta)
+	var telon := MeshInstance3D.new()
+	var q := QuadMesh.new()
+	# cubre el mapa entero con margen, a -3500 de profundidad (la cota de los
+	# tilemaps del original): al volar deriva por paralaje real
+	var alto := _limites.y * 1.8
+	q.size = Vector2(alto * float(tex.get_width()) / float(tex.get_height()), alto)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_texture = tex
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	q.material = mat
+	telon.mesh = q
+	telon.rotation.x = -PI / 2
+	telon.position = Vector3(_limites.x * 0.5, -3500.0, -_limites.y * 0.5)
+	_fondo3d.add_child(telon)
 
 
 func _construir_hud() -> void:
@@ -332,9 +336,12 @@ func _desmontar_mapa() -> void:
 	if _estacion != null:
 		_estacion.queue_free()
 		_estacion = null
-	if _fondo != null:
-		_fondo.queue_free()
-		_fondo = null
+		_estacion_sprite = null
+		_estacion_mats = []
+		_estacion_anim_total = 0
+	if _fondo3d != null:
+		_fondo3d.queue_free()
+		_fondo3d = null
 	_hero = null
 	_at_target = 0
 	_pending_box = 0
@@ -385,91 +392,54 @@ func _construir_estacion() -> void:
 		return                     # idem: EnterMap puede repetirse al reconectar
 	# la estacion y su zona segura, con las particularidades de su JSON
 	var d := AssetDefs.prop("station")
+	_estacion = Node3D.new()
+	_estacion.position = Vector3(_estacion_pos.x, 0.0, -_estacion_pos.y)
+	_mundo.add_child(_estacion)
+
+	# El anillo de la zona segura, ahora GEOMETRIA en el plano: un toro fino que
+	# la camara inclinada ve como la elipse que le toca — perspectiva gratis.
 	var aro: Dictionary = d.get("safe_ring", {})
-	var color_aro := AssetDefs.color(aro.get("color", "00E5FF"), NTheme.CYAN)
-	var alfa_aro: float = float(aro.get("alpha", 0.22))
-	var grosor_aro: float = float(aro.get("width", 3.0))
+	var anillo := MeshInstance3D.new()
+	var toro := TorusMesh.new()
+	toro.inner_radius = _estacion_rango - float(aro.get("width", 3.0))
+	toro.outer_radius = _estacion_rango
+	var mat_aro := StandardMaterial3D.new()
+	mat_aro.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat_aro.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat_aro.albedo_color = Color(AssetDefs.color(aro.get("color", "00E5FF"), NTheme.CYAN),
+		float(aro.get("alpha", 0.22)))
+	toro.material = mat_aro
+	anillo.mesh = toro
+	anillo.position.y = 1.0
+	_estacion.add_child(anillo)
 
-	var anillo := Node2D.new()
-	anillo.position = _estacion_pos
-	anillo.z_index = -1
-	anillo.draw.connect(func():
-		anillo.draw_arc(Vector2.ZERO, _estacion_rango, 0, TAU, 96,
-			Color(color_aro, alfa_aro), grosor_aro))
-	add_child(anillo)
-	anillo.queue_redraw()
-
-	_estacion = Sprite2D.new()
-	# TRES caminos, no dos. En ALTA, si la ficha declara `modelo`, la estacion es
-	# una MALLA 3D en su propio viewport y su textura alimenta este mismo
-	# Sprite2D — igual que los bichos, y por lo mismo: el 3D entra por debajo y
-	# la posicion, el z-index y el anillo de zona segura siguen siendo los de 2D.
-	#
-	# Y aqui gana mas que en un bicho. La estacion se dibuja a 820 px, y el atlas
-	# de video le quedaba corto: su celda era de 632, o sea que se AMPLIABA 1,3
-	# veces. Un modelo no tiene resolucion, asi que a cualquier zoom sale nitida.
-	# De paso se ahorran los 40 MB del atlas, que era el asset mas caro con
-	# diferencia.
-	#
-	# NO rota, asi que el modelo se monta una vez y se queda quieto: lo que se
-	# mueve es su emision, con el mismo latido que ya tenia la capa emisiva.
-	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
+	# DOS caminos en la escena unica: la MALLA directamente en el mundo (ya sin
+	# viewport intermedio — la torre ensenia su altura con la camara a 45), o el
+	# quad tumbado con su PNG/atlas. La emisiva 2D del reactor viejo murio con el
+	# canvas: pertenecia al PNG fijo del mundo de sprites.
 	_estacion_anim_total = 0
 	if Quality.nivel("collectable") >= 2 and _montar_estacion_3d(d):
-		anim = {}
-	elif anim.is_empty():
-		_estacion.texture = load(d.get("texture", "res://assets/world/station.png"))
+		return
+	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
+	var tex: Texture2D
+	if anim.is_empty():
+		tex = load(d.get("texture", "res://assets/world/station.png"))
 	else:
-		_estacion.texture = load(anim.get("atlas", "res://assets/world/station-anim.png"))
-		_estacion.hframes = int(anim.get("hframes", 1))
-		_estacion.vframes = int(anim.get("vframes", 1))
-		_estacion_anim_total = int(anim.get("count", _estacion.hframes * _estacion.vframes))
+		tex = load(anim.get("atlas", "res://assets/world/station-anim.png"))
+	# `world_size` es la HUELLA de la base; con el quad manda el ancho del
+	# fotograma, como siempre
+	var ancho_px := float(tex.get_width()) / maxf(float(anim.get("hframes", 1)), 1.0)
+	var alto_px := float(tex.get_height()) / maxf(float(anim.get("vframes", 1)), 1.0)
+	var tam := float(d.get("world_size", 820)) * alto_px / maxf(ancho_px, 1.0)
+	_estacion_sprite = Mundo3D.sprite_plano(tex, tam, int(anim.get("vframes", 1)))
+	if not anim.is_empty():
+		_estacion_sprite.hframes = int(anim.get("hframes", 1))
+		_estacion_sprite.vframes = int(anim.get("vframes", 1))
+		_estacion_anim_total = int(anim.get("count",
+			_estacion_sprite.hframes * _estacion_sprite.vframes))
 		_estacion_anim_fps = float(anim.get("fps", 12))
 		_estacion_anim_t = 0.0
-	_estacion.position = _estacion_pos
-	# tamaño en unidades de MUNDO segun el JSON, sea cual sea la resolucion del
-	# render. Manda el ANCHO del fotograma y no el alto: `world_size` es la huella
-	# de la base —lo que el anillo de zona segura rodea—, y un render en retrato
-	# escalado por su alto dejaria una huella mucho mas estrecha de lo declarado.
-	var lado := float(_estacion.texture.get_width()) / maxf(float(_estacion.hframes), 1.0)
-	_estacion.scale = Vector2.ONE * (float(d.get("world_size", 820)) / lado)
-	_estacion.z_index = -1
-	_montar_relieve_estacion(d, anim)
-	add_child(_estacion)
-
-	# El reactor late con su capa emisiva... SOLO en el camino fijo.
-	#
-	# Con atlas la luz ya viene cocida en los fotogramas, y montar la emisiva
-	# encima la cuenta dos veces. Aqui ademas era peor que redundante: la emisiva
-	# es la del reactor REDONDO de la estacion vieja, y se estaba estirando en
-	# blend aditivo sobre un render que no tiene esa forma. De ahi el halo azul
-	# alrededor de la silueta que no venia de ninguna parte.
-	#
-	# Es la misma regla que ya cumplen `EntityNode` y `PortalNode` —la animacion
-	# manda sobre el truco— y que aqui se me paso.
-	# SOLO en el camino del PNG fijo. Ni con atlas ni con malla 3D: en los dos la
-	# luz ya viene en el asset, y esta capa es la del reactor REDONDO de la
-	# estacion vieja — un PNG de otra estacion estirado encima, en blend aditivo.
-	#
-	# Este guardian ya existia y solo miraba el atlas (`_estacion_anim_total`).
-	# Al aniadir el tercer camino no se actualizo, asi que el aro cian volvio
-	# exactamente igual que la primera vez: se veia como "el reactor brilla
-	# demasiado" y no era el reactor, era otra estacion encima.
-	#
-	# La regla, escrita para que el cuarto camino no lo repita: la capa emisiva 2D
-	# pertenece AL PNG FIJO, no "a todo lo que no sea atlas".
-	if d.has("emissive") and _estacion_anim_total == 0 and _estacion_vp == null:
-		_estacion_reactor = Sprite2D.new()
-		_estacion_reactor.texture = load(d.emissive)
-		var mat := CanvasItemMaterial.new()
-		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-		_estacion_reactor.material = mat
-		_estacion.add_child(_estacion_reactor)
-		var p: Dictionary = d.get("pulse", {})
-		_reactor_min = float(p.get("min_intensity", 0.55))
-		_reactor_max = float(p.get("max_intensity", 1.8))
-		_reactor_speed = float(p.get("speed", 1.1))
-		_reactor_sharp = float(p.get("sharpness", 1.6))
+	_estacion.add_child(_estacion_sprite)
 
 
 func _construir_base() -> void:
@@ -592,9 +562,9 @@ func _on_calidad_cambiada(claves: Array) -> void:
 		_caja_anim_total = 0
 		for par in pendientes:
 			_crear_caja(par[0], par[1])
-	if claves.has("background") and _fondo != null:
-		_fondo.queue_free()
-		_fondo = null
+	if claves.has("background") and _fondo3d != null:
+		_fondo3d.queue_free()
+		_fondo3d = null
 		_construir_fondo(_map_code)
 
 
@@ -689,7 +659,7 @@ func _process_autopilot() -> void:
 
 # ---- accesores para el minimapa ----
 func limites() -> Vector2: return _limites
-func camara() -> Camera2D: return _camara
+func esquinas_encuadre() -> Array[Vector2]: return _mundo.esquinas_encuadre()
 func heroe() -> EntityNode: return _hero
 func entidades() -> Dictionary: return _entidades
 func cajas() -> Dictionary: return _cajas
@@ -714,8 +684,8 @@ func _on_spawn(sp) -> void:
 			_estado("Reparada en la base", NTheme.HP)
 			if _chat != null:
 				_chat.add_system("Nave reparada en la base", NTheme.HP)
-		_camara.position = nodo.position
-		_camara.make_current()
+		_foco = nodo.position
+		_mundo.actualizar(_foco)
 
 
 func _on_despawn(dp) -> void:
@@ -823,22 +793,22 @@ func _numero_flotante(sobre: EntityNode, texto: String, color: Color) -> void:
 	if vivo != null and is_instance_valid(vivo) and texto.is_valid_int():
 		vivo.set_meta("suma", int(vivo.get_meta("suma", 0)) + int(texto))
 		vivo.text = str(vivo.get_meta("suma"))
-		vivo.position = sobre.position + Vector2(-60, -110)
+		vivo.position = _mundo.a_pantalla(sobre.position) + Vector2(-60, -90)
 		return
 
-	# 24 y no 15: el numero vive en el MUNDO, asi que el zoom de juego (0,621) lo
-	# reduce — 15 se veian como ~9 px reales y el golpe pasaba desapercibido.
-	# Registrado en el §9 del sistema de diseño.
+	# 24: registrado en el §9 del sistema de diseño. Desde F1 el numero vive en
+	# el HUD proyectado (pixeles de pantalla), asi que ya no lo encoge el zoom.
 	var label := NTheme.label(texto, NTheme.mono(), 24, color)
 	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
 	label.add_theme_constant_override("outline_size", 6)
 	label.custom_minimum_size = Vector2(120, 0)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.position = sobre.position + Vector2(-60, -110)
+	# el numero vive en el HUD proyectado (pixeles): el zoom ya no lo encoge
+	label.position = _mundo.a_pantalla(sobre.position) + Vector2(-60, -90)
 	label.z_index = 20
 	if texto.is_valid_int():
 		label.set_meta("suma", int(texto))
-	add_child(label)
+	_capa_juego.add_child(label)
 	_numeros[clave] = label
 	var tw := create_tween()
 	tw.set_parallel(true)
@@ -879,7 +849,7 @@ func _on_destroyed(msg) -> void:
 func _anotar_si_se_ve(nodo: EntityNode, motivo: String) -> void:
 	if _hero == null or nodo == _hero:
 		return
-	var visible_rect := get_viewport_rect().size / _camara.zoom
+	var visible_rect := get_viewport_rect().size * _mundo.unidades_por_pixel()
 	var radio := visible_rect.length() * 0.5
 	var d := _hero.position.distance_to(nodo.position)
 	if d > radio:
@@ -908,12 +878,13 @@ var _tex_chispa: GradientTexture2D
 func _explotar(pos: Vector2, radio := 42.0) -> void:
 	if Quality.nivel("explosion") < 1:
 		return                    # el evento sigue ocurriendo; solo no se dibuja
-	var anim := AnimatedSprite2D.new()
+	var anim := AnimatedSprite3D.new()
 	anim.sprite_frames = _frames_explosion
-	anim.position = pos
-	anim.scale = Vector2.ONE * 1.4
-	anim.z_index = 4
-	add_child(anim)
+	anim.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	anim.shaded = false
+	anim.pixel_size = 1.4
+	anim.position = Vector3(pos.x, 20.0, -pos.y)
+	_mundo.add_child(anim)
 	anim.play("boom")
 	anim.animation_finished.connect(anim.queue_free)
 
@@ -930,29 +901,27 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 		_tex_flash.fill = GradientTexture2D.FILL_RADIAL
 		_tex_flash.fill_from = Vector2(0.5, 0.5)
 		_tex_flash.fill_to = Vector2(0.5, 0.0)
-	var flash := Sprite2D.new()
-	flash.texture = _tex_flash
-	flash.material = _material_add()
-	flash.position = pos
-	flash.z_index = 5
-	flash.scale = Vector2.ZERO
-	add_child(flash)
+	var flash := Mundo3D.quad_aditivo(_tex_flash, 256.0)
+	flash.position = Vector3(pos.x, 25.0, -pos.y)
+	flash.scale = Vector3.ONE * 0.01
+	_mundo.add_child(flash)
 	# el diametro final ~6x el radio de click (la proporcion del original:
 	# flash de 250 para naves de ~80 de radio)
 	var escala_flash := radio * 6.0 / 256.0
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(flash, "scale", Vector2.ONE * escala_flash, 0.25) \
+	tw.tween_property(flash, "scale", Vector3.ONE * escala_flash, 0.25) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(flash, "modulate:a", 0.0, 0.2).set_delay(0.05)
+	tw.tween_property(flash, "transparency", 1.0, 0.2).set_delay(0.05)
 	tw.chain().tween_callback(flash.queue_free)
 
-	# CHISPAS: rafaga radial de un disparo, velocidades y vidas aleatorias (la
-	# desincronizacion estadistica del original), color blanco -> calido -> nada.
+	# CHISPAS: rafaga radial de un disparo en el plano del juego, velocidades y
+	# vidas aleatorias (la desincronizacion estadistica del original).
 	if _pm_chispas == null:
 		_pm_chispas = ParticleProcessMaterial.new()
 		_pm_chispas.direction = Vector3(1, 0, 0)
 		_pm_chispas.spread = 180.0
+		_pm_chispas.flatness = 1.0        # la rafaga vive en el plano, como el mundo
 		_pm_chispas.initial_velocity_min = 100.0
 		_pm_chispas.initial_velocity_max = 200.0
 		_pm_chispas.gravity = Vector3.ZERO
@@ -976,25 +945,35 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 		_tex_chispa.fill = GradientTexture2D.FILL_RADIAL
 		_tex_chispa.fill_from = Vector2(0.5, 0.5)
 		_tex_chispa.fill_to = Vector2(0.5, 0.0)
-	var chispas := GPUParticles2D.new()
+	var chispas := GPUParticles3D.new()
 	chispas.amount = 24
 	chispas.one_shot = true
 	chispas.explosiveness = 1.0
 	chispas.lifetime = 0.8
 	chispas.process_material = _pm_chispas
-	chispas.texture = _tex_chispa
-	chispas.material = _material_add()
-	chispas.position = pos
-	chispas.z_index = 4
+	chispas.draw_pass_1 = _malla_chispa()
+	chispas.position = Vector3(pos.x, 20.0, -pos.y)
 	chispas.emitting = true
-	add_child(chispas)
+	_mundo.add_child(chispas)
 	chispas.finished.connect(chispas.queue_free)
 
 
-static func _material_add() -> CanvasItemMaterial:
-	var m := CanvasItemMaterial.new()
-	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	return m
+var _malla_chispa_cache: QuadMesh
+
+
+func _malla_chispa() -> QuadMesh:
+	if _malla_chispa_cache == null:
+		_malla_chispa_cache = QuadMesh.new()
+		_malla_chispa_cache.size = Vector2(32, 32)
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		m.albedo_texture = _tex_chispa
+		m.vertex_color_use_as_albedo = true
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		_malla_chispa_cache.material = m
+	return _malla_chispa_cache
 
 
 func _on_box_spawn(msg) -> void:
@@ -1005,51 +984,49 @@ func _crear_caja(box_id: int, pos: Vector2) -> void:
 	if _cajas.has(box_id):
 		return
 	# todas las particularidades de la caja salen de su JSON (data/props/cargo-box.json)
+	# El nodo del diccionario sigue siendo un Node2D con `position` en juego —
+	# todo el flujo de recoger/minimapa lo lee asi—; su CUERPO es un quad en la
+	# escena unica, que muere con el (tree_exited).
 	var d := AssetDefs.prop("cargo-box")
-	var caja := Sprite2D.new()
-	# Los props entienden los DOS tipos de asset, igual que los bichos: PNG con
-	# su capa emisiva, o atlas de fotogramas sacado de un video en bucle.
-	# ALTA anima la caja; MEDIA y BAJA la dejan congelada en su fotograma 0, que
-	# es exactamente lo que hacia el nivel 0 de `collectable` del original.
+	var caja := Node2D.new()
+	caja.position = pos
+	add_child(caja)
+	var cuerpo := Node3D.new()
+	cuerpo.position = Vector3(pos.x, 1.0, -pos.y)
+	_mundo.add_child(cuerpo)
+	caja.tree_exited.connect(func(): if is_instance_valid(cuerpo): cuerpo.queue_free())
+
 	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
+	var tex: Texture2D
 	if anim.is_empty():
-		caja.texture = load(d.get("texture", "res://assets/world/cargo-box-still.png"))
+		tex = load(d.get("texture", "res://assets/world/cargo-box-still.png"))
 	else:
-		caja.texture = load(anim.get("atlas", ""))
-		caja.hframes = int(anim.get("hframes", 1))
-		caja.vframes = int(anim.get("vframes", 1))
-		_caja_anim_total = int(anim.get("count", caja.hframes * caja.vframes))
+		tex = load(anim.get("atlas", ""))
+	var alto_px := float(tex.get_height()) / maxf(float(anim.get("vframes", 1)), 1.0)
+	var ancho_px := float(tex.get_width()) / maxf(float(anim.get("hframes", 1)), 1.0)
+	var tam := float(d.get("world_size", 48)) * alto_px / maxf(ancho_px, 1.0)
+	var s := Mundo3D.sprite_plano(tex, tam, int(anim.get("vframes", 1)))
+	if not anim.is_empty():
+		s.hframes = int(anim.get("hframes", 1))
+		s.vframes = int(anim.get("vframes", 1))
+		_caja_anim_total = int(anim.get("count", s.hframes * s.vframes))
 		_caja_anim_fps = float(anim.get("fps", 12.0))
 		# desfase por caja: un campo de cajas parpadeando a la vez canta a bucle
 		caja.set_meta("anim_t", randf() * float(_caja_anim_total) / maxf(_caja_anim_fps, 1.0))
-	caja.position = pos
-	# tamaño en unidades de MUNDO, sea cual sea la resolucion del render. Con
-	# atlas manda el ancho del FOTOGRAMA, no el de la textura entera.
-	var lado := float(caja.texture.get_width()) / maxf(float(caja.hframes), 1.0)
-	caja.scale = Vector2.ONE * (float(d.get("world_size", 48)) / lado)
-	# Relieve: la caja tampoco rota, asi que gana lo mismo que la estacion —que su
-	# sombreado venga de la luz del mundo y no de la cenital plana del render. Sus
-	# tubos de neon los protege el shader: no se apagan por venir la luz de enfrente.
-	if Quality.nivel("shader") >= 1:
-		caja.material = AssetDefs.material_relieve(
-			AssetDefs.ruta_normal(d, not anim.is_empty()))
-	caja.z_index = 1
-	add_child(caja)
+		caja.set_meta("sprite", s)
+	cuerpo.add_child(s)
 	# la banda emisiva late en ALFA para llamar al jugador (fase por caja). Una
 	# caja de atlas no la lleva: su luz ya viene cocida en los fotogramas.
 	if anim.is_empty() and d.has("emissive") and Quality.nivel("emissive") >= 1:
-		var brillo := Sprite2D.new()
-		brillo.texture = load(d.emissive)
-		var mat := CanvasItemMaterial.new()
-		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-		brillo.material = mat
-		caja.add_child(brillo)
+		var brillo := Mundo3D.sprite_plano(load(d.emissive), tam)
+		brillo.position.y = 1.5
+		cuerpo.add_child(brillo)
 		var p: Dictionary = d.get("pulse", {})
 		var medio: float = float(p.get("half_period", 0.9))
 		var tw := caja.create_tween().set_loops()
-		tw.tween_property(brillo, "self_modulate:a", float(p.get("min_alpha", 0.25)), medio) \
+		tw.tween_property(brillo, "modulate:a", float(p.get("min_alpha", 0.25)), medio) \
 			.set_trans(Tween.TRANS_SINE)
-		tw.tween_property(brillo, "self_modulate:a", float(p.get("max_alpha", 1.0)), medio) \
+		tw.tween_property(brillo, "modulate:a", float(p.get("max_alpha", 1.0)), medio) \
 			.set_trans(Tween.TRANS_SINE)
 	_cajas[box_id] = caja
 
@@ -1121,27 +1098,17 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
-				_handle_click(get_global_mouse_position())
+				var punto := _mundo.a_mundo(get_viewport().get_mouse_position())
+				if punto != Vector2.INF:
+					_handle_click(punto)
 			MOUSE_BUTTON_WHEEL_UP:
-				_zoom_a(_zoom_objetivo * ZOOM_PASO)
+				_mundo.zoom_por_rueda(true)
 			MOUSE_BUTTON_WHEEL_DOWN:
-				_zoom_a(_zoom_objetivo / ZOOM_PASO)
+				_mundo.zoom_por_rueda(false)
 	elif event is InputEventKey and event.pressed and not event.echo:
 		# Ctrl = laser (el atajo por defecto del prototipo)
 		if event.keycode == KEY_CTRL:
 			_toggle_laser()
-
-
-## El zoom compone sobre el OBJETIVO, no sobre el valor en vuelo: una rafaga de
-## rueda no pierde peldanios aunque el tween anterior no haya terminado.
-func _zoom_a(objetivo: float) -> void:
-	_zoom_objetivo = clampf(objetivo, ZOOM_MIN, ZOOM_MAX)
-	if _zoom_tween != null:
-		_zoom_tween.kill()
-	_zoom_tween = create_tween()
-	_zoom_tween.tween_property(_camara, "zoom",
-		Vector2(_zoom_objetivo, _zoom_objetivo), ZOOM_TWEEN_SEC) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _toggle_laser() -> void:
@@ -1165,7 +1132,7 @@ func _handle_click(world_pos: Vector2) -> void:
 	# recolectar al llegar — el server exige cercania, el cliente la procura
 	var caja_id := _box_at(world_pos)
 	if caja_id != 0:
-		var caja: Sprite2D = _cajas[caja_id]
+		var caja: Node2D = _cajas[caja_id]
 		_volar_a(caja.position)
 		_pending_box = caja_id
 		_pending_box_pos = caja.position
@@ -1288,7 +1255,7 @@ func _portal_at(world_pos: Vector2) -> PortalNode:
 
 
 func _box_at(world_pos: Vector2) -> int:
-	var min_radius := CLICK_RADIUS / _camara.zoom.x
+	var min_radius := CLICK_RADIUS * _mundo.unidades_por_pixel()
 	for id in _cajas:
 		if _cajas[id].position.distance_to(world_pos) < min_radius:
 			return id
@@ -1301,7 +1268,7 @@ func _box_at(world_pos: Vector2) -> int:
 func _entity_at(world_pos: Vector2) -> EntityNode:
 	var best: EntityNode = null
 	var best_dist := INF
-	var min_radius := CLICK_RADIUS / _camara.zoom.x
+	var min_radius := CLICK_RADIUS * _mundo.unidades_por_pixel()
 	for id in _entidades:
 		var e: EntityNode = _entidades[id]
 		if e == _hero:
@@ -1357,7 +1324,10 @@ func _sigue_pulsado() -> bool:
 
 
 func _cursor_mundo() -> Vector2:
-	return _at_cursor if _at_cursor != Vector2.INF else get_global_mouse_position()
+	if _at_cursor != Vector2.INF:
+		return _at_cursor
+	var punto := _mundo.a_mundo(get_viewport().get_mouse_position())
+	return punto if punto != Vector2.INF else (_hero.position if _hero != null else Vector2.ZERO)
 
 
 func _volar_a(destino: Vector2) -> void:
@@ -1396,13 +1366,11 @@ func _process(delta: float) -> void:
 	_process_hold_move(delta)
 	_process_pending_collect()
 	_process_autopilot()
-	if _fondo != null:
-		_fondo.update_parallax(_camara.position, _camara.zoom, get_viewport_rect().size)
 
 	# la base animada avanza sus fotogramas
-	if _estacion_anim_total > 0 and _estacion != null:
+	if _estacion_anim_total > 0 and _estacion_sprite != null:
 		_estacion_anim_t += delta
-		_estacion.frame = int(_estacion_anim_t * _estacion_anim_fps) % _estacion_anim_total
+		_estacion_sprite.frame = int(_estacion_anim_t * _estacion_anim_fps) % _estacion_anim_total
 
 	# La estacion 3D RESPIRA por su emision. Es el mismo latido que tenia la capa
 	# emisiva en 2D —los mismos diales `pulse` de su ficha— aplicado a la emision
@@ -1418,24 +1386,24 @@ func _process(delta: float) -> void:
 		for mat in _estacion_mats:
 			mat.emission_energy_multiplier = e
 
-	# el reactor de la estacion respira
-	if _estacion_reactor != null:
-		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _reactor_speed)
-		onda = pow(onda, _reactor_sharp)
-		var k: float = _reactor_min + (_reactor_max - _reactor_min) * onda
-		_estacion_reactor.self_modulate = Color(k, k, k, 1.0)
+	# la camara del original: seguimiento RIGIDO al heroe (o al foco libre del
+	# autotest); Mundo3D pone el rig orbital, el zoom y el tilt-zoom
 	if _hero != null and not _at_camara_libre:
-		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
+		_foco = _hero.position
 		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
+	_mundo.actualizar(_foco)
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
 
 	if _caja_anim_total > 0:
 		for caja in _cajas.values():
+			var s: Sprite3D = caja.get_meta("sprite", null)
+			if s == null:
+				continue
 			var t: float = float(caja.get_meta("anim_t", 0.0)) + delta
 			caja.set_meta("anim_t", t)
-			caja.frame = int(t * _caja_anim_fps) % _caja_anim_total
+			s.frame = int(t * _caja_anim_fps) % _caja_anim_total
 
 	if Session.autotest_screenshot != "":
 		_autotest(delta)
@@ -1712,7 +1680,7 @@ func _autotest(delta: float) -> void:
 					_at_captura("AUTOTEST FALLO — el mapa llego sin portales", 1)
 					return
 				_at_camara_libre = true
-				_camara.position = _portales.values()[0].position
+				_foco = _portales.values()[0].position
 				_at_fase = 9
 		9:
 			# retrato en REPOSO: con atlas, el aro dormido del primer fotograma
@@ -1852,15 +1820,13 @@ func _autotest(delta: float) -> void:
 				# valor a mano, el dia que se recalibre el rango la prueba
 				# retrataria un encuadre que ya no existe, que es peor que no
 				# retratar nada.
-				_camara.zoom = Vector2(ZOOM_MAX, ZOOM_MAX)
-				_zoom_objetivo = ZOOM_MAX      # el tween del zoom compone sobre esto
+				_mundo.zoom_directo(Mundo3D.ZOOM_MAX)
 				_at_fase = 96
 		96:
 			if _autotest_t - _at_ultimo_vuelo > 0.4:
 				var img_z := get_viewport().get_texture().get_image()
 				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
-				_camara.zoom = Vector2(ZOOM_DEFECTO, ZOOM_DEFECTO)
-				_zoom_objetivo = ZOOM_DEFECTO
+				_mundo.zoom_directo(Mundo3D.ZOOM_MIN)
 				_at_fase = 93
 		93:
 			_at_captura("AUTOTEST OK — loop, chat, reconexion, portal, ajustes, ventanas, bestiario (%d especies) y %d muerte(s)"
@@ -1917,76 +1883,11 @@ func _leer_png(ruta: String) -> Image:
 
 
 func _relieve_paso() -> int:
-	if _hero == null:
-		return 1
-	if _at_relieve < 0:
-		if Quality.nivel("shader") < 1:
-			return 1        # sin shaders no hay relieve que probar, y es correcto
-		if _hero.es_3d():
-			# Con malla 3D no hay relieve QUE MONTAR, y es lo correcto: el relieve
-			# finge volumen sobre un dibujo plano, y un modelo tiene volumen de
-			# verdad. La propiedad que esta prueba defiende —que la luz no gire
-			# con la nave— la cumple el 3D por construccion, porque lo que gira
-			# es el modelo dentro del viewport y la luz se queda quieta.
-			#
-			# Esta prueba dio FALLO el dia que la Phoenix paso a 3D, con el codigo
-			# correcto: daba por hecho que alta implica sprite. Una prueba que
-			# supone la implementacion en vez de afirmar la propiedad caduca sola.
-			return 1
-		if not _hero.tiene_relieve():
-			_at_captura("AUTOTEST FALLO — la nave no lleva el shader de relieve "
-				+ "montado en calidad alta", 1)
-			return 2
-		# La camara vuelve al heroe y se CLAVA en vez de dejarla volver sola: el
-		# seguimiento normal es un lerp a 8/s, o sea decenas de fotogramas desde
-		# donde la dejo el bestiario. Una version anterior confiaba en cuatro
-		# fotogramas de asiento y media el vacio — que sin nave que medir salia
-		# estable, y estable se leia como correcto.
-		_at_camara_libre = false
-		_camara.position = _hero.position
-		_solo_heroe(true)
-		_at_relieve_previo = _hero.angulo_visual()
-		_hero.rumbo_visual(0.0)
-		_at_relieve = 0
-		return 0
-	_at_relieve += 1
-	match _at_relieve:
-		ASENTAR:
-			_at_giro_a = _hero.giro_shader()
-			_at_casco_a = _casco_luz()
-			_hero.rumbo_visual(GIRO_RELIEVE)
-			return 0
-		ASENTAR + 2:
-			# 1) FONTANERIA
-			var giro_b := _hero.giro_shader()
-			var movio := absf(rad_to_deg(angle_difference(_at_giro_a, giro_b)))
-			if absf(movio - GIRO_RELIEVE) > 5.0:
-				_at_captura("AUTOTEST FALLO — el relieve gira con la nave: girar %.0f "
-					% GIRO_RELIEVE + "grados movio el uniform %.1f" % movio, 1)
-				_solo_heroe(false)
-				return 2
-			# la nave vuelve a su sitio EXACTO y solo se le miente la luz
-			_hero.rumbo_visual(0.0)
-			_hero.forzar_giro(_at_giro_a + deg_to_rad(GIRO_RELIEVE))
-			return 0
-		ASENTAR + 4:
-			# 2) EFECTO
-			var b := _casco_luz()
-			var dif := _diferencia_casco(_at_casco_a, b)
-			_at_relieve_resto = dif
-			_hero.rumbo_visual(_at_relieve_previo)
-			_solo_heroe(false)
-			if is_nan(dif):
-				_at_captura("AUTOTEST FALLO — la prueba del relieve no encontro casco "
-					+ "que medir (camara fuera de la nave)", 1)
-				return 2
-			if dif < MIN_EFECTO:
-				_at_captura("AUTOTEST FALLO — el shader de relieve ignora `giro`: "
-					+ "cambiarlo %.0f grados no movio los pixeles (%.4f)"
-					% [GIRO_RELIEVE, dif], 1)
-				return 2
-			return 1
-	return 0
+	# F1 del plan-cliente-3d: el relieve murio con los sprites. En la escena
+	# unica la propiedad que esta prueba defendia —que la luz NO gire con la
+	# nave— se cumple por construccion: gira el cuerpo dentro del mundo y la luz
+	# direccional se queda quieta. `es_3d()` es true para todo cuerpo.
+	return 1
 
 
 ## Cuanto se diferencian dos fotos del casco, como fraccion de su brillo medio.
@@ -2009,48 +1910,25 @@ func _diferencia_casco(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 	return dif / brillo
 
 
-## La estacion como MALLA 3D. Devuelve false si no hay modelo y hay que caer al
-## sprite, que es lo que pasa mientras un asset no se haya convertido.
-##
-## El viewport es GRANDE —la estacion mide 820 px de mundo— pero es UNO solo: no
-## hay treinta estaciones en pantalla como puede haber treinta bichos, asi que
-## el coste que en un bicho obliga a medir aqui se paga sin discusion.
+## La estacion como MALLA, directamente EN la escena unica (F1): ya no hay
+## viewport intermedio ni camara propia — es una torre en el mundo y la camara
+## a 45 grados le ensenia la altura sola, que es justo lo que su elevacion
+## oblicua fingia antes. Devuelve false si no hay modelo y se cae al quad.
 func _montar_estacion_3d(d: Dictionary) -> bool:
 	var ruta := str(d.get("modelo", ""))
 	if ruta == "" or not ResourceLoader.exists(ruta):
 		return false
 	var escena: PackedScene = load(ruta)
 	if escena == null:
-		push_warning("estacion: no se pudo cargar %s; se cae al sprite" % ruta)
+		push_warning("estacion: no se pudo cargar %s; se cae al quad" % ruta)
 		return false
-	var lado := int(round(float(d.get("world_size", 820)) * EST_MARGEN))
-	var sonda := escena.instantiate()
-	# Lo que la camara VE a esa elevacion, no la huella: la estacion es una torre
-	# y en oblicuo su altura ocupa pantalla.
-	var ext := AssetDefs.extension_vista(sonda, EST_ELEVACION) * EST_MARGEN
-	sonda.queue_free()
-	# El glow de la estacion se declara en su ficha: `"glow": false` lo apaga y un
-	# diccionario ajusta sus tres numeros. Con los del bicho, su reactor —que es
-	# una zona emisiva GRANDE, no una veta fina— sale reventado en un halo que se
-	# come la estructura.
-	var g = d.get("glow", {})
-	var con_glow: bool = Quality.nivel("emissive") >= 1 and g != false
-	var m := AssetDefs.mundo_3d(escena, lado, ext, EST_ELEVACION, con_glow,
-		g if g is Dictionary else {})
-	_estacion_vp = m["vp"]
-	_estacion_modelo = m["modelo"]
-	add_child(_estacion_vp)
-	_estacion.texture = _estacion_vp.get_texture()
+	_estacion_modelo = escena.instantiate()
+	_estacion.add_child(_estacion_modelo)
+	# `world_size` es la HUELLA (lo que rodea el anillo): se escala contra la
+	# extension en planta del modelo, como los bichos.
+	var ext := AssetDefs.extension_3d(_estacion_modelo)
+	(_estacion_modelo as Node3D).scale = Vector3.ONE * (float(d.get("world_size", 820)) / ext)
 	_estacion_mats = AssetDefs.materiales_3d(_estacion_modelo)
-	# Ganancia de la emision de la estacion. 1 deja la del modelo; 0 la apaga.
-	# Es un dial y no una constante porque lo que enciende un reactor grande no es
-	# lo que enciende la veta de un bicho.
-	# La ganancia y el latido se guardan; los aplica `_process`, porque una luz que
-	# no cambia se lee como color pintado y no como luz.
-	# Sin materiales el latido no late y NADIE se entera: la emision sigue siendo
-	# la del modelo, que a simple vista se ve igual de encendida en una foto fija.
-	# Callado cuando va bien, ruidoso cuando no — que es lo contrario de un print
-	# informativo que se ignora en cada arranque.
 	if _estacion_mats.is_empty():
 		push_warning("estacion 3D sin materiales: la emision no va a latir")
 	_est_emision = float(d.get("emision", 1.0))
@@ -2062,22 +1940,6 @@ func _montar_estacion_3d(d: Dictionary) -> bool:
 	return true
 
 
-## RELIEVE de la estacion. Aqui NO arregla lo mismo que en la nave, y conviene
-## tenerlo claro: la estacion no rota, asi que su luz nunca giraba con ella. Lo
-## que arregla es la CONSISTENCIA — su render viene iluminado desde arriba en el
-## eje de camara, que es la iluminacion mas plana que existe (se lo pide el
-## contrato de render, y con razon, porque es lo unico que sobrevive a un sprite
-## que gira). Al lado de una nave con forma, eso se lee como un decorado pegado.
-## Reiluminarla con la misma luz del mundo le devuelve el bulto.
-func _montar_relieve_estacion(d: Dictionary, anim: Dictionary) -> void:
-	if Quality.nivel("shader") < 1:
-		return
-	# `giro` se queda en 0 para siempre: no rota. Se deja el uniform en su sitio
-	# igual, para que el shader sea UNO solo y no dos que se parecen.
-	_estacion.material = AssetDefs.material_relieve(
-		AssetDefs.ruta_normal(d, not anim.is_empty()))
-
-
 ## Deja en el mundo SOLO al heroe, para las dos fotos de la prueba del relieve.
 ##
 ## Sin esto la comparacion no distingue nada, y el motivo es geometrico: al
@@ -2086,8 +1948,8 @@ func _montar_relieve_estacion(d: Dictionary, anim: Dictionary) -> void:
 ## el relieve funciona como si no. Con la nave sola sobre negro, el negro no suma
 ## en ninguna de las dos y lo unico que se compara es el casco.
 func _solo_heroe(activo: bool) -> void:
-	if _fondo != null:
-		_fondo.visible = not activo
+	if _fondo3d != null:
+		_fondo3d.visible = not activo
 	if _estacion != null:
 		_estacion.visible = not activo
 	for e in _entidades.values():
@@ -2098,7 +1960,6 @@ func _solo_heroe(activo: bool) -> void:
 	for pt in _portales.values():
 		pt.visible = not activo
 	_hero.solo_casco(activo)
-	_hero.relieve_exagerado(activo)
 
 
 ## El casco recortado en una caja centrada en la nave, en luminancia. NAN dentro
@@ -2324,7 +2185,7 @@ func _autotest_salto() -> void:
 				_at_salto_llegada = _hero.position
 				# EN EL INSTANTE de llegar: un fotograma despues el lerp ya habria
 				# alcanzado y la comprobacion no probaria nada
-				_at_salto_camara = _camara.position.distance_to(_hero.position)
+				_at_salto_camara = _foco.distance_to(_hero.position)
 				_at_cursor = Vector2.INF     # se suelta el boton al llegar
 				_hold_move = false
 				_at_ultimo_vuelo = _autotest_t
@@ -2452,7 +2313,7 @@ func _autotest_bestiario() -> void:
 			_soltar_maniqui()
 			_at_maniqui = _maniqui_de_especie(especie)
 		bicho = _at_maniqui
-	_camara.position = bicho.position
+	_foco = bicho.position
 	if _at_camara_t < 0.0:
 		_at_camara_t = _autotest_t
 	var dt := _autotest_t - _at_camara_t
