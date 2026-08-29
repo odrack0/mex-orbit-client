@@ -24,9 +24,13 @@ const RUTA := "user://quality.cfg"
 ##  - collectable: 0-1 caja congelada en su primer fotograma · 2+ animada
 ##  - background:  0 solo estrellas · 1 fondo sin mosaicos · 2+ completo
 ##  - explosion:   0 sin animacion de explosion · 1+ con ella
+##  - luces:       las DINAMICAS del mundo 3D (F2): 0 ninguna · 1 heroe + una
+##                 de efecto · 2 heroe + el pool de 3 (el presupuesto del
+##                 original, G§7.2). El sol no se apaga nunca: sin el, las
+##                 mallas son siluetas.
 var niveles := {
 	"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
-	"collectable": 2, "background": 2, "explosion": 1,
+	"collectable": 2, "background": 2, "explosion": 1, "luces": 2,
 }
 
 ## Los tres preajustes. El corte caro esta entre MEDIA y ALTA: ahi es donde los
@@ -36,11 +40,11 @@ var niveles := {
 ## bichos que nunca tendran video.
 const PRESETS := {
 	"baja":  {"npc": 0, "shader": 0, "emissive": 0, "engine": 0,
-			  "collectable": 0, "background": 0, "explosion": 0},
+			  "collectable": 0, "background": 0, "explosion": 0, "luces": 0},
 	"media": {"npc": 1, "shader": 1, "emissive": 1, "engine": 1,
-			  "collectable": 1, "background": 1, "explosion": 1},
+			  "collectable": 1, "background": 1, "explosion": 1, "luces": 1},
 	"alta":  {"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
-			  "collectable": 2, "background": 2, "explosion": 1},
+			  "collectable": 2, "background": 2, "explosion": 1, "luces": 2},
 }
 
 const ETIQUETAS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
@@ -63,9 +67,9 @@ const AQ_FPS_SUBE := 60.0
 const AQ_ESCALERA := [
 	{},
 	{"background": 1},
-	{"background": 1, "engine": 0},
-	{"background": 1, "engine": 0, "explosion": 0},
-	{"background": 1, "engine": 0, "explosion": 0, "npc": 1, "collectable": 1},
+	{"background": 1, "engine": 0, "luces": 1},
+	{"background": 1, "engine": 0, "luces": 1, "explosion": 0},
+	{"background": 1, "engine": 0, "luces": 0, "explosion": 0, "npc": 1, "collectable": 1},
 ]
 var auto_reduccion := 0
 var _aq_acum := 0.0

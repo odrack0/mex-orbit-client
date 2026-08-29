@@ -310,7 +310,8 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 
 	# LUZ DEL HEROE (G§7.2): en la escena unica por fin DERRAMA sobre los
 	# vecinos, como el original — radio 450 unidades de mundo, tal cual.
-	if es_heroe:
+	# Solo con luces dinamicas encendidas (clave `luces` de la calidad, F2).
+	if es_heroe and Quality.nivel("luces") >= 1:
 		var heroe_luz := OmniLight3D.new()
 		heroe_luz.light_color = AssetDefs.LUZ_HEROE_COLOR
 		heroe_luz.light_energy = AssetDefs.LUZ_HEROE_ENERGIA
@@ -788,14 +789,14 @@ func set_estado_abs(hp: int, escudo: int) -> void:
 		set_shield_pct(float(escudo) / max_shield_abs)
 
 
-## Boca de canion del proximo disparo, en coordenadas de JUEGO. Las bocas viven
-## en el espacio local del cuerpo (unidades de mundo) y giran con el.
-func siguiente_canon() -> Vector2:
+## Boca de canion del proximo disparo, en el espacio LOCAL del cuerpo (unidades
+## de mundo). El haz la rota por el rumbo VIVO cada frame — con banking y todo.
+func siguiente_canon_local() -> Vector2:
 	if _canones.is_empty():
-		return position
+		return Vector2.ZERO
 	var local := _canones[_canon_actual]
 	_canon_actual = (_canon_actual + 1) % _canones.size()
-	return position + local.rotated(deg_to_rad(_visual_angle))
+	return local
 
 
 ## Chispazo en el casco: billboard suelto en el mundo, punto aleatorio del

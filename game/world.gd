@@ -547,7 +547,7 @@ func _alternar_ajustes() -> void:
 ## reconectar — la nave, su rumbo y el estado del mundo no se tocan.
 func _on_calidad_cambiada(claves: Array) -> void:
 	if claves.has("npc") or claves.has("emissive") or claves.has("shader") \
-			or claves.has("engine"):
+			or claves.has("engine") or claves.has("luces"):
 		for id in _entidades:
 			_entidades[id].reconstruir()
 	if claves.has("collectable"):
@@ -745,10 +745,11 @@ func _on_attack(ev) -> void:
 		return
 
 	_at_disparos += 1
-	# el disparo: sale de una boca de cañón del tirador y viaja al blanco
+	# el disparo: un HAZ del original (F2) que nace de la boca de cañón viva del
+	# tirador, se estira hasta el blanco y fluye por UV-scroll
 	if tirador != null:
 		var ammo: String = ev.ammo_id if ev.ammo_id != "" else "ammo_cel_1"
-		Projectile2D.fire(self, tirador.siguiente_canon(), blanco.position, ammo, ev.skilled)
+		Beam3D.fire(tirador, blanco, ammo, ev.skilled)
 		# QUIEN DISPARA, ENCARA.
 		#
 		# Un bicho que te persigue se plantaba a 300 y se ponía a girar sobre su
@@ -945,6 +946,10 @@ func _explotar(pos: Vector2, radio := 42.0) -> void:
 		_tex_chispa.fill = GradientTexture2D.FILL_RADIAL
 		_tex_chispa.fill_from = Vector2(0.5, 0.5)
 		_tex_chispa.fill_to = Vector2(0.5, 0.0)
+	# el destello de la explosion (pool de luces del mundo; preset del original:
+	# 0xDEE4C8, fallOff 400, encendida ~0.1 s)
+	_mundo.luz_efecto(Vector3(pos.x, 30.0, pos.y), Color("dee4c8"), 2.0, 400.0, 0.1, 0.25)
+
 	var chispas := GPUParticles3D.new()
 	chispas.amount = 24
 	chispas.one_shot = true

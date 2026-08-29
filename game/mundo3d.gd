@@ -33,6 +33,12 @@ const TILT_ZOOM_REDUC := 20.0
 ## La instancia viva (una por mundo): las entidades montan sus cuerpos aqui.
 static var instancia: Mundo3D
 
+## Pool de EXACTAMENTE 3 luces de efectos (G§7.2): pre-creadas y apagadas,
+## reciclado circular, nunca se instancia una luz en gameplay. Los destellos de
+## disparo y explosion salen de aqui.
+var _luces: Array[OmniLight3D] = []
+var _luz_i := 0
+
 var camara: Camera3D
 var zoom := ZOOM_MIN:
 	set(v):
@@ -62,7 +68,40 @@ func _ready() -> void:
 	camara.far = FAR
 	add_child(camara)
 	camara.current = true
+	for i in 3:
+		var luz := OmniLight3D.new()
+		luz.light_energy = 0.0
+		luz.omni_range = 1.0
+		luz.shadow_enabled = false
+		add_child(luz)
+		_luces.append(luz)
 	actualizar(Vector2.ZERO)
+
+
+## Un destello del pool: sube de golpe y se funde solo. Cuantas luces hay
+## disponibles lo dice la calidad (`luces`: 0 ninguna, 1 una, 2 el pool entero).
+func luz_efecto(pos: Vector3, color: Color, energia: float, rango: float,
+		mantener: float, fundido: float) -> void:
+	var n := 0
+	match Quality.nivel("luces"):
+		0: n = 0
+		1: n = 1
+		_: n = _luces.size()
+	if n == 0:
+		return
+	_luz_i = (_luz_i + 1) % n
+	var luz := _luces[_luz_i]
+	if luz.has_meta("tw"):
+		var previo = luz.get_meta("tw")
+		if previo is Tween and (previo as Tween).is_valid():
+			(previo as Tween).kill()  # la luz se recicla: el fundido viejo no manda
+	luz.position = pos
+	luz.light_color = color
+	luz.omni_range = rango
+	luz.light_energy = energia
+	var tw := luz.create_tween()
+	tw.tween_property(luz, "light_energy", 0.0, fundido).set_delay(mantener)
+	luz.set_meta("tw", tw)
 
 
 ## Recoloca la camara sobre su foco (coordenadas de JUEGO). Seguimiento RIGIDO

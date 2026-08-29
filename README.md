@@ -174,7 +174,9 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | Acelerador de llamas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las llamas al volar/frenar (su color viene del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
-| Disparos | `data/ammo/*.json` + `projectile_2d.gd` | duración 0.15 s | Proyectil que **viaja** con duración fija (no velocidad), como el prototipo; sale alternando por las bocas de `cannons` de la nave |
+| Disparos (F2) | `data/ammo/*.json` + `beam_3d.gd` | vida 0.35 s · rampa 0.10 · ciclo UV 0.4 | El HAZ del original: quad aditivo que se estira de la boca viva al blanco con el patrón fluyendo por UV-scroll, siguiendo a las dos naves. El proyectil que viajaba (modelo del prototipo 2D) murió aquí |
+| Luces de efectos (F2) | `mundo3d.gd::luz_efecto` | pool de 3 · disparo 0xF7C0C0/200 · explosión 0xDEE4C8/400 | El presupuesto del original (G§7.2): pre-creadas, reciclado circular, tween de fundido. La clave `luces` de la calidad las gobierna (0/1/pool) junto con la luz del héroe |
+| `world_size` estación | `data/props/station.json` | **1100** | Recalibrado F2: el 2460 era del sprite cenital; en perspectiva la torre medía ~4500 de alto y a zoom cercano era una montaña |
 | Daño flotante | `world.gd::_numero_flotante` | sube 42 px en 1 s | Colores del original: `FF0000` el daño que haces, `DB63E2` el que recibes; golpes seguidos se **acumulan** en el número vivo |
 | Topes de impacto | `entity_node.gd` | 5 casco, 9 escudo | Máximo de animaciones simultáneas por nave (los del prototipo) |
 | Explosión | `world.gd` | 16 fps, escala 1.4 | Los 8 frames del pipeline al morir una entidad |
@@ -227,8 +229,12 @@ perspectiva de los aliens cambia con el zoom, que fue el detonante de todo).
   se cumple por construcción), `MapBackground`/`Starfield2D` (F1 pone un telón a −3500; F3 monta
   el fondo real), el SubViewport por entidad y el reactor 2D de la estación.
 - **Gates**: `-Autotest` completo, `-Salto` y bestiario alta en verde sobre la escena única.
-- **Calibración pendiente conocida**: `world_size` de la estación (2460) se dimensionó para
-  sprite cenital; a zoom cercano con cámara baja es una montaña — se recalibra volando en F2.
+
+**FASE 2 (mismo día)**: el disparo es el **haz del original** (`beam_3d.gd` + `beam_scroll.gdshader`
+— estirado de la boca viva al blanco, UV-scroll, rampa y fundido; murió `projectile_2d`), el mundo
+gana el **pool de 3 luces de efectos** con destellos de disparo y explosión (clave `luces` en la
+calidad: 0/1/pool, que también gobierna la luz del héroe y entra en la escalera de auto-calidad), y
+la estación se recalibró a huella 1100 (la torre ya no se come la pantalla a zoom cercano).
 
 ## El puerto de los guidelines 3D (ago-2026)
 
