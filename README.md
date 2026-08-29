@@ -1226,3 +1226,46 @@ transformación a mano** hasta la raíz: `global_transform` no vale porque esto 
 nodo entre en el árbol, y usarlo devuelve la identidad soltando un error por consola que **no detiene
 nada** — el encuadre sale mal y el juego sigue. Se cayó en esa trampa al extraerla, con el comentario
 que la avisa dos líneas más arriba.
+
+### La luz del mundo es la del legacy (puerto de ago-2026)
+
+Los valores de iluminación salen del cliente Flash decompilado de DarkOrbit, leídos de su
+`LightsManager` y su `Settings3D`. El mundo tiene **un sol direccional** y **una luz de héroe**, más el
+ambiente de relleno, y todo vive en el dial único de `AssetDefs`:
+
+| dial | valor | origen legacy |
+|---|---|---|
+| `LUZ_MUNDO_COLOR` | cian `#A3FFFF` | color del sol (0xA3FFFF) |
+| `LUZ_MUNDO_ENERGIA` | 0.8 | diffuse del sol |
+| `LUZ_MUNDO_ELEVACION` | −54° | tilt=100 (~54° bajo la horizontal) |
+| `LUZ_MUNDO_GRADOS` | 315° (**sin portar**) | ver abajo |
+| `LUZ_MUNDO_AMBIENTE_COLOR` | naranja cálido `#FF855C` | ambientColor del sol |
+| `LUZ_MUNDO_AMBIENTE` | 0.5 | ambient del sol |
+| `LUZ_HEROE_COLOR` / `_ENERGIA` | azul `#2E7DFF` / 0.6 | luz de héroe (point) |
+
+Antes el sol era blanco a 1.0 y el ambiente azul frío a 0.65. El original hace lo contrario —**key
+cian frío + relleno naranja cálido**— y se adopta su criterio: es la mitad del contraste que le da a
+DarkOrbit su carácter. Se conserva el tonemap FILMIC (es de Godot, no del legacy).
+
+**El azimut no se porta a propósito.** `LUZ_MUNDO_GRADOS` lo comparte el relieve 2D (`luz_mundo()`), y
+el pan del legacy es un azimut de mundo 3D en un juego cenital, sin mapeo limpio a los grados de
+pantalla del shader. Cambiarlo desincronizaría la luz de los assets 2D respecto a los bichos 3D — dos
+recortes pegados con la luz viniendo de sitios distintos. La elevación (el tilt) sí porta porque es
+3D pura. Si algún día se quiere rotar, se rota ahí y arrastra a los dos mundos a la vez.
+
+**La luz de héroe no derrama.** En el original bañaba a las entidades cercanas con radio 450 unidades
+de mundo. Aquí cada entidad se renderiza en su `SubViewport` aislado (`own_world_3d`), así que solo
+puede iluminar la malla del propio héroe: es un **rim azul de identidad sobre tu nave**, no un foco
+sobre los vecinos. El radio 450 no porta (esas unidades no existen en el viewport del modelo); se
+dimensiona contra `extension_3d()`.
+
+**El sol se centralizó en `AssetDefs.sol_mundo()`**, hermano de `ambiente_mundo()`. El ambiente ya
+estaba en un sitio, pero el sol estaba copiado suelto en el juego y en cada rig de `pruebas/` con
+energía 1.0 y sin color. Eso convertía el puerto en una trampa: `medir_emision` habría homologado
+media contra un «alta» con sol blanco que el juego ya no renderiza. Ahora todos tiran del helper —el
+`banco_3d` no, a propósito: tiene sus valores de perf (sol 2.6) y no es la referencia de aspecto.
+
+**El precio, que va en este mismo trabajo:** cambiar el sol y el ambiente **descalibra el horneado de
+media** de todos los bichos y la estación. `HORNO_SOL`/`HORNO_AMBIENTE` de cada asset se re-derivan y
+media se rehornea y se re-homologa con `medir_emision` — no se deja a ojo. Hasta que eso pase, «alta»
+se ve con la luz nueva y «media» con la vieja: los dos caminos **no homologan**.

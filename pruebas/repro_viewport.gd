@@ -42,11 +42,7 @@ func _montar(padre: Node2D, i: int) -> SubViewport:
 	we.environment = ent
 	vp.add_child(we)
 
-	var sol := DirectionalLight3D.new()
-	sol.light_energy = 1.0
-	sol.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(315.0), 0.0)
-	sol.shadow_enabled = false
-	vp.add_child(sol)
+	vp.add_child(AssetDefs.sol_mundo())
 
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

@@ -54,10 +54,10 @@ func _ready() -> void:
 	_env = ent
 	var we := WorldEnvironment.new(); we.environment = ent
 	_vp.add_child(we)
-	var sol := DirectionalLight3D.new()
-	sol.light_energy = float(luz.get("sol", 1.0))
-	sol.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(315.0), 0.0)
-	_vp.add_child(sol)
+	# La MISMA luz del mundo que el juego (helper unico): si este rig usa otro sol,
+	# homologa media contra un "alta" que el juego no renderiza. Con el override por
+	# bicho `luz.sol`, igual que entity_node.
+	_vp.add_child(AssetDefs.sol_mundo(float(luz.get("sol", AssetDefs.LUZ_MUNDO_ENERGIA))))
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	cam.size = 2.198

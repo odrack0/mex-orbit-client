@@ -21,17 +21,29 @@ const RUTA_AMMO := "res://data/ammo/%s.json"
 ## sesgo a la izquierda desambigua bulto de hueco.
 const LUZ_MUNDO_GRADOS := 315.0
 
-## Elevacion y energia de esa misma luz, para el camino 3D. Viven AQUI y no en
-## entity_node por el motivo de arriba: son del MUNDO, no del asset. Estaban
+## Color, elevacion y energia de esa misma luz, para el camino 3D. Viven AQUI y no
+## en entity_node por el motivo de arriba: son del MUNDO, no del asset. Estaban
 ## sueltas en el codigo del viewport, separadas del azimut que si estaba aqui, y
 ## eso invita a que alguien las toque por bicho sin darse cuenta de que rompe la
 ## unidad de la escena.
 ##
-## La energia es 1.0 y no el 2.6 del banco: Blender hornea el sprite de media con
-## un sol de 3,2, que cae cerca de 1.0 aqui, y con 2.6 el bicho salia lavado y no
-## se parecia a su propio horneado.
-const LUZ_MUNDO_ELEVACION := -48.0
-const LUZ_MUNDO_ENERGIA := 1.0
+## PUERTO DEL LEGACY (DarkOrbit, ago-2026). El cliente Flash tenia el sol tenido
+## de CIAN (0xA3FFFF) con diffuse 0.8; se adopta tal cual — es la mitad "fria" del
+## contraste de mundo del original, y el tinte cae sobre la cara iluminada de todo.
+## Antes era blanco a 1.0; el 1.0 venia de que Blender horneaba media con un sol de
+## 3,2 que caia cerca. Con 0.8 esa equivalencia cambia: HORNO_SOL de cada bicho se
+## re-deriva y media se rehornea (ver OJO del ambiente).
+const LUZ_MUNDO_COLOR := Color("a3ffff")
+const LUZ_MUNDO_ELEVACION := -54.0
+const LUZ_MUNDO_ENERGIA := 0.8
+
+## La ELEVACION es la que da el tilt=100 del legacy (~54 grados bajo la horizontal);
+## el AZIMUT no se porta y se queda en LUZ_MUNDO_GRADOS a proposito: ese numero lo
+## comparte el relieve 2D, y el pan del legacy (un azimut de mundo 3D en un juego
+## cenital) no tiene mapeo limpio a los grados de pantalla del shader. Cambiarlo
+## desincronizaria la luz de los assets 2D respecto a los bichos 3D — dos recortes
+## pegados con la luz viniendo de sitios distintos. Si algun dia se quiere rotar,
+## se rota AQUI y arrastra a los dos mundos a la vez.
 
 ## La luz de FONDO del mundo 3D y el tonemap, hermanas de las de arriba y con el
 ## mismo contrato: son del MUNDO, no del asset. Estaban copiadas a mano en OCHO
@@ -39,14 +51,43 @@ const LUZ_MUNDO_ENERGIA := 1.0
 ## 0.35 propio), asi que subir el ambiente exigia acertar ocho ediciones o la
 ## homologacion mentia segun que escena midiera.
 ##
-## 0.65 y FILMIC contra el 0.28 lineal original: el mundo entero se percibia mas
-## muerto que los modelos en el visor — un visor es un estudio con luz por todas
-## partes, y con 0.28 una roca oscura no recibia casi nada. El ambiente sigue
-## frio (azul grisaceo) para que el espacio se lea como espacio.
+## PUERTO DEL LEGACY: el original rellenaba con un ambiente NARANJA CALIDO
+## (0xFF855C) a 0.5 — la mitad "calida" que complementa el key cian. Antes era azul
+## frio a 0.65 (para "leer el espacio como espacio"); el original hacia lo contrario
+## y se adopta su criterio. Se conserva el tonemap FILMIC, que es de Godot y no del
+## legacy, porque el lineal aplana los medios.
 ## OJO: cambiar esto descalibra el HORNO_AMBIENTE de cada bicho horneado — media
 ## se rehornea y se rehomologa con medir_emision, no se deja a ojo.
-const LUZ_MUNDO_AMBIENTE_COLOR := Color(0.35, 0.40, 0.55)
-const LUZ_MUNDO_AMBIENTE := 0.65
+const LUZ_MUNDO_AMBIENTE_COLOR := Color("ff855c")
+const LUZ_MUNDO_AMBIENTE := 0.5
+
+## La LUZ DEL HEROE: un punto azul (0x2E7DFF, diffuse 0.6) pegado a tu propia nave,
+## portado del legacy. AVISO de arquitectura: en el original vivia en el mundo
+## compartido y baniaba a las entidades cercanas con radio 450 unidades de MUNDO;
+## aqui cada entidad se renderiza en su SubViewport AISLADO (own_world_3d), asi que
+## solo puede iluminar la malla del propio heroe — es un rim azul sobre tu nave, no
+## un foco que derrama sobre los vecinos. El radio 450 del legacy es de unidades de
+## mundo y no porta: aqui se dimensiona contra la extension del modelo.
+const LUZ_HEROE_COLOR := Color("2e7dff")
+const LUZ_HEROE_ENERGIA := 0.6
+
+## MATERIAL 3D: la mitad BARATA del look "no plano", portada del material de nave del
+## legacy (Away3D). Son dos cosas:
+##  - ROUGHNESS: el legacy usa gloss 50 (BasicSpecularMethod) — un brillo cerrado, no
+##    mate. En Godot eso es una rugosidad baja; 0.35 es el arranque (se barre en el
+##    bestiario). Las mallas de Meshy vienen casi mate y uniformes, y eso es la mitad
+##    de por que se ven planas: sin un brillo que recorra la forma al girar, no hay
+##    volumen.
+##  - RIM: el FresnelSpecularMethod del legacy (fresnelPower 5) realza el borde. En
+##    Godot es `rim`; separa la silueta del negro del espacio.
+## Lo que de verdad quita lo plano —la reflexion de entorno (FresnelEnvMapMethod)— NO
+## esta aqui: necesita una fuente de reflexion en el viewport y va aparte.
+## OJO homologacion: el rim es view-dependent y un sprite horneado (media) NO puede
+## reproducirlo —es estatico—, asi que alta tendra un borde vivo que media no. La
+## ROUGHNESS si se iguala: media se rehornea con la misma rugosidad en Blender.
+const MAT_ROUGHNESS := 0.35
+const MAT_RIM := 0.3
+const MAT_RIM_TINT := 0.5
 
 
 ## El vector de la luz del mundo, listo para el shader de relieve.
@@ -65,6 +106,23 @@ static func ambiente_mundo(ent: Environment) -> void:
 	# FILMIC y no lineal: el lineal recorta el hombro y aplana los medios — es
 	# la otra mitad de "se ve mas muerto que en el visor", que tonemapea filmico.
 	ent.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+
+
+## El SOL del mundo 3D como nodo listo, HERMANO de ambiente_mundo(): color, energia
+## y direccion en UN sitio. El sol estaba copiado suelto en cada viewport (el juego
+## y sus rigs) con energia 1.0 y SIN color; el ambiente si estaba centralizado pero
+## el sol no, asi que el puerto del legacy (cian a 0.8) habria dejado a medir_emision
+## comparando media contra un "alta" que el juego ya no renderiza — la homologacion
+## mentiria. `energia` admite el override por bicho (`luz.sol` del JSON); por defecto,
+## la del mundo. El banco NO usa esto a proposito: tiene sus valores de perf (2.6) y
+## no es la referencia de aspecto.
+static func sol_mundo(energia := LUZ_MUNDO_ENERGIA) -> DirectionalLight3D:
+	var sol := DirectionalLight3D.new()
+	sol.light_color = LUZ_MUNDO_COLOR
+	sol.light_energy = energia
+	sol.rotation = Vector3(deg_to_rad(LUZ_MUNDO_ELEVACION), deg_to_rad(LUZ_MUNDO_GRADOS), 0.0)
+	sol.shadow_enabled = false
+	return sol
 
 
 ## El material de relieve para una textura de normales, o null si no hay mapa.
@@ -192,11 +250,7 @@ static func mundo_3d(escena: PackedScene, lado: int, extension: float,
 
 	# La MISMA luz del mundo que usa el relieve en 2D: si cada asset se ilumina
 	# por su cuenta, dos vecinos se leen como dos recortes pegados.
-	var sol := DirectionalLight3D.new()
-	sol.light_energy = LUZ_MUNDO_ENERGIA
-	sol.rotation = Vector3(deg_to_rad(LUZ_MUNDO_ELEVACION), deg_to_rad(LUZ_MUNDO_GRADOS), 0.0)
-	sol.shadow_enabled = false
-	vp.add_child(sol)
+	vp.add_child(sol_mundo())
 
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -299,6 +353,13 @@ static func materiales_3d(nodo: Node) -> Array[BaseMaterial3D]:
 			# inconsistente y con descarte trasero salen huecos donde Blender
 			# enseniaba solido.
 			copia.cull_mode = BaseMaterial3D.CULL_DISABLED
+			# LOOK "NO PLANO" (mitad barata, portada del material de nave del legacy):
+			# brillo cerrado (gloss 50 -> roughness) + fresnel de borde (fresnelPower 5
+			# -> rim). Ver los dials MAT_* arriba. La reflexion de entorno va aparte.
+			copia.roughness = MAT_ROUGHNESS
+			copia.rim_enabled = true
+			copia.rim = MAT_RIM
+			copia.rim_tint = MAT_RIM_TINT
 			malla.set_surface_override_material(0, copia)
 			salida.append(copia)
 	return salida

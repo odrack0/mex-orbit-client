@@ -31,10 +31,7 @@ func _ready() -> void:
 	AssetDefs.ambiente_mundo(ent)
 	var we := WorldEnvironment.new(); we.environment = ent
 	_vp.add_child(we)
-	var sol := DirectionalLight3D.new()
-	sol.light_energy = 1.0
-	sol.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(315.0), 0.0)
-	_vp.add_child(sol)
+	_vp.add_child(AssetDefs.sol_mundo())
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	cam.size = 2.198

@@ -352,16 +352,29 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	# La MISMA luz del mundo que usa el relieve en 2D. No es cosmetico: si cada
 	# bicho se ilumina por su cuenta, dos vecinos se leen como dos recortes
 	# pegados en vez de dos cosas en el mismo sitio.
-	var sol := DirectionalLight3D.new()
-	# 1.0, NO el 2.6 del banco. Blender hornea el sprite de media con un sol de 3.2,
-	# que por como normaliza equivale a ~1.0 aqui; con 2.6 el bicho salia lavado a
-	# blanco y no se parecia a su propio horneado. El horneado es la referencia:
-	# alta y media tienen que ser el mismo bicho, uno articulado y otro no.
-	sol.light_energy = float(luz.get("sol", AssetDefs.LUZ_MUNDO_ENERGIA))
-	sol.rotation = Vector3(deg_to_rad(AssetDefs.LUZ_MUNDO_ELEVACION),
-		deg_to_rad(AssetDefs.LUZ_MUNDO_GRADOS), 0.0)
-	sol.shadow_enabled = false
-	_vp.add_child(sol)
+	# Color, energia y direccion salen del dial unico de AssetDefs (portado del
+	# legacy: cian a 0.8), con el override por bicho `luz.sol`. El horneado de media
+	# es la referencia —alta y media tienen que ser el mismo bicho, uno articulado y
+	# otro no— asi que si esto cambia, media se rehornea con el HORNO_SOL equivalente.
+	_vp.add_child(AssetDefs.sol_mundo(float(luz.get("sol", AssetDefs.LUZ_MUNDO_ENERGIA))))
+
+	# LUZ DEL HEROE (portada del legacy): un punto azul solo sobre TU nave. Cada
+	# entidad vive en su SubViewport aislado, asi que esto ilumina la malla del
+	# heroe y nada mas —no derrama sobre vecinos como en el original—, lo que en la
+	# practica es un rim azul de identidad sobre tu propia nave. El radio del legacy
+	# (450 unidades de mundo) no porta: aqui se dimensiona contra la extension del
+	# modelo, que vive en unidades del modelo (~1-2), no del mapa.
+	if es_heroe:
+		var ext := AssetDefs.extension_3d(_modelo)
+		var heroe_luz := OmniLight3D.new()
+		heroe_luz.light_color = AssetDefs.LUZ_HEROE_COLOR
+		heroe_luz.light_energy = AssetDefs.LUZ_HEROE_ENERGIA
+		# Por debajo y algo hacia camara: el original lo tenia como brillo inferior
+		# de la nave. El rango cubre el modelo entero con caida suave.
+		heroe_luz.position = Vector3(0.0, -ext * 0.5, ext * 0.5)
+		heroe_luz.omni_range = ext * 4.0
+		heroe_luz.shadow_enabled = false
+		_vp.add_child(heroe_luz)
 
 	# Camara ortografica en la elevacion del contrato. A 90 grados es el cenital
 	# de siempre y el cambio no se nota; por debajo empieza el escorzo.
