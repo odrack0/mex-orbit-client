@@ -200,7 +200,6 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 | `GLOW_HP_MIN` | `game/entity_node.gd` | 0.35 | Suelo del brillo emisivo a 0% de casco: malherido se apaga, no se muere de golpe. Multiplica el pulso en 2D **y** 3D |
 | `HUD_ZOOM_REF` | `game/entity_node.gd` | 0.621 | El HUD de entidad (nombre+barras) mide LO MISMO en pantalla a cualquier zoom; la referencia es `ZOOM_DEFECTO` para que el encuadre por defecto no cambie. **Deben casar** |
 | `ZOOM_TWEEN_SEC` | `game/world.gd` | 0.3 s | El zoom llega con tween Quad ease-out (el gesto del original); el rango y el paso siguen siendo los calibrados volando |
-| `SHAKE_*` | `game/world.gd` | amp 5 · 40 pasos × 24 ms | Shake de cámara **solo al recibir daño el héroe**: espiral en el `offset` de la cámara, amplitud −1 cada 10 pasos (receta exacta del original) |
 | `DOBLE_CLICK_MS` | `game/world.gd` | 500 | Doble click sobre una entidad = fijarla y atacar (el gesto canónico); el primer click solo selecciona |
 | Flash + chispas de explosión | `world.gd::_explotar` | flash ⌀ 6×radio en 0.25 s · 24 chispas 100–200 u/s | Las capas extra de la explosión multi-capa del original, aditivas y procedurales (cero assets); escalan con el `click_radius` de la víctima |
 | Marcador de selección | `entity_node.gd::set_selected` | 1.5× → 1× en 0.3 s | El fijado "cierra" sobre el blanco, como el original |
@@ -215,13 +214,20 @@ Constantes calibrables de sensación y comportamiento — moverlas es cambiar un
 La sensación del cliente 3D de DarkOrbit está destilada en
 `mex-orbit-docs/03-guidelines/darkorbit-3d-guidelines.md` (ingeniería inversa completa, con
 constantes literales). De ahí se portó, con sus números exactos: **banking** por error angular,
-**flotación idle**, **ralenti de motor**, **shake de daño**, **zoom con tween**, **HUD de entidad
+**flotación idle**, **ralenti de motor**, **zoom con tween**, **HUD de entidad
 constante en pantalla**, **explosión multi-capa**, **glow ligado al casco**, **doble click de
 ataque**, **cierre del marcador**, **orden de profundidad del fondo** (`1000/pFactor`),
 **fade-ins**, **twinkle**, **encuadre del minimapa**, **carga asíncrona del GLB con placeholder**
 (el PNG de media, que el horno ya fabrica del mismo modelo) y la **auto-calidad por FPS**.
 
 Lo que NO se portó, a sabiendas — cada uno con su porqué ya registrado:
+
+- **El shake de cámara por daño.** Se portó primero como "sacudir al recibir cualquier golpe" y
+  volando se sintió un temblor constante; jugando el DO 3D real se comprobó que **allí tampoco
+  sacude con daño normal** — su `shakeScreen()` solo dispara con el tipo de daño `"I"`
+  (detonaciones tipo mina/kamikaze) y con efectos que declaran `shakeScreen="true"` en su XML. El
+  agente del guideline generalizó mal; la prueba en vivo mandó y el guideline quedó corregido. Se
+  quitó **entero** (la espiral de 24 ms queda en el historial de git) hasta que v1 tenga minas.
 
 - **El ease de giro de 0.2 s del 3D.** El giro de nave v1 (0.1 s fijo + 32 pasos) está calibrado y
   **validado volando**; es el look del prototipo y manda sobre el guideline.

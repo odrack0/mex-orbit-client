@@ -34,14 +34,6 @@ const ZOOM_DEFECTO := ZOOM_MIN
 ## que porta del original es el gesto — suave, no a saltos.
 const ZOOM_TWEEN_SEC := 0.3
 
-## SHAKE de camara al recibir dano (guideline 3D, §3): espiral de amplitud
-## 5 -> 0 en 40 pasos de 24 ms (la amplitud baja 1 cada 10 pasos). Va en el
-## OFFSET de la camara: no ensucia ni el lerp de seguimiento ni el mundo.
-## Solo cuando te pegan A TI — el shake ajeno no existe.
-const SHAKE_AMP := 5.0
-const SHAKE_PASO_SEC := 0.024
-const SHAKE_PASOS := 40
-
 ## Doble click (<500 ms) sobre una entidad = fijarla Y atacar, el gesto canonico
 ## del original. El primer click solo selecciona, como siempre.
 const DOBLE_CLICK_MS := 500
@@ -60,8 +52,6 @@ var _hold_timer := 0.0
 var _saltando := false
 var _zoom_objetivo := ZOOM_DEFECTO
 var _zoom_tween: Tween
-var _shake_paso := -1          # -1 = sin shake en curso
-var _shake_t := 0.0
 var _ultimo_click_ent := 0     # doble click: la entidad y el instante del anterior
 var _ultimo_click_ms := 0
 ## Cursor simulado para la prueba del vuelo sostenido (INF = raton de verdad).
@@ -812,9 +802,12 @@ func _on_attack(ev) -> void:
 		blanco.impacto_escudo(tirador.position)
 	else:
 		blanco.impacto_casco()
-	# te pegaron A TI: la camara lo acusa (el shake ajeno no existe, como el original)
-	if blanco == _hero:
-		_shake_arrancar()
+	# Aqui NO hay shake de camara, y no es un olvido: el original tampoco sacude
+	# con dano normal. Su shakeScreen() solo dispara con el tipo de dano "I"
+	# (detonaciones tipo mina/kamikaze) y con efectos que declaran
+	# shakeScreen="true" en su XML — verificado jugando DO 3D y confirmado en el
+	# decompilado. Se porto por error, se sintio mal, y la prueba en vivo mando.
+	# Si v1 gana minas, la receta esta en el historial (espiral 24 ms en offset).
 	_numero_flotante(blanco, str(ev.damage), HIT_RECIBES if blanco == _hero else HIT_HACES)
 
 
@@ -1151,11 +1144,6 @@ func _zoom_a(objetivo: float) -> void:
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
-func _shake_arrancar() -> void:
-	_shake_paso = 0
-	_shake_t = 0.0
-
-
 func _toggle_laser() -> void:
 	if _muerto:
 		return
@@ -1439,19 +1427,6 @@ func _process(delta: float) -> void:
 	if _hero != null and not _at_camara_libre:
 		_camara.position = _camara.position.lerp(_hero.position, 8.0 * delta)
 		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
-
-	# el shake vive en el OFFSET de la camara: la espiral del original, paso a paso
-	if _shake_paso >= 0:
-		_shake_t += delta
-		while _shake_t >= SHAKE_PASO_SEC and _shake_paso >= 0:
-			_shake_t -= SHAKE_PASO_SEC
-			_shake_paso += 1
-			if _shake_paso >= SHAKE_PASOS:
-				_shake_paso = -1
-				_camara.offset = Vector2.ZERO
-		if _shake_paso >= 0:
-			var amp := maxf(SHAKE_AMP - float(_shake_paso / 10), 0.0)
-			_camara.offset = Vector2(cos(_shake_paso), sin(_shake_paso)) * amp
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
