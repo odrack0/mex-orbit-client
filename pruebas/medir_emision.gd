@@ -43,9 +43,12 @@ func _ready() -> void:
 	AssetDefs.ambiente_mundo(ent)
 	# El bloque `luz` del bicho, si lo trae: el mismo override que aplica
 	# entity_node. Sin esto la medicion compararia media contra un alta que no
-	# existe en el juego. (Con ruta con barra —ships/...— no hay JSON de npc y se
-	# queda la luz del mundo, que es lo que las naves usan.)
-	var luz: Dictionary = {} if "/" in _bicho else AssetDefs.npc(_bicho).get("luz", {})
+	# existe en el juego. Las naves (ships/<code>) tambien pueden traerlo.
+	var luz: Dictionary = {}
+	if _bicho.begins_with("ships/"):
+		luz = AssetDefs.nave(_bicho.trim_prefix("ships/")).get("luz", {})
+	elif not "/" in _bicho:
+		luz = AssetDefs.npc(_bicho).get("luz", {})
 	if luz.has("ambiente"):
 		ent.ambient_light_energy = float(luz["ambiente"])
 	_env = ent

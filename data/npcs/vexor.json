@@ -5,6 +5,11 @@
   "emissive": "res://assets/npcs/vexor-emissive.png",
   "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre: asi el 3D entra por debajo y la posicion, el z-index, el radio de click y los FX siguen siendo los de 2D. Sale de riguear-modelo.py sobre el remesh de Meshy.",
   "modelo": "res://assets/npcs/vexor.glb",
+  "_luz": "Al 50% de la luz del mundo (sol 0.5 de 1.0, ambiente 0.325 de 0.65): sus vetas rojas ganan protagonismo sin perder el volumen de la quitina. El precio del bloque: media se hornea con HORNO_SOL/HORNO_AMBIENTE a juego (0.675 = 0.5 x 1.35 axial) y se homologa con medir_emision, que lee este mismo bloque.",
+  "luz": {
+    "sol": 0.5,
+    "ambiente": 0.325
+  },
   "_cuernos_grados": "Rango de las pinzas de la proa, en grados, recorrido con el reloj del aleteo. Eje 1: gira dentro del plano, que es abrir de verdad. Comprobado que a -14 y a +14 no se cruzan.",
   "cuernos_grados": [-14.0, 14.0],
   "cuernos_eje": 1,

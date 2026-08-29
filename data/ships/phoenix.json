@@ -5,6 +5,11 @@
   "texture": "res://assets/ships/phoenix-base.png",
   "_modelo": "Malla 3D para calidad ALTA. Las toberas y las bocas de canion NO salen de `engines`/`cannons`: esos estan en pixeles de la textura 2D vieja y en 3D el sprite no gira. Salen de los marcadores tobera_*/canon_* del GLB, en unidades del modelo, colgados de un nodo que si gira con el rumbo.",
   "modelo": "res://assets/ships/phoenix.glb",
+  "_luz": "Al 65% de la luz del mundo (sol 0.65 de 1.0, ambiente 0.4225 de 0.65): baja el brillo del casco un punto sin apagar el metal. El precio: media se hornea con la pareja a juego y se homologa con medir_emision --bicho=ships/phoenix, que lee este bloque.",
+  "luz": {
+    "sol": 0.65,
+    "ambiente": 0.4225
+  },
   "screen_size": 141,
   "click_radius": 48,
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",

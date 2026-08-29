@@ -30,10 +30,10 @@
     "speed": 0.8,
     "sharpness": 3.4
   },
-  "_luz": "EXCEPCION a la luz del mundo (override de entity_node, tambien lo lee medir_emision): el Skarnox es lava y se lee AUTOILUMINADO — a plena luz del mundo el sol le diluia el caracter. Al 15% del mundo (sol 0.15 de 1.0, ambiente 0.0975 de 0.65, misma proporcion): la lava manda y a la roca le queda un rescoldo de volumen exterior. El barrido fue 1.0 -> 0.5 -> 0.25 -> 0.15, con 0/0 probado y descartado (solo existe donde la lava enciende; muy dramatico). El precio del bloque: media se hornea con HORNO_SOL/HORNO_AMBIENTE a juego (0.24/0.0975, halo a 1.9 — con menos luz exterior el derrame del glow pesa mas), y al bicho hay que mirarlo al lado de un vecino normal para comprobar que no se lee como recorte.",
+  "_luz": "EXCEPCION a la luz del mundo (override de entity_node, tambien lo lee medir_emision): el Skarnox es lava y se lee AUTOILUMINADO — a plena luz del mundo el sol le diluia el caracter. Al 20% del mundo (sol 0.2 de 1.0, ambiente 0.13 de 0.65, misma proporcion): la lava manda y la roca conserva un rescoldo de volumen. El barrido fue 1.0 -> 0.5 -> 0.25 -> 0.15 -> 0.2, con 0/0 probado y descartado (solo existe donde la lava enciende; muy dramatico). El precio del bloque: media se hornea con HORNO_SOL/HORNO_AMBIENTE a juego (0.32/0.13, halo a 1.75 — con menos luz exterior el derrame del glow pesa mas), y al bicho hay que mirarlo al lado de un vecino normal para comprobar que no se lee como recorte.",
   "luz": {
-    "sol": 0.15,
-    "ambiente": 0.0975
+    "sol": 0.2,
+    "ambiente": 0.13
   },
   "_alas": "El Skarnox no tiene alas: `ciclo` aqui solo fija el RELOJ del destello 3D, que va atado al de las alas. Sin esto heredaba los 2.17 s del Vexor — el latido de otro bicho; 6 s es su caracter: late lento y llega alto.",
   "alas": {"ciclo": 6.0},
