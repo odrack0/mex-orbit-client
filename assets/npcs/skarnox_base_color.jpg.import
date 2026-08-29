@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ckd1clef38mlc"
-path="res://.godot/imported/skarnox_Baked_MetallicRoughness.png-82597acedaea81be3c5d1a14507b0597.ctex"
+uid="uid://b876v560rlxyi"
+path="res://.godot/imported/skarnox_base_color.jpg-b35c3114aa9f81e8635f8124f788092c.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "c7235e2798caaaaae2e3638c4825ba16"
+"md5": "37aa6d9fb74512e983da451963779568"
 }
 
 [deps]
 
-source_file="res://assets/npcs/skarnox_Baked_MetallicRoughness.png"
-dest_files=["res://.godot/imported/skarnox_Baked_MetallicRoughness.png-82597acedaea81be3c5d1a14507b0597.ctex"]
+source_file="res://assets/npcs/skarnox_base_color.jpg"
+dest_files=["res://.godot/imported/skarnox_base_color.jpg-b35c3114aa9f81e8635f8124f788092c.ctex"]
 
 [params]
 
