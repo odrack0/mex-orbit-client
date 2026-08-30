@@ -7,12 +7,13 @@
 
   "main": "res://assets/world/map-1-1.png",
 
+  "_tiles": "Atlas de VARIANTES (F3): rejilla grid x grid con `celdas` nubes aisladas; cada tile del mosaico sortea la suya y la gira. El alfa viene derivado de la luminancia por nebula-alpha.py (generadas sobre negro). scale es sobre la CELDA (512 px).",
   "tiles_far": [
-    { "tex": "res://assets/world/layers/dust-far.png", "p_factor": 10.0, "scale": 2.5, "alpha": 0.9 }
+    { "tex": "res://assets/world/layers/nebula-far-atlas.png", "p_factor": 10.0, "scale": 5.0, "alpha": 0.9, "celdas": 4, "grid": 2 }
   ],
   "tiles_near": [
-    { "tex": "res://assets/world/layers/nebula-mid.png", "p_factor": 6.0, "scale": 1.6, "alpha": 0.85 },
-    { "tex": "res://assets/world/layers/nebula-near.png", "p_factor": 3.0, "scale": 1.8, "alpha": 0.7 }
+    { "tex": "res://assets/world/layers/nebula-mid-atlas.png", "p_factor": 6.0, "scale": 3.2, "alpha": 0.5, "celdas": 4, "grid": 2 },
+    { "tex": "res://assets/world/layers/nebula-near-atlas.png", "p_factor": 3.0, "scale": 2.4, "alpha": 0.35, "celdas": 4, "grid": 2 }
   ],
 
   "planets": [

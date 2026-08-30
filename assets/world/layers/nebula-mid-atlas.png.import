@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ts4h8r2lhwd8"
-path="res://.godot/imported/map-1-1.png-41a713fbe8529927661e2774cdcb0a9d.ctex"
+uid="uid://b7f7y75wii3rw"
+path="res://.godot/imported/nebula-mid-atlas.png-a737ff90611d3f618eed455375ef5362.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/world/map-1-1.png"
-dest_files=["res://.godot/imported/map-1-1.png-41a713fbe8529927661e2774cdcb0a9d.ctex"]
+source_file="res://assets/world/layers/nebula-mid-atlas.png"
+dest_files=["res://.godot/imported/nebula-mid-atlas.png-a737ff90611d3f618eed455375ef5362.ctex"]
 
 [params]
 
