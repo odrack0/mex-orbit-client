@@ -564,6 +564,16 @@ func _process(delta: float) -> void:
 	if _cuerpo == null:
 		return
 
+	# recorte de delta: un frame trabado (una malla pesada, una pausa del SO)
+	# no debe traducirse en un SALTO de posicion. move_toward()/_shadow usan
+	# `vel * delta` sin tope, asi que un delta disparado hace que la sombra
+	# autoritativa avance de golpe y la posicion la persiga en un solo frame
+	# — se ve como un brinco, y como el HUD proyecta la MISMA `position`
+	# (linea 672), las barras brincan con el cuerpo. El recorte a 1/15 s
+	# (66 ms, tres frames a 45 fps) deja el movimiento en pausa esa fraccion
+	# de segundo en vez de teletransportarlo.
+	delta = minf(delta, 1.0 / 15.0)
+
 	var en_vuelo := position.distance_to(objetivo) > 0.5
 
 	# acelerador: el empuje sube en vuelo y cae al frenar; parada, la nave de
