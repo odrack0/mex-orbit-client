@@ -243,7 +243,9 @@ paralaje entre tiles lo produce la cámara, la joya del tilemap del original), p
 según su `p_factor` heredado, la cadena de flares del sol proyectada al HUD (oclusión pendiente
 F4), y el **polvo estelar** como partículas sueltas al mundo alrededor del foco, recentradas a
 saltos de rejilla — la capa que vende el vuelo. Todo del `data/maps/<code>.json` de siempre y
-determinista por mapa. Gates `-Autotest` y `-Salto` en verde. **Deuda de arte conocida**: las
+determinista por mapa. **Dial del cielo**: la base del `cielo.gdshader` es espacio LINEAL — quedó
+en `(0.0012, 0.0016, 0.0040) + tinte·neb·0.012`; con los valores ×10 originales el cielo entero se
+lavaba a gris (~0.21 sRGB) y ahogaba las nebulosas — el DO real es casi negro con vetas tenues. Gates `-Autotest` y `-Salto` en verde. **Deuda de arte conocida**: las
 nebulosas actuales no son tileables y el mosaico enseña costuras — pide arte con bordes que casen
 (o atlas de variantes), no más código.
 

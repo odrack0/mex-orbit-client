@@ -26,9 +26,11 @@ void sky() {
 	vec3 d = EYEDIR;
 	vec2 uv = d.xz / (abs(d.y) + 0.35);
 
-	// fondo: azul muy oscuro con nebulosa tenue del color del mapa
+	// fondo: azul casi negro con nebulosa tenue del color del mapa. OJO: esto
+	// es espacio LINEAL — 0.035 lineal ya se ve gris (~0.21 sRGB) y lavaba el
+	// cielo entero; el DO real es casi negro con vetas apenas visibles.
 	float neb = ruido(uv * 1.3) * ruido(uv * 0.6 + 7.0);
-	vec3 base = vec3(0.012, 0.016, 0.035) + tinte * neb * 0.05;
+	vec3 base = vec3(0.0012, 0.0016, 0.0040) + tinte * neb * 0.012;
 
 	// estrellas: una por celda que pase el umbral, con nucleo subpixel suave
 	vec2 cel = uv * densidad;
