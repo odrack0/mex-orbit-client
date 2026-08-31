@@ -126,6 +126,8 @@ func actualizar(foco: Vector2) -> void:
 	# minimapa y el original
 	var pos := mira + Vector3(d * sin(t) * sin(p), -d * cos(t), d * sin(t) * cos(p))
 	camara.look_at_from_position(pos, mira, Vector3.UP)
+	if _skybox != null:
+		_skybox.position = mira    # el skybox sigue a la camara (el original)
 
 
 ## Zoom por rueda: compone sobre el OBJETIVO (una rafaga no pierde peldanios) y
@@ -151,10 +153,32 @@ func zoom_directo(v: float) -> void:
 	_zoom_objetivo = zoom
 
 
-## El CIELO procedural (F3): estrellas con twinkle en el Sky del Environment,
-## tenidas con el tinte del mapa. El ambiente de AssetDefs no se toca — el Sky
-## solo pinta el fondo.
+var _skybox: MeshInstance3D
+
+
+## El CIELO: el DOSkybox del original — su malla skybox_geometry escalada
+## x10000 siguiendo a la camara, con el pase exacto decompilado (dos mascaras
+## moviles multiplicadas por la textura fina de estrellas; skybox_do.gdshader).
+## No escribe profundidad y va con prioridad -10: todo lo demas (planeta,
+## techo, tiles) se pinta encima. Si faltan los assets, cae al cielo
+## procedural viejo (cielo.gdshader) tenido con el tinte del mapa.
 func poner_cielo(tinte: Color) -> void:
+	const MALLA := "res://assets/do-ref/skybox.obj"
+	const STARS := "res://assets/do-ref/skybox-stars.png"
+	const MASK := "res://assets/do-ref/skybox-mask.png"
+	if ResourceLoader.exists(MALLA) and ResourceLoader.exists(STARS) \
+			and ResourceLoader.exists(MASK):
+		_skybox = MeshInstance3D.new()
+		_skybox.mesh = load(MALLA)
+		_skybox.scale = Vector3.ONE * 10000.0
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://game/shaders/skybox_do.gdshader")
+		mat.set_shader_parameter("estrellas", load(STARS))
+		mat.set_shader_parameter("mascara", load(MASK))
+		mat.render_priority = -10
+		_skybox.material_override = mat
+		add_child(_skybox)
+		return
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://game/shaders/cielo.gdshader")
 	mat.set_shader_parameter("tinte", Vector3(tinte.r, tinte.g, tinte.b))
