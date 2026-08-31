@@ -19,7 +19,10 @@ const NEAR := 10.0
 const FAR := 80000.0
 const DIST := 1740.0
 const TILT := 135.0
-const PAN := 0.0
+## Pan del original (G§3): 0 en mapas planos, 25 en mapas CON fondo 3D — el
+## display3D del 1-1 esta compuesto para verse con la camara girada 25 grados.
+## Lo fija el mapa via MapBgConfig/world.
+var pan_grados := 0.0
 ## Zoom continuo [1,3], rueda x1.2 / x0.8, tween 0.3 s Quad ease-out.
 const ZOOM_MIN := 1.0
 const ZOOM_MAX := 3.0
@@ -115,7 +118,7 @@ func actualizar(foco: Vector2) -> void:
 	var reduc := clampf((zoom - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN) * TILT_ZOOM_REDUC,
 		0.0, TILT_ZOOM_REDUC)
 	var t := deg_to_rad(TILT - reduc)
-	var p := deg_to_rad(PAN)
+	var p := deg_to_rad(pan_grados)
 	var d := DIST / zoom
 	var mira := Vector3(_foco.x, 0.0, _foco.y)
 	# la camara queda del lado del ESPECTADOR (z+, el borde inferior de la

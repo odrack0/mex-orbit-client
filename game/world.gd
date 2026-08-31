@@ -176,7 +176,11 @@ func _construir_fondo(map_code: String) -> void:
 	_fondo3d = Fondo3D.new()
 	_mundo.add_child(_fondo3d)
 	# semilla por mapa: el mismo sector monta el mismo cielo en cada visita
-	_fondo3d.build(MapBgConfig.para(map_code, _limites), _limites, map_code.hash())
+	var config := MapBgConfig.para(map_code, _limites)
+	# pan del original: 25 grados en mapas con fondo 3D (su display3D esta
+	# compuesto para esa camara), 0 en mapas planos
+	_mundo.pan_grados = float(config.get("pan", 0.0))
+	_fondo3d.build(config, _limites, map_code.hash())
 
 
 func _construir_hud() -> void:

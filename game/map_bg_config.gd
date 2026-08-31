@@ -36,13 +36,16 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	cfg["starfield_tint"] = AssetDefs.color(d.get("starfield_tint", "66F2FF"))
 	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", 0.35))
 	cfg["props"] = d.get("props", [])   # mallas y planos del fondo (F3+)
+	# pan de camara: el original usa 25 grados en mapas con fondo 3D (su
+	# display3D esta compuesto para esa camara); el JSON puede fijarlo
+	cfg["pan"] = float(d.get("pan_camara", 25.0 if not (cfg.props as Array).is_empty() else 0.0))
 	return cfg
 
 
 static func _tiles(lista: Array) -> Array:
 	var salida := []
 	for t in lista:
-		salida.append({
+		var e := {
 			"tex": load(t.tex),
 			"p_factor": float(t.get("p_factor", 6.0)),
 			"scale": float(t.get("scale", 1.0)),
@@ -50,5 +53,16 @@ static func _tiles(lista: Array) -> Array:
 			# atlas de variantes (F3): rejilla grid x grid con `celdas` nubes
 			"celdas": int(t.get("celdas", 1)),
 			"grid": int(t.get("grid", 2)),
-		})
+		}
+		# el tilemap del display3D original: cota absoluta, lado del tile en
+		# unidades de mundo, mapScale y mascara de agujeros (blanco = nube)
+		if t.has("y"):
+			e["y"] = float(t.y)
+		if t.has("lado"):
+			e["lado"] = float(t.lado)
+		if t.has("margen"):
+			e["margen"] = float(t.margen)
+		if t.has("mask") and ResourceLoader.exists(str(t.mask)):
+			e["mask"] = load(str(t.mask))
+		salida.append(e)
 	return salida

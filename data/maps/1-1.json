@@ -41,11 +41,20 @@
     { "malla": "res://assets/do-ref/cluster_mars_small_asteroid04.obj", "tex": "res://assets/do-ref/asteroid.png",
       "x": 7700, "y": -1200, "z": 2000, "escala": 0.3, "rot_x": -15,
       "spin": { "x": 2.5, "z": 0.75 } },
-    { "_nota": "El TECHO de nebulosa del original (background1, aditivo): matte perpendicular al eje de la camara. Va corrido ~20 grados pantalla-abajo (dir (0,-.707,+.707)) para que la BANDA brillante del centro de la textura caiga en el horizonte junto al planeta y el cielo lo cubra la zona negra — centrado, la banda estirada lavaba toda la pantalla a gris.",
+    { "_nota": "background1 EXACTO del descriptor: sphericalPhi -90, theta 30, R 50010 + x 10000 -> (10000, -50010*cos30, z_DO +25005 espejada). Escala 50000, blendMode add. Va 10 unidades DETRAS del planeta (prioridad -3): sus estrellas y nebulosa solo se ven ALREDEDOR del disco, nunca encima.",
       "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
-      "x": 10400, "y": -39300, "z": -18500, "escala": 90000, "rot_x": -45, "modulate": "554E6B" },
-    { "_nota": "El planeta-HORIZONTE, como en el DO real: un arco enorme que cruza la pantalla por ABAJO (la nave vuela sobre el), no un muro lateral. Va corrido pantalla-abajo del eje de camara (mas hondo y hacia +z) y girado en su plano (rot_z) para que el borde iluminado quede en el limbo superior.",
+      "x": 10000, "y": -43310, "z": -25005, "escala": 50000, "rot_x": -45, "prioridad": -3 },
+    { "_nota": "planet114 EXACTO del descriptor: sphericalPhi -90, theta 30, R 50000 + x 10000 -> (10000, -43301, -25000). Escala 60000, alphaBlending. Su rotationX 45 (plano vertical de Away3D) equivale a rot_x -45 en Godot. Compuesto para camara con pan 25.",
       "plano": true, "tex": "res://assets/do-ref/planet114.png",
-      "x": 10400, "y": -45900, "z": -10000, "escala": 60000, "rot_x": -45, "rot_z": 180 }
+      "x": 10000, "y": -43301, "z": -25000, "escala": 60000, "rot_x": -45, "prioridad": -2 },
+    { "_nota": "lensFlare typeID 6 del descriptor: XML (x 34000, y 48000, z 26000) remapeado (x, -z, -y) por el parser -> mapa (34000, -26000) altura -48000. Los 11 lentes reales estan en assets/do-ref/flare/.",
+      "lensflare": true, "x": 34000, "y": -48000, "z": -26000 }
+  ],
+
+  "_tiles": "REFERENCIA: el tilemap del display3D original — typeID 2024 = clouds-grey (3 variantes, atlas reempacado 2x2 de 512), layer 4 -> y = -3500 + 4*550 = -1300, tileWidth 256 * tileScale 6 = lado 1536, mapScale 1.3, maskID 18 = mask1_clouds-grey (blanco = nube).",
+  "tiles_far": [
+    { "tex": "res://assets/do-ref/clouds-grey-atlas.png", "celdas": 3, "grid": 2,
+      "y": -1300, "lado": 1536, "margen": 1.3, "alpha": 1.0,
+      "mask": "res://assets/do-ref/mask1-clouds-grey.png" }
   ]
 }

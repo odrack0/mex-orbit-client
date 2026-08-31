@@ -114,7 +114,11 @@ func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
 	# el descriptor display3D del original monta por mapa; los transforms vienen
 	# del JSON del mapa tal cual.
 	for prop: Dictionary in config.get("props", []):
-		_montar_prop(prop)
+		if prop.has("lensflare"):
+			_montar_flare_do(Vector3(float(prop.get("x", 0)), float(prop.get("y", 0)),
+				float(prop.get("z", 0))))
+		else:
+			_montar_prop(prop)
 
 	# el polvo estelar que vende el vuelo
 	_montar_polvo(tinte, float(config.get("starfield_tint_ratio", 0.35)))
@@ -131,7 +135,9 @@ func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = semilla
 	for i in capas.size():
-		_montar_mosaico(capas[i], CAPA_BASE + float(i) * CAPA_PASO, rng)
+		# `y` (cota absoluta) viene del tilemap del display3D original:
+		# y = -3500 + layer*550 lo trae ya calculado el JSON del mapa
+		_montar_mosaico(capas[i], float(capas[i].get("y", CAPA_BASE + float(i) * CAPA_PASO)), rng)
 
 
 ## Un mosaico de quads con el MISMO arte, roto con las armas del original:
@@ -147,15 +153,29 @@ func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -
 	var celdas := int(t.get("celdas", 1))
 	var grid := int(t.get("grid", 1 if celdas <= 1 else 2))
 	var lado_px := float(tex.get_width()) / float(grid)
-	var lado := lado_px * float(t.get("scale", 1.0)) * TILE_FACTOR
+	# `lado` explicito = tamano del tile en unidades de mundo (el tilemap del
+	# original: tileWidth * tileScale); si no, se deriva del arte
+	var lado := float(t.get("lado", lado_px * float(t.get("scale", 1.0)) * TILE_FACTOR))
 	var alfa := float(t.get("alpha", 1.0))
-	var span := _limites * MARGEN
-	var origen := -_limites * (MARGEN - 1.0) * 0.5
+	var margen := float(t.get("margen", MARGEN))
+	var span := _limites * margen
+	var origen := -_limites * (margen - 1.0) * 0.5
 	var nx := maxi(int(ceil(span.x / lado)), 1)
 	var ny := maxi(int(ceil(span.y / lado)), 1)
+	# la MASCARA de agujeros del original (blanco = nube, negro/alfa 0 = vacio),
+	# estirada sobre el span entero; sin mascara, huecos aleatorios
+	var mascara: Image = null
+	if t.has("mask"):
+		mascara = (t.mask as Texture2D).get_image()
 	for cx in nx:
 		for cy in ny:
-			if rng.randf() < TILE_HUECOS:
+			if mascara != null:
+				var mp := mascara.get_pixel(
+					clampi(int((float(cx) + 0.5) / float(nx) * mascara.get_width()), 0, mascara.get_width() - 1),
+					clampi(int((float(cy) + 0.5) / float(ny) * mascara.get_height()), 0, mascara.get_height() - 1))
+				if mp.r < 0.5 or mp.a < 0.5:
+					continue
+			elif rng.randf() < TILE_HUECOS:
 				continue
 			var s := Mundo3D.sprite_plano(tex, lado, grid)
 			if celdas > 1:
@@ -205,6 +225,7 @@ func _montar_prop(p: Dictionary) -> void:
 		if bool(p.get("aditivo", false)):
 			var mi := Mundo3D.quad_aditivo(tex, lado, false)
 			(mi.material_override as StandardMaterial3D).albedo_color = mod
+			(mi.material_override as StandardMaterial3D).render_priority = int(p.get("prioridad", 0))
 			mi.rotation.x = 0.0          # el JSON manda la orientacion completa
 			nodo = mi
 		else:
@@ -217,6 +238,9 @@ func _montar_prop(p: Dictionary) -> void:
 			mat.albedo_texture = tex
 			mat.albedo_color = mod
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+			# `prioridad`: orden explicito entre transparentes casi co-planares
+			# (el techo de nebulosa va DETRAS del planeta: R 50010 vs 50000)
+			mat.render_priority = int(p.get("prioridad", 0))
 			q.material = mat
 			mi.mesh = q
 			nodo = mi
@@ -318,11 +342,42 @@ func _montar_flares() -> void:
 		_ghosts.append(ghost)
 
 
+var _flare_do: Array[Sprite2D] = []
+var _flare_do_pos := Vector3.ZERO
+
+
+## El lensFlare del display3D original (typeID 6): 11 lentes reales, lente i en
+## sol_px + i * (-(sol_px - centro) * 3 / N) — la cadena cruza el centro y se
+## extiende x3 al lado opuesto. Se oculta entero si el sol proyecta fuera del
+## viewport (la regla del original; oclusion por HUD pendiente F4).
+func _montar_flare_do(pos: Vector3) -> void:
+	if EntityNode.capa_hud == null:
+		return
+	_flare_do_pos = pos
+	for i in 11:
+		var ruta := "res://assets/do-ref/flare/lens%d.png" % i
+		if not ResourceLoader.exists(ruta):
+			continue
+		var lente := Sprite2D.new()
+		lente.texture = load(ruta)
+		var m := CanvasItemMaterial.new()
+		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		lente.material = m
+		lente.z_index = -1
+		lente.visible = false
+		EntityNode.capa_hud.add_child(lente)
+		_flare_do.append(lente)
+
+
 func _exit_tree() -> void:
 	for ghost in _ghosts:
 		if is_instance_valid(ghost):
 			ghost.queue_free()
 	_ghosts.clear()
+	for lente in _flare_do:
+		if is_instance_valid(lente):
+			lente.queue_free()
+	_flare_do.clear()
 
 
 ## Por frame: el sol gira, el polvo se recentra a saltos y los flares siguen la
@@ -346,3 +401,16 @@ func update(foco: Vector2, delta: float) -> void:
 		for i in _ghosts.size():
 			_ghosts[i].visible = dentro
 			_ghosts[i].position = px + eje * (GHOSTS[i][0] as float)
+	if not _flare_do.is_empty():
+		var cam := Mundo3D.instancia.camara
+		var vp := get_viewport().get_visible_rect().size
+		var tras: bool = cam.is_position_behind(_flare_do_pos)
+		var sol_px := Vector2.ZERO if tras \
+			else Mundo3D.instancia.a_pantalla(Vector2(_flare_do_pos.x, _flare_do_pos.z),
+				_flare_do_pos.y)
+		var visible_sol: bool = (not tras) and sol_px.x >= 0.0 and sol_px.y >= 0.0 \
+			and sol_px.x <= vp.x and sol_px.y <= vp.y
+		var paso := -(sol_px - vp * 0.5) * 3.0 / float(_flare_do.size())
+		for i in _flare_do.size():
+			_flare_do[i].visible = visible_sol
+			_flare_do[i].position = sol_px + paso * float(i)
