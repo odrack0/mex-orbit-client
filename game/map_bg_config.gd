@@ -44,8 +44,10 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	# justo fuera del borde derecho (no se ve), aparece bajando en diagonal
 	# hacia (4200,3500), parado en el portal queda a la derecha con aire
 	# (~360 px), y el portal cae ~25-28% dentro del disco del planeta.
+	# Segunda pasada en vivo: "falta recorrer planeta y sol ~5%" — un 5% de
+	# pantalla son ~5 grados de pan: queda en 0.
 	# El JSON puede fijarlo con pan_camara.
-	cfg["pan"] = float(d.get("pan_camara", -5.0 if not (cfg.props as Array).is_empty() else 0.0))
+	cfg["pan"] = float(d.get("pan_camara", 0.0))
 	return cfg
 
 
