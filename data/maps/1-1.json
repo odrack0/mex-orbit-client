@@ -41,11 +41,11 @@
     { "malla": "res://assets/do-ref/cluster_mars_small_asteroid04.obj", "tex": "res://assets/do-ref/asteroid.png",
       "x": 7700, "y": -1200, "z": 2000, "escala": 0.3, "rot_x": -15,
       "spin": { "x": 2.5, "z": 0.75 } },
-    { "_nota": "El TECHO de nebulosa del original (background1, aditivo): matte centrado en el eje de la camara —perpendicular a la vista de 45 grados, a ~45000— para que SIEMPRE pinte el cielo profundo, como su plano esferico hacia con la camara de DO.",
+    { "_nota": "El TECHO de nebulosa del original (background1, aditivo): matte perpendicular al eje de la camara, ATENUADO — a plena potencia lavaba el cielo a gris; en DO el cielo es casi negro con vetas tenues.",
       "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
-      "x": 10400, "y": -32300, "z": -25500, "escala": 90000, "rot_x": -45 },
-    { "_nota": "El planeta-horizonte: sobre el mismo plano del cielo pero corrido al oeste, para que asome su LIMBO por la esquina — en DO el theta/phi de su camara lograba justo eso.",
+      "x": 10400, "y": -32300, "z": -25500, "escala": 90000, "rot_x": -45, "modulate": "39344A" },
+    { "_nota": "El planeta-HORIZONTE, como en el DO real: un arco enorme que cruza la pantalla por ABAJO (la nave vuela sobre el), no un muro lateral. Va corrido pantalla-abajo del eje de camara (mas hondo y hacia +z) y girado en su plano (rot_z) para que el borde iluminado quede en el limbo superior.",
       "plano": true, "tex": "res://assets/do-ref/planet114.png",
-      "x": -19000, "y": -31800, "z": -25000, "escala": 60000, "rot_x": -45 }
+      "x": 10400, "y": -45900, "z": -10000, "escala": 60000, "rot_x": -45, "rot_z": 180 }
   ]
 }

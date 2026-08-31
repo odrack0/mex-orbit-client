@@ -183,6 +183,9 @@ func _montar_prop(p: Dictionary) -> void:
 	var ruta_tex := str(p.get("tex", ""))
 	if ruta_tex != "" and ResourceLoader.exists(ruta_tex):
 		tex = load(ruta_tex)
+	# `modulate` atenua (o tine) el prop: en un plano aditivo es LA palanca de
+	# intensidad — un techo de nebulosa a plena potencia lava el cielo entero.
+	var mod := AssetDefs.color(p.get("modulate", "FFFFFF"))
 	if p.has("malla"):
 		var ruta := str(p.malla)
 		if not ResourceLoader.exists(ruta):
@@ -192,6 +195,7 @@ func _montar_prop(p: Dictionary) -> void:
 		mi.mesh = load(ruta)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_texture = tex
+		mat.albedo_color = mod
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.8
 		mi.material_override = mat
@@ -199,8 +203,10 @@ func _montar_prop(p: Dictionary) -> void:
 	elif p.has("plano"):
 		var lado := float(p.get("escala", 1000.0))
 		if bool(p.get("aditivo", false)):
-			nodo = Mundo3D.quad_aditivo(tex, lado, false)
-			nodo.rotation.x = 0.0          # el JSON manda la orientacion completa
+			var mi := Mundo3D.quad_aditivo(tex, lado, false)
+			(mi.material_override as StandardMaterial3D).albedo_color = mod
+			mi.rotation.x = 0.0          # el JSON manda la orientacion completa
+			nodo = mi
 		else:
 			var mi := MeshInstance3D.new()
 			var q := QuadMesh.new()
@@ -209,6 +215,7 @@ func _montar_prop(p: Dictionary) -> void:
 			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 			mat.albedo_texture = tex
+			mat.albedo_color = mod
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 			q.material = mat
 			mi.mesh = q
