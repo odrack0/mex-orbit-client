@@ -8,7 +8,8 @@
   "screen_size": 141,
   "click_radius": 48,
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
-  "engines": [{"x": -61, "y": 247, "scale": 1.116}, {"x": -25, "y": 247, "scale": 1.116}, {"x": 23, "y": 248, "scale": 1.116}, {"x": 60, "y": 248, "scale": 1.116}],
+  "_engines": "SEIS bocas, no cuatro: la popa es un ANILLO de campanas y en cenital los dos pares superiores proyectan encima de los inferiores (por eso hay dos casi repetidas: son campanas distintas a alturas distintas). Los calcula hornear-sprite de los marcadores del GLB, que se midieron en 3D con medir_campanas y van con x@z en marcar-anclajes.",
+  "engines": [{"x": -61, "y": 247, "scale": 1.374}, {"x": -28, "y": 247, "scale": 1.374}, {"x": -27, "y": 247, "scale": 1.374}, {"x": 25, "y": 248, "scale": 1.374}, {"x": 25, "y": 248, "scale": 1.374}, {"x": 58, "y": 248, "scale": 1.374}],
   "_estela": "Solo LLAMA por tobera. La estela de chispas se quito: se soltaban al mundo con 0,38 s de vida y la nave las adelantaba, asi que no se leian por detras sino como motas encima del casco. De `engine_trail` solo queda `color`, que es lo unico que usa la llama; length, width, lifetime y core_color eran de las chispas y se fueron con ellas.",
   "engine_trail": {
     "color": "00E5FF"
