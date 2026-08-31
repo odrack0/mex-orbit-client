@@ -37,8 +37,13 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", 0.35))
 	cfg["props"] = d.get("props", [])   # mallas y planos del fondo (F3+)
 	# pan de camara: el original usa 25 grados en mapas con fondo 3D (su
-	# display3D esta compuesto para esa camara); el JSON puede fijarlo
-	cfg["pan"] = float(d.get("pan_camara", 25.0 if not (cfg.props as Array).is_empty() else 0.0))
+	# display3D esta compuesto para esa camara). Aqui va NEGATIVO: nuestro
+	# mundo espeja la z del original (zurdo->diestro) y eso invierte la
+	# quiralidad del giro — con +25 el planeta salia a la derecha (en DO sale
+	# a la IZQUIERDA) y el sol del lensFlare quedaba a ~40 grados del eje
+	# (invisible); con -25 el sol proyecta a ~9 grados y encandila al volar,
+	# como en el original. El JSON puede fijarlo con pan_camara.
+	cfg["pan"] = float(d.get("pan_camara", -25.0 if not (cfg.props as Array).is_empty() else 0.0))
 	return cfg
 
 
