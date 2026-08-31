@@ -57,6 +57,9 @@ func _construir(titulo: String, icono: String) -> void:
 	caja.shadow_size = 26
 	add_theme_stylebox_override("panel", caja)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	# el lensflare del mundo se oculta cuando el sol queda DETRAS de una
+	# ventana (la regla del original); el fondo las encuentra por este grupo
+	add_to_group("ventanas_n")
 
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 0)

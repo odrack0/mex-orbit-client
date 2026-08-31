@@ -8,14 +8,14 @@
   "screen_size": 141,
   "click_radius": 48,
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
-  "engines": [{"x": -61, "y": 248, "scale": 1.122}, {"x": -25, "y": 248, "scale": 1.122}, {"x": 23, "y": 247, "scale": 1.122}, {"x": 60, "y": 248, "scale": 1.122}],
+  "engines": [{"x": -61, "y": 247, "scale": 1.116}, {"x": -25, "y": 247, "scale": 1.116}, {"x": 23, "y": 248, "scale": 1.116}, {"x": 60, "y": 248, "scale": 1.116}],
   "_estela": "Solo LLAMA por tobera. La estela de chispas se quito: se soltaban al mundo con 0,38 s de vida y la nave las adelantaba, asi que no se leian por detras sino como motas encima del casco. De `engine_trail` solo queda `color`, que es lo unico que usa la llama; length, width, lifetime y core_color eran de las chispas y se fueron con ellas.",
   "engine_trail": {
     "color": "00E5FF"
   },
   "_canones": "Boca de cada tubo lateral, medida en la fila donde asoman del casco (y=197, al 91% del semiancho). El filtro de 'bien afuera' del tool importa: sin el cogia los asideros curvos del domo, que estan al 64%.",
   "_cannons": "Pixeles de phoenix-base.png. Los calcula hornear-sprite.py de los marcadores del GLB: es el unico que conoce la proyeccion con la que se hornea. Los de antes (±165, -59) eran del arte 2D viejo y caian a 17 px de las torretas.",
-  "cannons": [{"x": -148, "y": -82}, {"x": 148, "y": -84}],
+  "cannons": [{"x": -148, "y": -81}, {"x": 148, "y": -86}],
   "_render": "v2 (source/renders/Phoenix-v2.jpeg): render limpio, sin la suciedad ni los rotulos de la v1. El motivo no es gusto: la nave se dibuja a 141 px y el zoom baja hasta 0,1, asi que los rotulos de 5 px de la v1 no eran detalle, eran ruido. Medido a tamanio de juego, la v2 tiene 43,6 de contraste contra 31,1 y a 35 px sigue leyendose como nave.",
   "_pendiente": "La v2 es un render de arcilla: gris neutro, SIN un solo acento de faccion. El cian solo entra por la estela de motores. Falta decidir si el casco lleva acento cian propio.",
   "_variantes": "DOS renders de la misma nave, para poder compararlos en juego. Cambiar de uno a otro es copiar `texture`, `engines` y `cannons` del bloque _v1 o _v2 a los campos de arriba: los anclajes NO son intercambiables, cada render tiene los suyos y mezclarlos pone la estela y los laseres donde no hay tobera ni canon. Cuando se decida, se borra el perdedor.",
