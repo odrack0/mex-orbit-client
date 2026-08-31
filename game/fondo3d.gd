@@ -410,14 +410,6 @@ func update(foco: Vector2, delta: float) -> void:
 				_flare_do_pos.y)
 		var visible_sol: bool = (not tras) and sol_px.x >= 0.0 and sol_px.y >= 0.0 \
 			and sol_px.x <= vp.x and sol_px.y <= vp.y
-		# la regla de oclusion del original (§_-J4r§): si el sol queda detras
-		# de una ventana del HUD, el flare entero se apaga — por eso en la
-		# base no se ve (el sol cae tras el minimapa) y aparece al alejarse
-		if visible_sol:
-			for v: Control in get_tree().get_nodes_in_group("ventanas_n"):
-				if v.visible and v.get_global_rect().has_point(sol_px):
-					visible_sol = false
-					break
 		var paso := -(sol_px - vp * 0.5) * 3.0 / float(_flare_do.size())
 		for i in _flare_do.size():
 			_flare_do[i].visible = visible_sol

@@ -36,14 +36,16 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	cfg["starfield_tint"] = AssetDefs.color(d.get("starfield_tint", "66F2FF"))
 	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", 0.35))
 	cfg["props"] = d.get("props", [])   # mallas y planos del fondo (F3+)
-	# pan de camara: el original usa 25 grados en mapas con fondo 3D (su
-	# display3D esta compuesto para esa camara). Aqui va NEGATIVO: nuestro
-	# mundo espeja la z del original (zurdo->diestro) y eso invierte la
-	# quiralidad del giro — con +25 el planeta salia a la derecha (en DO sale
-	# a la IZQUIERDA) y el sol del lensFlare quedaba a ~40 grados del eje
-	# (invisible); con -25 el sol proyecta a ~9 grados y encandila al volar,
-	# como en el original. El JSON puede fijarlo con pan_camara.
-	cfg["pan"] = float(d.get("pan_camara", -25.0 if not (cfg.props as Array).is_empty() else 0.0))
+	# pan de camara en mapas con fondo 3D. El signo va INVERTIDO respecto al
+	# original (nuestro mundo espeja su z y eso voltea la quiralidad del giro)
+	# y la MAGNITUD esta calibrada contra el DO 3D jugado en vivo (31-ago), no
+	# contra el 25 de la guia, que no reproduce lo observado. Con -5 cuadran
+	# las cuatro referencias del usuario a la vez: en la base el sol queda
+	# justo fuera del borde derecho (no se ve), aparece bajando en diagonal
+	# hacia (4200,3500), parado en el portal queda a la derecha con aire
+	# (~360 px), y el portal cae ~25-28% dentro del disco del planeta.
+	# El JSON puede fijarlo con pan_camara.
+	cfg["pan"] = float(d.get("pan_camara", -5.0 if not (cfg.props as Array).is_empty() else 0.0))
 	return cfg
 
 
