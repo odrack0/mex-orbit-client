@@ -22,5 +22,31 @@
     { "tex": "res://assets/world/layers/planet-c.png", "x": 1800, "y": 250, "p_factor": 6.0, "scale": 1.0 }
   ],
 
-  "sun": { "x": 1740, "y": 1106, "p_factor": 10.0, "scale": 0.9, "spin_deg_per_sec": -9.0 }
+  "sun": { "x": 1740, "y": 1106, "p_factor": 10.0, "scale": 0.9, "spin_deg_per_sec": -9.0 },
+
+  "_props": "REFERENCIA TEMPORAL DarkOrbit: el descriptor display3D map_1-1 del original, con sus transforms VERBATIM (z espejada: su motor era zurdo) y los spins en el centro de sus rangos random. Mallas AWD->OBJ y texturas ATF->PNG en assets/do-ref/ (tools awd2obj/atf2png del repo de arte). Sirve para confirmar QUE elementos lleva el mapa; el arte se reemplaza por el propio antes de cerrar.",
+  "props": [
+    { "malla": "res://assets/do-ref/asset-mmo-phobos.obj", "tex": "res://assets/do-ref/phobos.png",
+      "x": 16520, "y": -4000, "z": -2000, "escala": 1.0, "rot_x": 55,
+      "spin": { "x": 4.0, "y": -4.0, "z": 0.75 } },
+    { "malla": "res://assets/do-ref/asset-mmo-miningstation-a.obj", "tex": "res://assets/do-ref/miningstation.png",
+      "x": 9100, "y": -3000, "z": 500, "escala": 5.0,
+      "spin": { "x": 0.25, "y": 0.5, "z": 0.75 } },
+    { "malla": "res://assets/do-ref/asset-mmo-miningstation-b.obj", "tex": "res://assets/do-ref/miningstation.png",
+      "x": 5100, "y": -6000, "z": 3500, "escala": 7.0,
+      "spin": { "x": 0.5, "y": 0.25, "z": 0.75 } },
+    { "malla": "res://assets/do-ref/asset-mmo-miningstation-c.obj", "tex": "res://assets/do-ref/miningstation.png",
+      "x": 15100, "y": -6000, "z": 1500, "escala": 18.0,
+      "spin": { "x": 0.5, "y": 0.25, "z": 0.75 } },
+    { "malla": "res://assets/do-ref/asset-mmo-satellite.obj", "tex": "res://assets/do-ref/satellite.png",
+      "x": 2000, "y": -9000, "z": -3500, "escala": 10.0,
+      "spin": { "y": 10.0 } },
+    { "malla": "res://assets/do-ref/cluster_mars_small_asteroid04.obj", "tex": "res://assets/do-ref/asteroid.png",
+      "x": 7700, "y": -1200, "z": 2000, "escala": 0.3, "rot_x": -15,
+      "spin": { "x": 2.5, "z": 0.75 } },
+    { "plano": true, "tex": "res://assets/do-ref/planet114.png",
+      "x": -15005, "y": -43301, "z": 0, "escala": 60000, "rot_x": -45 },
+    { "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
+      "x": -15005, "y": -43310, "z": 0, "escala": 50000, "rot_x": -45 }
+  ]
 }

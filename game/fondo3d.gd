@@ -109,6 +109,13 @@ func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
 		_sol_spin = float(config.sun.get("spin", -9.0))
 		_montar_flares()
 
+	# PROPS de fondo (F3+): las mallas y planos que habitan el mapa — lunas,
+	# estaciones mineras, satelites — a su cota, con giro lento. Es la pieza que
+	# el descriptor display3D del original monta por mapa; los transforms vienen
+	# del JSON del mapa tal cual.
+	for prop: Dictionary in config.get("props", []):
+		_montar_prop(prop)
+
 	# el polvo estelar que vende el vuelo
 	_montar_polvo(tinte, float(config.get("starfield_tint_ratio", 0.35)))
 
@@ -161,6 +168,63 @@ func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -
 			s.rotation.y = float(rng.randi_range(0, 3)) * PI * 0.5
 			s.modulate.a = alfa * rng.randf_range(0.7, 1.0)
 			add_child(s)
+
+
+var _girando: Array = []          # [{nodo, spin (grados/s por eje)}]
+
+
+## Un prop del fondo: malla OBJ con su textura (iluminada por el sol del mundo)
+## o un plano gigante. Campos del JSON: malla|plano, tex, x/y/z (unidades de
+## mundo; y negativo = hondo), escala, rot_x/rot_y/rot_z (grados) y spin
+## {x,y,z} en grados/segundo — el "append" del background_animation original.
+func _montar_prop(p: Dictionary) -> void:
+	var nodo: Node3D = null
+	var tex: Texture2D = null
+	var ruta_tex := str(p.get("tex", ""))
+	if ruta_tex != "" and ResourceLoader.exists(ruta_tex):
+		tex = load(ruta_tex)
+	if p.has("malla"):
+		var ruta := str(p.malla)
+		if not ResourceLoader.exists(ruta):
+			push_warning("fondo: falta la malla %s" % ruta)
+			return
+		var mi := MeshInstance3D.new()
+		mi.mesh = load(ruta)
+		var mat := StandardMaterial3D.new()
+		mat.albedo_texture = tex
+		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mat.roughness = 0.8
+		mi.material_override = mat
+		nodo = mi
+	elif p.has("plano"):
+		var lado := float(p.get("escala", 1000.0))
+		if bool(p.get("aditivo", false)):
+			nodo = Mundo3D.quad_aditivo(tex, lado, false)
+			nodo.rotation.x = 0.0          # el JSON manda la orientacion completa
+		else:
+			var mi := MeshInstance3D.new()
+			var q := QuadMesh.new()
+			q.size = Vector2(lado, lado)
+			var mat := StandardMaterial3D.new()
+			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			mat.albedo_texture = tex
+			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+			q.material = mat
+			mi.mesh = q
+			nodo = mi
+	else:
+		return
+	nodo.position = Vector3(float(p.get("x", 0)), float(p.get("y", -2000)), float(p.get("z", 0)))
+	if p.has("malla"):
+		nodo.scale = Vector3.ONE * float(p.get("escala", 1.0))
+	nodo.rotation_degrees = Vector3(float(p.get("rot_x", 0)), float(p.get("rot_y", 0)),
+		float(p.get("rot_z", 0)))
+	add_child(nodo)
+	var spin: Dictionary = p.get("spin", {})
+	if not spin.is_empty():
+		_girando.append({"nodo": nodo, "spin": Vector3(float(spin.get("x", 0)),
+			float(spin.get("y", 0)), float(spin.get("z", 0)))})
 
 
 ## El polvo (G§10.4): particulas en un volumen alrededor del foco, SUELTAS AL
@@ -257,6 +321,9 @@ func _exit_tree() -> void:
 func update(foco: Vector2, delta: float) -> void:
 	if _sol != null:
 		_sol.rotation.y += deg_to_rad(_sol_spin) * delta
+	# el giro perezoso de los props (el "append" del original)
+	for g: Dictionary in _girando:
+		(g.nodo as Node3D).rotation_degrees += (g.spin as Vector3) * delta
 	if _polvo != null:
 		var centro := Vector3(foco.x, POLVO_Y, foco.y)
 		if Vector2(_polvo.position.x, _polvo.position.z).distance_to(foco) > POLVO_REJILLA:

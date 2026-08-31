@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cyi7gf3bwytr1"
+path="res://.godot/imported/cluster_mars_small_asteroid04.obj-319d5abe0653acb18c1e84effcc40833.mesh"
+
+[deps]
+
+files=["res://.godot/imported/cluster_mars_small_asteroid04.obj-319d5abe0653acb18c1e84effcc40833.mesh"]
+
+source_file="res://assets/do-ref/cluster_mars_small_asteroid04.obj"
+dest_files=["res://.godot/imported/cluster_mars_small_asteroid04.obj-319d5abe0653acb18c1e84effcc40833.mesh", "res://.godot/imported/cluster_mars_small_asteroid04.obj-319d5abe0653acb18c1e84effcc40833.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

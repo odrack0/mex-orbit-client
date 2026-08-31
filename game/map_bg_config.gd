@@ -35,6 +35,7 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 		}
 	cfg["starfield_tint"] = AssetDefs.color(d.get("starfield_tint", "66F2FF"))
 	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", 0.35))
+	cfg["props"] = d.get("props", [])   # mallas y planos del fondo (F3+)
 	return cfg
 
 
