@@ -170,7 +170,13 @@ func poner_cielo(tinte: Color) -> void:
 			and ResourceLoader.exists(MASK):
 		_skybox = MeshInstance3D.new()
 		_skybox.mesh = load(MALLA)
-		_skybox.scale = Vector3.ONE * 10000.0
+		# El original escala x10000 (radio ~4300) porque su skybox es un
+		# PRE-PASE sin test de profundidad: la distancia no importa. Aqui es un
+		# transparente mas y SI testea profundidad, asi que la esfera debe
+		# ENVOLVER todo lo opaco (los props llegan a ~17000 del foco y el
+		# planeta a ~50000): radio nativo 0.43 x 160000 = ~69000, bajo el far
+		# de 80000. Con 10000 tapaba con estrellas cualquier malla mas lejana.
+		_skybox.scale = Vector3.ONE * 160000.0
 		var mat := ShaderMaterial.new()
 		mat.shader = load("res://game/shaders/skybox_do.gdshader")
 		mat.set_shader_parameter("estrellas", load(STARS))
