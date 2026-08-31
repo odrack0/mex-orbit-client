@@ -5,24 +5,21 @@
   "starfield_tint": "66F2FF",
   "starfield_tint_ratio": 0.35,
 
-  "main": "res://assets/world/map-1-1.png",
-
-  "_tiles": "Atlas de VARIANTES (F3): rejilla grid x grid con `celdas` nubes aisladas; cada tile del mosaico sortea la suya y la gira. El alfa viene derivado de la luminancia por nebula-alpha.py (generadas sobre negro). scale es sobre la CELDA (512 px).",
-  "tiles_far": [
+  "_MODO_REFERENCIA_DO": "TEMPORAL: el fondo propio (main/tiles/planets/sun) esta APAGADO —guardado en las claves _mex_*— porque en el DO 3D un mapa con fondo 3D apaga su stack 2D: el 1-1 real se ve como estrellas + el plano gigante de nebulosa + el planeta + polvo + props. Restaurar = quitar el prefijo _mex_ y borrar los props do-ref.",
+  "_mex_main": "res://assets/world/map-1-1.png",
+  "_mex_tiles_far": [
     { "tex": "res://assets/world/layers/nebula-far-atlas.png", "p_factor": 10.0, "scale": 5.0, "alpha": 0.9, "celdas": 4, "grid": 2 }
   ],
-  "tiles_near": [
+  "_mex_tiles_near": [
     { "tex": "res://assets/world/layers/nebula-mid-atlas.png", "p_factor": 6.0, "scale": 3.2, "alpha": 0.5, "celdas": 4, "grid": 2 },
     { "tex": "res://assets/world/layers/nebula-near-atlas.png", "p_factor": 3.0, "scale": 2.4, "alpha": 0.35, "celdas": 4, "grid": 2 }
   ],
-
-  "planets": [
+  "_mex_planets": [
     { "tex": "res://assets/world/layers/planet-a.png", "x": 1110, "y": 1100, "p_factor": 9.0, "scale": 1.0 },
     { "tex": "res://assets/world/layers/planet-b.png", "x": 680, "y": 740, "p_factor": 5.0, "scale": 1.0 },
     { "tex": "res://assets/world/layers/planet-c.png", "x": 1800, "y": 250, "p_factor": 6.0, "scale": 1.0 }
   ],
-
-  "sun": { "x": 1740, "y": 1106, "p_factor": 10.0, "scale": 0.9, "spin_deg_per_sec": -9.0 },
+  "_mex_sun": { "x": 1740, "y": 1106, "p_factor": 10.0, "scale": 0.9, "spin_deg_per_sec": -9.0 },
 
   "_props": "REFERENCIA TEMPORAL DarkOrbit: el descriptor display3D map_1-1 del original, con sus transforms VERBATIM (z espejada: su motor era zurdo) y los spins en el centro de sus rangos random. Mallas AWD->OBJ y texturas ATF->PNG en assets/do-ref/ (tools awd2obj/atf2png del repo de arte). Sirve para confirmar QUE elementos lleva el mapa; el arte se reemplaza por el propio antes de cerrar.",
   "props": [
@@ -44,10 +41,11 @@
     { "malla": "res://assets/do-ref/cluster_mars_small_asteroid04.obj", "tex": "res://assets/do-ref/asteroid.png",
       "x": 7700, "y": -1200, "z": 2000, "escala": 0.3, "rot_x": -15,
       "spin": { "x": 2.5, "z": 0.75 } },
-    { "_nota": "El planeta-horizonte. DO lo colgaba al suroeste porque su camara llevaba pan 25; la nuestra mira fija al norte, asi que va al cielo noroeste, inclinado hacia la camara. Se calibra volando.",
+    { "_nota": "El TECHO de nebulosa del original (background1, aditivo): matte centrado en el eje de la camara —perpendicular a la vista de 45 grados, a ~45000— para que SIEMPRE pinte el cielo profundo, como su plano esferico hacia con la camara de DO.",
+      "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
+      "x": 10400, "y": -32300, "z": -25500, "escala": 90000, "rot_x": -45 },
+    { "_nota": "El planeta-horizonte: sobre el mismo plano del cielo pero corrido al oeste, para que asome su LIMBO por la esquina — en DO el theta/phi de su camara lograba justo eso.",
       "plano": true, "tex": "res://assets/do-ref/planet114.png",
-      "x": -5000, "y": -28000, "z": -25000, "escala": 60000, "rot_x": -55 },
-    { "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
-      "x": -5200, "y": -28400, "z": -25400, "escala": 50000, "rot_x": -55 }
+      "x": -19000, "y": -31800, "z": -25000, "escala": 60000, "rot_x": -45 }
   ]
 }
