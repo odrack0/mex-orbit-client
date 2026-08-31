@@ -114,16 +114,17 @@ static var _glb_solicitados := {}
 ## Cache de SpriteFrames de los FX de impacto (inmutables, se comparten).
 static var _sheets := {}
 
-# motores: un PENACHO de particulas por tobera — el thruster.awp del original
-# tal cual: 40 bolas de gradiente aditivas billboard disparadas a popa (vel
-# 5-6, accel 15-20 en unidades de su bola de 8), encogiendo 1->0.2 en 1 s de
-# vida, rampa negro->cian->BLANCO->cian->negro. Un quad plano se veia PLANO
-# desde la camara inclinada; las particulas tienen volumen desde cualquier
-# angulo. El factor k por nave (boca/5: su bola de 8 sale de una boca de ~5)
-# vive en la escala del nodo: con local_coords, escala tambien velocidades.
+# motores: el thruster de PARTICULAS del original (thruster.awp: 40 bolas
+# aditivas billboard a popa, vel 5-6 / accel 15-20 en unidades de su bola de
+# 8, encogiendo 1->0.2 en 1 s) tenido con el AZUL del trail de cada nave.
+# Es la solucion del DO 3D y la unica que sobrevive el zoom a la popa: se
+# probaron quad fijo (plano), cruz (triangulos), hoja axial (linea de
+# refilon), discos y un cono con shader (donas blancas visto desde atras) —
+# toda geometria orientada fracasa visto a lo largo del chorro; las bolas
+# billboard llenan la campana desde cualquier angulo.
 var _flames: Array[GPUParticles3D] = []
 var _thrust := 0.0
-static var _pm_llama: ParticleProcessMaterial
+static var _pm_llamas := {}          # ParticleProcessMaterial por color de trail
 static var _malla_llama_cache: QuadMesh
 
 ## Diales del cuerpo articulado (alas/cola/cuernos/brazos), POR ESPECIE via
@@ -358,8 +359,10 @@ func _montar_anclajes(d: Dictionary) -> void:
 		var escala := ancho_boca / 20.0 if ancho_boca > 0.0 else 1.0
 		var trail: Dictionary = d.get("engine_trail", {})
 		for punto in toberas:
-			# medio ancho hacia proa: el marcador esta en el filo de la campana
-			_crear_llama_en(punto - Vector3(0.0, 0.0, ancho_boca * 0.5), trail, escala)
+			# el marcador esta en el FILO de salida y el disco de emision va
+			# exactamente ahi: el medio ancho hacia proa era del quad viejo y
+			# hacia nacer las particulas DENTRO de la campana, "de arriba"
+			_crear_llama_en(punto, trail, escala)
 
 
 func _posicion_en_modelo(n: Node3D) -> Vector3:
@@ -403,36 +406,52 @@ func _montar_canones_json() -> void:
 		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 
 
-## El penacho de una tobera: GPUParticles3D anclado al cuerpo que gira, con
-## los valores del thruster.awp original. El material y la malla se comparten
-## (los numeros van en unidades de SU bola de 8; el tamano real lo pone la
-## escala del nodo, que ademas escala las velocidades por local_coords).
-func _crear_llama_en(punto: Vector3, _trail: Dictionary, escala: float) -> void:
-	if _pm_llama == null:
-		_pm_llama = ParticleProcessMaterial.new()
-		_pm_llama.direction = Vector3(0, 0, 1)      # a popa (+Z del modelo)
-		_pm_llama.spread = 4.0                      # el jitter x/y +-1 del awp
-		_pm_llama.initial_velocity_min = 5.0
-		_pm_llama.initial_velocity_max = 6.0
-		_pm_llama.linear_accel_min = 15.0
-		_pm_llama.linear_accel_max = 20.0
-		_pm_llama.gravity = Vector3.ZERO
-		var curva := Curve.new()                    # escala 1 -> 0.2 sobre la vida
+## La llama de una tobera: GPUParticles3D con los valores del thruster.awp,
+## la rampa en el color del trail de la nave (nucleo casi blanco, cola del
+## color). Material por color y malla compartidos; el tamano por nave va en
+## la escala del nodo (k = boca/5), que con local_coords escala bola y
+## velocidades a la vez.
+func _crear_llama_en(punto: Vector3, trail: Dictionary, escala: float) -> void:
+	var c := AssetDefs.color(trail.get("color", "00E5FF"))
+	var clave := c.to_html(false)
+	if not _pm_llamas.has(clave):
+		var pm := ParticleProcessMaterial.new()
+		pm.direction = Vector3(0, 0, 1)      # a popa (+Z del modelo)
+		pm.spread = 4.0                      # el jitter x/y +-1 del awp
+		# nacen repartidas por el DISCO plano de la boca (anillo de radio
+		# interior 0), no en un punto ni en una esfera: con k = boca/5 el
+		# radio de la boca en unidades del emisor es 2.5, y el disco delgado
+		# en el plano del filo hace que el chorro arranque JUSTO en el aro
+		# encendido, no desde dentro de la campana
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+		pm.emission_ring_axis = Vector3(0, 0, 1)
+		pm.emission_ring_radius = 2.5
+		pm.emission_ring_inner_radius = 0.0
+		pm.emission_ring_height = 0.4
+		pm.initial_velocity_min = 5.0
+		pm.initial_velocity_max = 6.0
+		pm.linear_accel_min = 15.0
+		pm.linear_accel_max = 20.0
+		pm.gravity = Vector3.ZERO
+		var curva := Curve.new()             # escala 1 -> 0.2 sobre la vida
 		curva.add_point(Vector2(0.0, 1.0))
 		curva.add_point(Vector2(1.0, 0.2))
 		var ct := CurveTexture.new()
 		ct.curve = curva
-		_pm_llama.scale_curve = ct
-		var g := Gradient.new()                     # negro->cian->BLANCO->cian->negro
+		pm.scale_curve = ct
+		# la rampa del awp con el color de la nave: negro -> color -> nucleo
+		# casi blanco -> color -> negro (aditivo: negro = invisible)
+		var g := Gradient.new()
 		g.set_color(0, Color(0, 0, 0))
-		g.add_point(0.2, Color(0, 0.8, 0.8))
-		g.add_point(0.4, Color(1, 1, 1))
-		g.add_point(0.6, Color(1, 1, 1))
-		g.add_point(0.8, Color(0, 0.8, 0.8))
+		g.add_point(0.2, c * 0.8)
+		g.add_point(0.4, c.lerp(Color.WHITE, 0.75))
+		g.add_point(0.6, c.lerp(Color.WHITE, 0.75))
+		g.add_point(0.8, c * 0.8)
 		g.set_color(1, Color(0, 0, 0))
 		var gt := GradientTexture1D.new()
 		gt.gradient = g
-		_pm_llama.color_ramp = gt
+		pm.color_ramp = gt
+		_pm_llamas[clave] = pm
 	if _malla_llama_cache == null:
 		_malla_llama_cache = QuadMesh.new()
 		_malla_llama_cache.size = Vector2(8.0, 8.0)
@@ -449,10 +468,11 @@ func _crear_llama_en(punto: Vector3, _trail: Dictionary, escala: float) -> void:
 	llama.lifetime = 1.0
 	llama.preprocess = 1.0        # el penacho existe desde el primer frame
 	llama.local_coords = true     # sigue a la nave, como el follow del original
-	llama.process_material = _pm_llama
+	llama.process_material = _pm_llamas[clave]
 	llama.draw_pass_1 = _malla_llama_cache
 	llama.position = punto
-	# k por nave: la bola de 8 del original sale de una boca de ~5
+	# k por nave: la bola de 8 del original sale de una boca de ~5 (la
+	# cobertura de la boca la pone el emission_shape, no el tamano de bola)
 	llama.set_meta("k", escala * 20.0 / 5.0)
 	_giro3d.add_child(llama)
 	_flames.append(llama)
