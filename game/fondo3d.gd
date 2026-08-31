@@ -113,16 +113,12 @@ func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
 	# estaciones mineras, satelites — a su cota, con giro lento. Es la pieza que
 	# el descriptor display3D del original monta por mapa; los transforms vienen
 	# del JSON del mapa tal cual.
-	var hay_mallas := false
 	for prop: Dictionary in config.get("props", []):
 		if prop.has("lensflare"):
 			_montar_flare_do(Vector3(float(prop.get("x", 0)), float(prop.get("y", 0)),
 				float(prop.get("z", 0))))
 		else:
 			_montar_prop(prop)
-			hay_mallas = hay_mallas or prop.has("malla")
-	if hay_mallas:
-		_montar_luz_fondo()
 
 	# el polvo estelar que vende el vuelo
 	_montar_polvo(tinte, float(config.get("starfield_tint_ratio", 0.35)))
@@ -197,25 +193,6 @@ func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -
 var _girando: Array = []          # [{nodo, spin (grados/s por eje)}]
 
 
-## La LUZ del display3D original (defaults del XML: color blanco, diffuse 1,
-## specular 0.7, tilt 100, pan 35): solo bania la capa 2 — las mallas de fondo.
-## La luz del MUNDO (cian 0.8, AssetDefs) no se toca: esta homologada para las
-## naves. Direccion: la formula esferica del original con la z espejada.
-func _montar_luz_fondo() -> void:
-	var luz := DirectionalLight3D.new()
-	luz.light_color = Color.WHITE
-	luz.light_energy = 1.0
-	luz.light_specular = 0.7
-	luz.light_cull_mask = 2          # SOLO capa 2 (props de fondo)
-	luz.shadow_enabled = false
-	var t := deg_to_rad(100.0)
-	var p := deg_to_rad(35.0)
-	# posicion esferica del original -> direccion hacia el origen (z espejada)
-	var dir := -Vector3(sin(t) * sin(p), -cos(t), sin(t) * cos(p)).normalized()
-	add_child(luz)
-	luz.look_at_from_position(Vector3.ZERO, dir, Vector3.UP)
-
-
 ## Un prop del fondo: malla OBJ con su textura (iluminada por el sol del mundo)
 ## o un plano gigante. Campos del JSON: malla|plano, tex, x/y/z (unidades de
 ## mundo; y negativo = hondo), escala, rot_x/rot_y/rot_z (grados) y spin
@@ -242,10 +219,6 @@ func _montar_prop(p: Dictionary) -> void:
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.8
 		mi.material_override = mat
-		# capa 2: las mallas de fondo reciben ADEMAS la luz del display3D (la
-		# del mundo, cian 0.8, esta homologada para naves y no las levanta —
-		# sin esta luz los props se ven como sombras negras)
-		mi.layers = 1 | 2
 		nodo = mi
 	elif p.has("plano"):
 		var lado := float(p.get("escala", 1000.0))
