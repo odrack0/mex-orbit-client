@@ -245,7 +245,9 @@ F4), y el **polvo estelar** como partículas sueltas al mundo alrededor del foco
 saltos de rejilla — la capa que vende el vuelo. Todo del `data/maps/<code>.json` de siempre y
 determinista por mapa. **Dial del cielo**: la base del `cielo.gdshader` es espacio LINEAL — quedó
 en `(0.0012, 0.0016, 0.0040) + tinte·neb·0.012`; con los valores ×10 originales el cielo entero se
-lavaba a gris (~0.21 sRGB) y ahogaba las nebulosas — el DO real es casi negro con vetas tenues. Gates `-Autotest` y `-Salto` en verde. **Deuda de arte conocida**: las
+lavaba a gris (~0.21 sRGB) y ahogaba las nebulosas — el DO real es casi negro con vetas tenues.
+**Dial del polvo**: mota de 2.4 u (escala 0.5–1.0) con rampa de grises 0.28–0.52 — a 4 u y casi
+blanco, el polvo parecía "estrellas pegadas al mapa" quieto; debe leerse solo en movimiento. Gates `-Autotest` y `-Salto` en verde. **Deuda de arte conocida**: las
 nebulosas actuales no son tileables y el mosaico enseña costuras — pide arte con bordes que casen
 (o atlas de variantes), no más código.
 

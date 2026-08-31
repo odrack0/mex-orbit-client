@@ -252,20 +252,22 @@ func _montar_polvo(tinte: Color, tinte_ratio: float) -> void:
 	pm.initial_velocity_min = 2.0
 	pm.initial_velocity_max = 6.0
 	pm.gravity = Vector3.ZERO
-	pm.scale_min = 0.6
-	pm.scale_max = 1.6
-	# la variedad de color del original: grises con una fraccion tenida del mapa
+	pm.scale_min = 0.5
+	pm.scale_max = 1.0
+	# la variedad de color del original: grises con una fraccion tenida del mapa.
+	# TENUES a proposito: a casi blanco las motas parecian "estrellas pegadas al
+	# mapa" en vez de polvo — deben leerse solo en movimiento, no quietas.
 	var g := Gradient.new()
-	g.set_color(0, Color(0.55, 0.55, 0.55))
-	g.add_point(1.0 - tinte_ratio, Color(0.95, 0.95, 0.95))
-	g.set_color(1, tinte)
+	g.set_color(0, Color(0.28, 0.28, 0.28))
+	g.add_point(1.0 - tinte_ratio, Color(0.52, 0.52, 0.52))
+	g.set_color(1, tinte.darkened(0.4))
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_initial_ramp = gt
 	_polvo.process_material = pm
 
 	var q := QuadMesh.new()
-	q.size = Vector2(4.0, 4.0)
+	q.size = Vector2(2.4, 2.4)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
