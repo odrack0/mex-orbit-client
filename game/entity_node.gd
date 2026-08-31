@@ -114,9 +114,17 @@ static var _glb_solicitados := {}
 ## Cache de SpriteFrames de los FX de impacto (inmutables, se comparten).
 static var _sheets := {}
 
-# motores: una LLAMA por tobera (Sprite3D plano, anclado al cuerpo que gira)
-var _flames: Array[Sprite3D] = []
+# motores: un PENACHO de particulas por tobera — el thruster.awp del original
+# tal cual: 40 bolas de gradiente aditivas billboard disparadas a popa (vel
+# 5-6, accel 15-20 en unidades de su bola de 8), encogiendo 1->0.2 en 1 s de
+# vida, rampa negro->cian->BLANCO->cian->negro. Un quad plano se veia PLANO
+# desde la camara inclinada; las particulas tienen volumen desde cualquier
+# angulo. El factor k por nave (boca/5: su bola de 8 sale de una boca de ~5)
+# vive en la escala del nodo: con local_coords, escala tambien velocidades.
+var _flames: Array[GPUParticles3D] = []
 var _thrust := 0.0
+static var _pm_llama: ParticleProcessMaterial
+static var _malla_llama_cache: QuadMesh
 
 ## Diales del cuerpo articulado (alas/cola/cuernos/brazos), POR ESPECIE via
 ## JSON; los defaults se midieron con el Vexor. Sin cambios respecto a la era
@@ -395,15 +403,57 @@ func _montar_canones_json() -> void:
 		_canones.append(Vector2(float(canon.get("x", 0)), float(canon.get("y", 0))))
 
 
-## La llama de una tobera: Sprite3D plano anclado al cuerpo que gira, con el
-## pivote en la boquilla para crecer hacia la popa.
-func _crear_llama_en(punto: Vector3, trail: Dictionary, escala: float) -> void:
-	var tex: Texture2D = load("res://assets/fx/engine-flame.png")
-	var llama := Mundo3D.sprite_plano(tex, float(tex.get_height()) * escala)
+## El penacho de una tobera: GPUParticles3D anclado al cuerpo que gira, con
+## los valores del thruster.awp original. El material y la malla se comparten
+## (los numeros van en unidades de SU bola de 8; el tamano real lo pone la
+## escala del nodo, que ademas escala las velocidades por local_coords).
+func _crear_llama_en(punto: Vector3, _trail: Dictionary, escala: float) -> void:
+	if _pm_llama == null:
+		_pm_llama = ParticleProcessMaterial.new()
+		_pm_llama.direction = Vector3(0, 0, 1)      # a popa (+Z del modelo)
+		_pm_llama.spread = 4.0                      # el jitter x/y +-1 del awp
+		_pm_llama.initial_velocity_min = 5.0
+		_pm_llama.initial_velocity_max = 6.0
+		_pm_llama.linear_accel_min = 15.0
+		_pm_llama.linear_accel_max = 20.0
+		_pm_llama.gravity = Vector3.ZERO
+		var curva := Curve.new()                    # escala 1 -> 0.2 sobre la vida
+		curva.add_point(Vector2(0.0, 1.0))
+		curva.add_point(Vector2(1.0, 0.2))
+		var ct := CurveTexture.new()
+		ct.curve = curva
+		_pm_llama.scale_curve = ct
+		var g := Gradient.new()                     # negro->cian->BLANCO->cian->negro
+		g.set_color(0, Color(0, 0, 0))
+		g.add_point(0.2, Color(0, 0.8, 0.8))
+		g.add_point(0.4, Color(1, 1, 1))
+		g.add_point(0.6, Color(1, 1, 1))
+		g.add_point(0.8, Color(0, 0.8, 0.8))
+		g.set_color(1, Color(0, 0, 0))
+		var gt := GradientTexture1D.new()
+		gt.gradient = g
+		_pm_llama.color_ramp = gt
+	if _malla_llama_cache == null:
+		_malla_llama_cache = QuadMesh.new()
+		_malla_llama_cache.size = Vector2(8.0, 8.0)
+		var mat := StandardMaterial3D.new()
+		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+		mat.vertex_color_use_as_albedo = true
+		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		mat.albedo_texture = load("res://assets/fx/simple-gradient.png")
+		_malla_llama_cache.material = mat
+	var llama := GPUParticles3D.new()
+	llama.amount = 40
+	llama.lifetime = 1.0
+	llama.preprocess = 1.0        # el penacho existe desde el primer frame
+	llama.local_coords = true     # sigue a la nave, como el follow del original
+	llama.process_material = _pm_llama
+	llama.draw_pass_1 = _malla_llama_cache
 	llama.position = punto
-	llama.offset = Vector2(0, -tex.get_height() * 0.5)  # crece hacia la popa (+Z)
-	llama.modulate = AssetDefs.color(trail.get("color", "00E5FF"))
-	llama.set_meta("base", escala)
+	# k por nave: la bola de 8 del original sale de una boca de ~5
+	llama.set_meta("k", escala * 20.0 / 5.0)
 	_giro3d.add_child(llama)
 	_flames.append(llama)
 
@@ -504,12 +554,13 @@ func _process(delta: float) -> void:
 			_thrust = minf(_thrust + 3.0 * delta, empuje_objetivo)
 		else:
 			_thrust = maxf(_thrust - 4.0 * delta, empuje_objetivo)
-		var respiro := 1.0 + 0.10 * sin(Time.get_ticks_msec() * 0.02 + entity_id)
+		# el original escala el thruster entero 0/0.7/1 (lerp por frame): con
+		# local_coords la escala del nodo encoge bola Y velocidades a la vez
 		for llama in _flames:
 			llama.visible = _thrust > 0.02
-			var base: float = llama.get_meta("base", 1.0)
-			llama.scale = Vector3(0.55 + 0.15 * _thrust, 1.0, maxf(_thrust * respiro, 0.01)) * base
-			llama.modulate.a = 0.35 + 0.65 * _thrust
+			llama.emitting = llama.visible
+			var k: float = llama.get_meta("k", 1.0)
+			llama.scale = Vector3.ONE * maxf(_thrust, 0.01) * k
 
 	# atlas del quad: mismos fotogramas, mismo vaiven
 	if _anim_total > 0 and _sprite3d != null:
