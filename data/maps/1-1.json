@@ -44,9 +44,10 @@
     { "malla": "res://assets/do-ref/cluster_mars_small_asteroid04.obj", "tex": "res://assets/do-ref/asteroid.png",
       "x": 7700, "y": -1200, "z": 2000, "escala": 0.3, "rot_x": -15,
       "spin": { "x": 2.5, "z": 0.75 } },
-    { "plano": true, "tex": "res://assets/do-ref/planet114.png",
-      "x": -15005, "y": -43301, "z": 0, "escala": 60000, "rot_x": -45 },
+    { "_nota": "El planeta-horizonte. DO lo colgaba al suroeste porque su camara llevaba pan 25; la nuestra mira fija al norte, asi que va al cielo noroeste, inclinado hacia la camara. Se calibra volando.",
+      "plano": true, "tex": "res://assets/do-ref/planet114.png",
+      "x": -5000, "y": -28000, "z": -25000, "escala": 60000, "rot_x": -55 },
     { "plano": true, "aditivo": true, "tex": "res://assets/do-ref/background1.png",
-      "x": -15005, "y": -43310, "z": 0, "escala": 50000, "rot_x": -45 }
+      "x": -5200, "y": -28400, "z": -25400, "escala": 50000, "rot_x": -55 }
   ]
 }
