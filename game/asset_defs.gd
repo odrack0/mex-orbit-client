@@ -27,23 +27,20 @@ const LUZ_MUNDO_GRADOS := 315.0
 ## eso invita a que alguien las toque por bicho sin darse cuenta de que rompe la
 ## unidad de la escena.
 ##
-## PUERTO DEL LEGACY (DarkOrbit, ago-2026). El cliente Flash tenia el sol tenido
-## de CIAN (0xA3FFFF) con diffuse 0.8; se adopta tal cual — es la mitad "fria" del
-## contraste de mundo del original, y el tinte cae sobre la cara iluminada de todo.
-## Antes era blanco a 1.0; el 1.0 venia de que Blender horneaba media con un sol de
-## 3,2 que caia cerca. Con 0.8 esa equivalencia cambia: HORNO_SOL de cada bicho se
-## re-deriva y media se rehornea (ver OJO del ambiente).
-const LUZ_MUNDO_COLOR := Color("a3ffff")
-const LUZ_MUNDO_ELEVACION := -54.0
-const LUZ_MUNDO_ENERGIA := 0.8
-
-## La ELEVACION es la que da el tilt=100 del legacy (~54 grados bajo la horizontal);
-## el AZIMUT no se porta y se queda en LUZ_MUNDO_GRADOS a proposito: ese numero lo
-## comparte el relieve 2D, y el pan del legacy (un azimut de mundo 3D en un juego
-## cenital) no tiene mapeo limpio a los grados de pantalla del shader. Cambiarlo
-## desincronizaria la luz de los assets 2D respecto a los bichos 3D — dos recortes
-## pegados con la luz viniendo de sitios distintos. Si algun dia se quiere rotar,
-## se rota AQUI y arrastra a los dos mundos a la vez.
+## LA LUZ DEL display3D (dictamen 31-ago-2026: "tal cual DarkOrbit 3D, pero en
+## Godot"). Los defaults del XML <light> del original: color BLANCO, diffuse 1,
+## specular 0.7, tilt 100, pan 35 — es LA luz de los mapas 3D y bania naves,
+## bichos y props de fondo por igual. El cian 0.8 anterior venia de otro rincon
+## del legacy y despegaba los props del ambiente. OJO homologacion: cambiar esto
+## descalibra el horneado de media (HORNO_SOL); media se rehornea despues.
+const LUZ_MUNDO_COLOR := Color.WHITE
+const LUZ_MUNDO_ENERGIA := 1.0
+const LUZ_MUNDO_ESPECULAR := 0.7
+## Direccion por la formula esferica del original (la de su camara/luz):
+## offset = (sin t sin p, -cos t, -sin t cos p) con t=tilt 100, p=pan 35,
+## apuntando al origen y con la z espejada a Godot.
+const LUZ_MUNDO_TILT := 100.0
+const LUZ_MUNDO_PAN := 35.0
 
 ## La luz de FONDO del mundo 3D y el tonemap, hermanas de las de arriba y con el
 ## mismo contrato: son del MUNDO, no del asset. Estaban copiadas a mano en OCHO
@@ -51,15 +48,14 @@ const LUZ_MUNDO_ENERGIA := 0.8
 ## 0.35 propio), asi que subir el ambiente exigia acertar ocho ediciones o la
 ## homologacion mentia segun que escena midiera.
 ##
-## PUERTO DEL LEGACY: el original rellenaba con un ambiente NARANJA CALIDO
-## (0xFF855C) a 0.5 — la mitad "calida" que complementa el key cian. Antes era azul
-## frio a 0.65 (para "leer el espacio como espacio"); el original hacia lo contrario
-## y se adopta su criterio. Se conserva el tonemap FILMIC, que es de Godot y no del
-## legacy, porque el lineal aplana los medios.
+## El AMBIENTE del display3D (defaults del XML <light>): 0xFFA5AE a 0.2 — el
+## relleno rosado tenue del original. El 0.5 anterior lavaba los colores de los
+## props (se veian vivos, despegados del entorno). Se conserva el tonemap
+## FILMIC, que es de Godot y no del legacy, porque el lineal aplana los medios.
 ## OJO: cambiar esto descalibra el HORNO_AMBIENTE de cada bicho horneado — media
 ## se rehornea y se rehomologa con medir_emision, no se deja a ojo.
-const LUZ_MUNDO_AMBIENTE_COLOR := Color("ff855c")
-const LUZ_MUNDO_AMBIENTE := 0.5
+const LUZ_MUNDO_AMBIENTE_COLOR := Color("ffa5ae")
+const LUZ_MUNDO_AMBIENTE := 0.2
 
 ## La LUZ DEL HEROE: un punto azul (0x2E7DFF, diffuse 0.6) pegado a tu propia nave,
 ## portado del legacy. AVISO de arquitectura: en el original vivia en el mundo
@@ -120,7 +116,12 @@ static func sol_mundo(energia := LUZ_MUNDO_ENERGIA) -> DirectionalLight3D:
 	var sol := DirectionalLight3D.new()
 	sol.light_color = LUZ_MUNDO_COLOR
 	sol.light_energy = energia
-	sol.rotation = Vector3(deg_to_rad(LUZ_MUNDO_ELEVACION), deg_to_rad(LUZ_MUNDO_GRADOS), 0.0)
+	sol.light_specular = LUZ_MUNDO_ESPECULAR
+	var t := deg_to_rad(LUZ_MUNDO_TILT)
+	var p := deg_to_rad(LUZ_MUNDO_PAN)
+	# posicion esferica del original -> direccion hacia el origen, z espejada
+	var dir := -Vector3(sin(t) * sin(p), -cos(t), sin(t) * cos(p)).normalized()
+	sol.basis = Basis.looking_at(dir, Vector3.UP)
 	sol.shadow_enabled = false
 	return sol
 
