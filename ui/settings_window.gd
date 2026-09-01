@@ -17,9 +17,9 @@ const ICONO := "res://assets/ui/icons/gear.svg"
 const ANCHO := 344                # el ancho del `#w-cfg` del prototipo
 const ORDEN := ["baja", "media", "alta"]
 const DETALLE := {
-	"baja": "Sin efectos ni capas emisivas · lo mínimo para volar",
-	"media": "Arte fijo con sus efectos · sin los atlas animados",
-	"alta": "Aliens, caja y portal animados · fondo con todas sus capas",
+	"baja": "Todo en 3D a media resolución · sin antialias · solo el sol · llamas solo en tu nave",
+	"media": "Render a 0,75× · antialias 2× · luz de tu nave · polvo estelar",
+	"alta": "Resolución completa · antialias 4× · todas las luces · nebulosas y planetas",
 }
 
 var _segmentos := {}
@@ -56,9 +56,10 @@ func _cuerpo() -> void:
 	contenido.add_child(sep)
 
 	# Los dos numeros que hacen falta para ELEGIR un preajuste, no para adornar:
-	# cuantos fotogramas da la maquina y cuanta textura hay cargada. La memoria
-	# baja de golpe al pasar de alta a media —ahi es donde se sueltan los atlas—,
-	# asi que el efecto del ajuste se ve en el propio ajuste.
+	# cuantos fotogramas da la maquina y cuanta textura hay cargada. Desde que
+	# todo es 3D la textura casi no cambia con el nivel (lo que baja es la
+	# resolucion del render y el antialias), asi que el numero que responde al
+	# ajuste es el de fotogramas.
 	_fps = _fila_numero("Fotogramas por segundo")
 	_vram = _fila_numero("Memoria de textura")
 

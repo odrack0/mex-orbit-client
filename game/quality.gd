@@ -6,6 +6,16 @@
 # `Quality.nivel("engine") > 0`. Los tres presets solo mueven ese diccionario, y
 # eso deja la puerta abierta a un "personalizado" sin rehacer nada.
 #
+# TODO ES 3D; CADA NIVEL SOLO QUITA COSTE (1-sep-2026). La escalera anterior
+# venia del cliente 2D: "alta" era la malla y media/baja eran el PNG horneado
+# del mismo modelo, tumbado en el plano. Con la escena unica eso no describia
+# nada — un PNG cenital bajo una camara a 45 grados se ve roto, y no ahorra:
+# cambia QUE es la cosa, no cuanto cuesta. Ahora una nave es siempre su malla
+# y lo que baja con el nivel es lo que de verdad pesa: la resolucion del render
+# 3D (la palanca grande de GPU, invisible al ojo en el primer escalon), el
+# antialias, las luces dinamicas, las particulas y las capas del fondo. Lo
+# que no cuesta (el pulso emisivo, la explosion) existe en todos los niveles.
+#
 # Se persiste en user:// y POR CUENTA: dos personas que comparten un PC guardan
 # ajustes distintos, y a la vez el valor NO viaja con la cuenta a otra maquina —
 # la calidad es una capacidad del equipo, no una preferencia de la partida.
@@ -17,34 +27,40 @@ signal cambiada(claves: Array)
 const RUTA := "user://quality.cfg"
 
 ## Que controla cada clave:
-##  - npc:         0-1 PNG fijo · 2+ atlas animado (los videos en bucle)
-##  - shader:      0 sin ondulacion/peristalsis/anillos · 1+ con ellos
-##  - emissive:    0 capa emisiva apagada · 1+ encendida y pulsando
-##  - engine:      0 sin llamas · 1+ llamas (el nivel 2 era las chispas, que se quitaron)
-##  - collectable: 0-1 caja congelada en su primer fotograma · 2+ animada
-##  - background:  0 solo estrellas · 1 fondo sin mosaicos · 2+ completo
-##  - explosion:   0 sin animacion de explosion · 1+ con ella
+##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,5x ·
+##                 1 = 0,75x · 2 = 1x. El 2D (HUD, ventanas) no escala nunca.
+##  - aa:          MSAA del 3D: 0 ninguno · 1 = 2x · 2 = 4x (el 8-16x del
+##                 original no paga en Vulkan; medido en el plan del cliente 3D).
 ##  - luces:       las DINAMICAS del mundo 3D (F2): 0 ninguna · 1 heroe + una
 ##                 de efecto · 2 heroe + el pool de 3 (el presupuesto del
 ##                 original, G§7.2). El sol no se apaga nunca: sin el, las
 ##                 mallas son siluetas.
+##  - engine:      llamas: 0 solo las del heroe, a media particula (un emisor
+##                 por NPC es lo unico que escala con 54 bichos; el original
+##                 tambien las reservaba a HIGH) · 1 todas, a media particula ·
+##                 2 todas, completas (+ estela cuando llegue, FASE 4).
+##  - background:  0 solo skybox · 1 + polvo estelar (1500 quads en mosaico) ·
+##                 2 + nebulosas, planetas y flares.
+##  - collectable: 0 props quietos (la estacion no late) · 1 animados.
+##  - explosion:   0 sin animacion de explosion · 1 con ella. Existe en los
+##                 tres presets; solo la auto-calidad llega a apagarla.
+##  - emissive:    0 emision fija (sin pulso ni lava) · 1 pulsando. Idem.
 var niveles := {
-	"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
-	"collectable": 2, "background": 2, "explosion": 1, "luces": 2,
+	"render": 2, "aa": 2, "luces": 2, "engine": 2,
+	"background": 2, "collectable": 1, "explosion": 1, "emissive": 1,
 }
 
-## Los tres preajustes. El corte caro esta entre MEDIA y ALTA: ahi es donde los
-## atlas animados dejan de cargarse y se liberan ~58 MB de VRAM.
-## MEDIA conserva los shaders a proposito — cuestan casi nada (una operacion de
-## fragment sobre un sprite que ya se dibuja) y son lo unico que da vida a los
-## bichos que nunca tendran video.
+## Los tres preajustes. BAJA es "todo lo de ALTA, mas barato" con UNA excepcion
+## tomada del original: las llamas de los NPC — lo unico que escala con el
+## numero de entidades. Todo lo demas es coste fijo y se ataca mejor con la
+## resolucion y el antialias, que son invisibles al ojo y muy visibles al fps.
 const PRESETS := {
-	"baja":  {"npc": 0, "shader": 0, "emissive": 0, "engine": 0,
-			  "collectable": 0, "background": 0, "explosion": 0, "luces": 0},
-	"media": {"npc": 1, "shader": 1, "emissive": 1, "engine": 1,
-			  "collectable": 1, "background": 1, "explosion": 1, "luces": 1},
-	"alta":  {"npc": 2, "shader": 1, "emissive": 1, "engine": 1,
-			  "collectable": 2, "background": 2, "explosion": 1, "luces": 2},
+	"baja":  {"render": 0, "aa": 0, "luces": 0, "engine": 0,
+			  "background": 0, "collectable": 0, "explosion": 1, "emissive": 1},
+	"media": {"render": 1, "aa": 1, "luces": 1, "engine": 1,
+			  "background": 1, "collectable": 1, "explosion": 1, "emissive": 1},
+	"alta":  {"render": 2, "aa": 2, "luces": 2, "engine": 2,
+			  "background": 2, "collectable": 1, "explosion": 1, "emissive": 1},
 }
 
 const ETIQUETAS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
@@ -63,13 +79,17 @@ const AQ_VENTANA_SEC := 20.0
 const AQ_FPS_BAJA := 10.0
 const AQ_FPS_SUBE := 60.0
 ## La escalera de recortes, del mas barato al mas doloroso. Cada peldanio es un
-## mapa de TOPES por clave; lo que no aparece no se toca.
+## mapa de TOPES por clave; lo que no aparece no se toca. Los dos primeros
+## (antialias, resolucion) no se ven; el ultimo es el que el original tambien
+## reservaba para el final: sin explosiones ni pulso.
 const AQ_ESCALERA := [
 	{},
-	{"background": 1},
-	{"background": 1, "engine": 0, "luces": 1},
-	{"background": 1, "engine": 0, "luces": 1, "explosion": 0},
-	{"background": 1, "engine": 0, "luces": 0, "explosion": 0, "npc": 1, "collectable": 1},
+	{"aa": 0},
+	{"aa": 0, "render": 1},
+	{"aa": 0, "render": 1, "background": 1, "engine": 1},
+	{"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 1},
+	{"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 0,
+	 "collectable": 0, "explosion": 0, "emissive": 0},
 ]
 var auto_reduccion := 0
 var _aq_acum := 0.0

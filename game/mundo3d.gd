@@ -82,6 +82,30 @@ func _ready() -> void:
 		add_child(luz)
 		_luces.append(luz)
 	actualizar(Vector2.ZERO)
+	aplicar_calidad_render()
+
+
+## Las dos palancas de GPU de la calidad (`render` y `aa`), sobre el viewport
+## raiz: la escala del render 3D y el MSAA. El 2D (HUD, ventanas) no escala —
+## el viewport solo reescala su buffer 3D y lo compone al tamanio de la
+## ventana; con el estiramiento `canvas_items` del proyecto la interfaz sigue
+## nitida. Es la unica parte de la calidad que no reconstruye nada: se aplica
+## en caliente y el siguiente frame ya sale asi.
+const ESCALAS_RENDER := [0.5, 0.75, 1.0]
+const MSAA := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]
+
+func aplicar_calidad_render() -> void:
+	var vp := get_viewport()
+	if vp == null:
+		return
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = ESCALAS_RENDER[clampi(Quality.nivel("render"), 0, 2)]
+	vp.msaa_3d = MSAA[clampi(Quality.nivel("aa"), 0, 2)]
+	# se deja dicho, como la auto-calidad: es lo unico que permite saber desde
+	# un log si el ajuste llego al viewport o se quedo en el diccionario
+	print("Calidad: render %.2fx (viewport %.2fx) · MSAA %s" % [
+		ESCALAS_RENDER[clampi(Quality.nivel("render"), 0, 2)], vp.scaling_3d_scale,
+		["off", "2x", "4x"][clampi(Quality.nivel("aa"), 0, 2)]])
 
 
 ## Un destello del pool: sube de golpe y se funde solo. Cuantas luces hay

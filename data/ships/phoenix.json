@@ -1,94 +1,27 @@
 {
   "_comentario": "Phoenix: la nave inicial es una CAPSULA de rescate, no un caza. Cuatro toberas en la popa y dos tubos laser a los costados. Coordenadas de anclaje en el espacio de la TEXTURA (origen en su centro, eje Y hacia la popa), independientes de la escala del export.",
   "code": "phoenix",
-  "emissive": "res://assets/ships/phoenix-emissive.png",
-  "texture": "res://assets/ships/phoenix-base.png",
   "_modelo": "Malla 3D para calidad ALTA. Las toberas y las bocas de canion NO salen de `engines`/`cannons`: esos estan en pixeles de la textura 2D vieja y en 3D el sprite no gira. Salen de los marcadores tobera_*/canon_* del GLB, en unidades del modelo, colgados de un nodo que si gira con el rumbo.",
   "modelo": "res://assets/ships/phoenix.glb",
   "screen_size": 141,
   "click_radius": 48,
   "_anclajes": "MEDIDOS, no estimados: py -3 tools/find-anchors.py exports/phoenix.png geom. El modo emisivo no sirve con esta nave — sus campanas son metal apagado y no tiene un solo pixel encendido. El modo geom las encuentra por la silueta: la fila mas baja donde los cuatro salientes de popa siguen separados.",
-  "_engines": "SEIS bocas, no cuatro: la popa es un ANILLO de campanas y en cenital los dos pares superiores proyectan encima de los inferiores (por eso hay dos casi repetidas: son campanas distintas a alturas distintas). Los calcula hornear-sprite de los marcadores del GLB, que se midieron en 3D con medir_campanas y van con x@z en marcar-anclajes.",
-  "engines": [{"x": -60, "y": 246, "scale": 1.332}, {"x": -26, "y": 246, "scale": 1.332}, {"x": -24, "y": 246, "scale": 1.332}, {"x": 24, "y": 246, "scale": 1.332}, {"x": 24, "y": 246, "scale": 1.332}, {"x": 59, "y": 246, "scale": 1.332}],
   "_estela": "Solo LLAMA por tobera. La estela de chispas se quito: se soltaban al mundo con 0,38 s de vida y la nave las adelantaba, asi que no se leian por detras sino como motas encima del casco. De `engine_trail` solo queda `color`, que es lo unico que usa la llama; length, width, lifetime y core_color eran de las chispas y se fueron con ellas.",
   "engine_trail": {
     "color": "00E5FF"
   },
   "_canones": "Boca de cada tubo lateral, medida en la fila donde asoman del casco (y=197, al 91% del semiancho). El filtro de 'bien afuera' del tool importa: sin el cogia los asideros curvos del domo, que estan al 64%.",
   "_cannons": "Pixeles de phoenix-base.png. Los calcula hornear-sprite.py de los marcadores del GLB: es el unico que conoce la proyeccion con la que se hornea. Los de antes (±165, -59) eran del arte 2D viejo y caian a 17 px de las torretas.",
-  "cannons": [{"x": -147, "y": -88}, {"x": 146, "y": -89}],
+  "cannons": [
+    {
+      "x": -147,
+      "y": -88
+    },
+    {
+      "x": 146,
+      "y": -89
+    }
+  ],
   "_render": "v2 (source/renders/Phoenix-v2.jpeg): render limpio, sin la suciedad ni los rotulos de la v1. El motivo no es gusto: la nave se dibuja a 141 px y el zoom baja hasta 0,1, asi que los rotulos de 5 px de la v1 no eran detalle, eran ruido. Medido a tamanio de juego, la v2 tiene 43,6 de contraste contra 31,1 y a 35 px sigue leyendose como nave.",
-  "_pendiente": "La v2 es un render de arcilla: gris neutro, SIN un solo acento de faccion. El cian solo entra por la estela de motores. Falta decidir si el casco lleva acento cian propio.",
-  "_variantes": "DOS renders de la misma nave, para poder compararlos en juego. Cambiar de uno a otro es copiar `texture`, `engines` y `cannons` del bloque _v1 o _v2 a los campos de arriba: los anclajes NO son intercambiables, cada render tiene los suyos y mezclarlos pone la estela y los laseres donde no hay tobera ni canon. Cuando se decida, se borra el perdedor.",
-  "_v1": {
-    "texture": "res://assets/ships/phoenix-base.png",
-    "engines": [
-      {
-        "x": -58,
-        "y": 238,
-        "scale": 1.0
-      },
-      {
-        "x": -25,
-        "y": 238,
-        "scale": 1.0
-      },
-      {
-        "x": 24,
-        "y": 238,
-        "scale": 1.0
-      },
-      {
-        "x": 57,
-        "y": 238,
-        "scale": 1.0
-      }
-    ],
-    "cannons": [
-      {
-        "x": -165,
-        "y": -59
-      },
-      {
-        "x": 165,
-        "y": -59
-      }
-    ],
-    "_nota": "Render fotorrealista con suciedad y rotulos. 31,1 de contraste a 141 px. Cuatro toberas.",
-    "normal": "res://assets/ships/phoenix-base-normal.png"
-  },
-  "_v2": {
-    "texture": "res://assets/ships/phoenix-v2.png",
-    "engines": [
-      {
-        "x": -43,
-        "y": 234,
-        "scale": 1.0
-      },
-      {
-        "x": -1,
-        "y": 234,
-        "scale": 1.0
-      },
-      {
-        "x": 42,
-        "y": 234,
-        "scale": 1.0
-      }
-    ],
-    "cannons": [
-      {
-        "x": -202,
-        "y": -138
-      },
-      {
-        "x": 202,
-        "y": -138
-      }
-    ],
-    "_nota": "Render limpio. 43,6 de contraste a 141 px; a 35 px se sigue leyendo como nave. Tres toberas con boca visible.",
-    "normal": "res://assets/ships/phoenix-v2-normal.png"
-  },
-  "normal": "res://assets/ships/phoenix-base-normal.png",
-  "_relieve": "Mapa de normales derivado del propio render (tools/gen-normal.py). No da volumen —la silueta sigue plana— pero al virar el reflejo BARRE el casco, que es lo que distingue un objeto de una calcomania. La direccion de la luz NO esta aqui: es una sola para todo el mundo y vive en AssetDefs.LUZ_MUNDO_GRADOS."
+  "_pendiente": "La v2 es un render de arcilla: gris neutro, SIN un solo acento de faccion. El cian solo entra por la estela de motores. Falta decidir si el casco lleva acento cian propio."
 }

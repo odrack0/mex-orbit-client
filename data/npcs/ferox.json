@@ -1,25 +1,23 @@
 {
   "_comentario": "Ferox: tercera especie, cazador oseo. Es el primer bicho CLARO del catalogo (hueso marfil frente a la quitina y el basalto oscuros): se distingue por valor, no solo por silueta. Su pulso es rapido y nervioso, de depredador.",
   "code": "ferox",
-  "texture": "res://assets/npcs/ferox-base.png",
-  "emissive": "res://assets/npcs/ferox-emissive.png",
-  "_modelo": "Malla 3D con esqueleto para calidad ALTA. La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre. Los tres PNG de media y baja se hornean de este MISMO modelo. Los ojos y las vetas encienden por el pulso sobre la emision del material (canal r del albedo), sin capa aparte.",
+  "_modelo": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Los ojos y las vetas encienden por el pulso sobre la emision del material (canal r del albedo), sin capa aparte.",
   "modelo": "res://assets/npcs/ferox.glb",
   "_alas": "Las CUCHILLAS de los brazos. Eje 1 medido con repro_eje_hueso: a +30 se pliegan al cuerpo y a -30 se abren en abanico, sin cruzarse en ningun extremo; a 190 px cada extremo cambia la silueta un 30%. Ciclo mas corto que el Vexor (2.17): es el cazador nervioso del catalogo.",
-  "alas": {"grados": 30.0, "ciclo": 1.6, "eje": 1},
+  "alas": {
+    "grados": 30.0,
+    "ciclo": 1.6,
+    "eje": 1
+  },
   "_cola": "Latigo lateral. Eje 2 medido: el 1 apenas la mueve en cenital y el 0 nada (0.4% de silueta). La cola es el 30% trasero del bicho (bisagra medida: el perfil salta de 0.116 a 0.500 entre frac 0.30 y 0.34), asi que la onda de tres segmentos se ve entera.",
-  "cola": {"grados": 12.0, "ciclo": 1.2, "desfase": 0.22, "eje": 2},
+  "cola": {
+    "grados": 12.0,
+    "ciclo": 1.2,
+    "desfase": 0.22,
+    "eje": 2
+  },
   "screen_size": 190,
   "click_radius": 54,
-  "_onda": "Ondulacion por shader (game/shaders/undulate.gdshader). amplitude en UV, from = desde donde empieza a doblarse (0 nariz, 1 cola), idle = cuanto ondula parado.",
-  "undulate": {
-    "amplitude": 0.03,
-    "frequency": 2.6,
-    "speed": 4.0,
-    "from": 0.55,
-    "idle": 0.25
-  },
-  "engines": [],
   "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. cazador: el que mas rapido encara, acorde a sus 420 de velocidad",
   "turn": {
     "steps": 0,
@@ -30,25 +28,5 @@
     "max_intensity": 2.8,
     "speed": 4.2,
     "sharpness": 2.0
-  },
-  "_titileo": "El `flicker` es ahora SOLO para el camino fijo: con atlas no se monta ningun shader de cuerpo, porque la luz ya viene cocida en los fotogramas. En media y baja las costuras siguen latiendo con su grano grueso.",
-  "flicker": {
-    "amount": 0.4,
-    "scale": 3.0,
-    "speed": 2.4
-  },
-  "_asset": "ATLAS ANIMADO. Celda de 320 para 190 px en pantalla. Cuesta 19,1 MB.",
-  "_bucle": "El mejor cierre del catalogo: 0,5 veces el paso normal — la costura salta MENOS que avanzar un fotograma cualquiera. El video ya venia a 1,11x entero; recortando dos fotogramas al mejor cierre baja a 0,5. No hay nada que arreglar aqui.",
-  "_no_recortar_mas": "Hay un valle secundario en 0:29 (1,49x) que ahorraria 7 MB, y NO se usa. Un sub-bucle solo vale si cierra IGUAL DE BIEN que el entero —asi se sabe que el ciclo de verdad se repite, como en el Vexor—; si cierra peor, no es un ciclo repetido sino un parecido, y recortar ahi quita movimiento real. Es la leccion del Gravon aplicada al reves.",
-  "frames": {
-    "atlas": "res://assets/npcs/ferox-anim.png",
-    "hframes": 7,
-    "vframes": 7,
-    "count": 46,
-    "fps": 12,
-    "normal": "res://assets/npcs/ferox-anim-normal.png"
-  },
-  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad.",
-  "normal": "res://assets/npcs/ferox-base-normal.png",
-  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
+  }
 }

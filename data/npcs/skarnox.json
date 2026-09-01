@@ -1,28 +1,15 @@
 {
   "_comentario": "Skarnox: la forma mayor del Skarn (sufijo -ox) y el bicho mas grande del 1-1. Late aun mas lento que el Skarn y llega mas alto en el pico: sus fracturas abiertas dejan ver el nucleo fundido, asi que el destello tiene que sobreexponer.",
   "code": "skarnox",
-  "_asset": "ATLAS ANIMADO, no PNG. Segundo tipo de asset del catalogo, reservado a los bichos de arriba de la escalera: cuesta 27 MB de VRAM, pero en el 1-1 solo hay DOS Skarnox — es el que menos se repite de las nueve especies. La jerarquia del bestiario decide sola quien lo merece.",
-  "frames": {
-    "atlas": "res://assets/npcs/skarnox-anim.png",
-    "hframes": 7,
-    "vframes": 7,
-    "count": 43,
-    "fps": 12,
-    "normal": "res://assets/npcs/skarnox-anim-normal.png"
-  },
   "screen_size": 248,
   "click_radius": 84,
-  "engines": [],
   "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. el mas pesado del 1-1; media vuelta le lleva casi 6 s",
   "turn": {
     "steps": 0,
     "deg_per_sec": 32
   },
-  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas.",
   "_modelo": "Malla 3D para calidad ALTA (tiene prioridad sobre `frames`). Es una BOLA: sin alas, cola ni cuernos — esqueleto de solo raiz, y su vida visual es el pulso sobre la emision del material (grietas y nucleo, canal r del albedo). El crater mira a la camara: el crudo lo traia hacia -Y y el tumbado estandar de -90 en X lo dejo en el alto, verificado con render, no con la caja (es una esfera 1.90x1.87x1.90, el eje fino es ruido).",
   "modelo": "res://assets/npcs/skarnox.glb",
-  "texture": "res://assets/npcs/skarnox-base.png",
-  "emissive": "res://assets/npcs/skarnox-emissive.png",
   "_pulso_subido": "max 2.6 -> 4.2: a 2.6 las grietas rondaban 1.0 justo en el umbral del bloom y el pico casi no se veia. Y el MINIMO a 1.2, no a 0.2: con sharpness 3.4 el latido pasa casi todo el ciclo en el valle, y un valle oscuro apagaba la lava la mayor parte del tiempo. La lava no se apaga — el suelo la deja siempre encendida y el pico solo sobreexpone encima.",
   "pulse": {
     "min_intensity": 1.2,
@@ -32,26 +19,13 @@
   },
   "_luz": "SIN bloque `luz`: se probo la luz propia (barrido 0/0 -> 0.15 -> 0.2 -> 0.25 -> 0.5) y se decidio volver a la luz del mundo. El mecanismo sigue en entity_node/medir_emision si se quiere retomar; el precio esta descrito en el skill.",
   "_alas": "El Skarnox no tiene alas: `ciclo` aqui solo fija el RELOJ del destello 3D, que va atado al de las alas. Sin esto heredaba los 2.17 s del Vexor — el latido de otro bicho; 6 s es su caracter: late lento y llega alto.",
-  "alas": {"ciclo": 6.0},
+  "alas": {
+    "ciclo": 6.0
+  },
   "_lava": "Lava que VIAJA (solo calidad alta): pase aditivo lava_flujo.gdshader como next_pass del material. El ruido corre sobre la posicion local (los islotes de UV de Meshy partirian el flujo) y late en fase con el pulso. amount = cuanto aniade sobre el pulso, scale = tamanio de las lenguas en unidades del modelo, speed = que tan rapido viaja la claridad.",
   "lava": {
     "amount": 1.8,
     "scale": 4.0,
     "speed": 0.25
-  },
-  "_fuego": "Estos efectos son para el camino FIJO (calidad media y baja): en alta manda el atlas del video, que ya trae su propio fuego. Sin ellos, el hermano mayor se veria mas muerto que el Skarn al bajar la calidad.",
-  "peristalsis": {
-    "amount": 1.3,
-    "frequency": 1.4,
-    "speed": 1.1,
-    "sharpness": 2.4,
-    "radial": true
-  },
-  "flicker": {
-    "amount": 0.3,
-    "scale": 6.0,
-    "speed": 0.7
-  },
-  "normal": "res://assets/npcs/skarnox-base-normal.png",
-  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset."
+  }
 }

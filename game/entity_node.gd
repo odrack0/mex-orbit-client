@@ -2,8 +2,9 @@
 # MODELO logico (posicion de juego, interpolacion, reconcile, combate — nada de
 # eso cambio), pero su cuerpo visual ya no es un sprite de canvas ni un
 # SubViewport aislado: es un Node3D en la ESCENA UNICA (Mundo3D), como el
-# original. Con malla GLB si el asset la tiene; con su PNG/atlas tumbado en el
-# plano si no — el placeholder del cliente 3D original (G§5.5).
+# original. Con malla GLB si el asset la tiene; sin malla, el cuerpo queda VACIO
+# (invisible) hasta tenerla: el PNG tumbado murio con la calidad por niveles
+# (1-sep-2026, ver el README: "Calidad grafica").
 #
 # El HUD (nombre + barras + marcador) vive en la capa 2D del mundo y se
 # reposiciona proyectando la posicion 3D a pantalla: tamanio constante, como el
@@ -85,9 +86,7 @@ var _def := {}
 # ---- cuerpo 3D (vive en Mundo3D, no bajo este nodo) ----
 var _cuerpo: Node3D              # raiz: lleva la POSICION en el mundo
 var _giro3d: Node3D              # hija: lleva rumbo + banking + hover
-var _modelo: Node3D              # la malla GLB, o null si el cuerpo es un quad
-var _sprite3d: Sprite3D          # el quad tumbado (PNG o atlas), o null
-var _emissive3d: Sprite3D        # capa emisiva del quad, pulsando
+var _modelo: Node3D              # la malla GLB, o null mientras llega por el hilo
 var _mats_3d: Array[BaseMaterial3D] = []
 var _lava_3d: Array[ShaderMaterial] = []
 var _huesos_3d := {}
@@ -156,13 +155,7 @@ var _cuernos_min := 0.0
 var _cuernos_max := 0.0
 var _cuernos_eje := 1
 
-# atlas animado (cuerpo quad): mismos diales que siempre
-var _anim_total := 0
-var _anim_vaiven := false
-var _anim_fps := 12.0
-var _anim_t := 0.0
-
-# pulso emisivo (capa del quad o materiales del GLB)
+# pulso emisivo (materiales del GLB)
 var _pulse_min := 0.2
 var _pulse_max := 2.4
 var _pulse_speed := 2.6
@@ -210,8 +203,13 @@ func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 
 
 ## Todo lo que depende de la CALIDAD vive aqui, para poder rehacerlo en caliente.
-## Construye el cuerpo 3D en la escena unica: malla GLB en alta si el asset la
-## tiene; si no (o mientras el GLB llega por el hilo), su PNG/atlas tumbado.
+## Construye el cuerpo 3D en la escena unica: la malla GLB, en TODOS los niveles
+## — la calidad ya no cambia que es una nave, solo cuanto cuesta (luces, llamas,
+## emision). Sin `modelo` en el JSON, o mientras el GLB llega por el hilo, el
+## cuerpo queda vacio: la entidad existe (HUD, click, combate) pero no se ve.
+## Decision del 1-sep: el PNG tumbado se retiro entero en vez de dejarlo de
+## respaldo — un respaldo que nadie mira es la forma de que seis especies se
+## queden sin malla para siempre.
 func _construir_visual() -> void:
 	var d := _def
 	_cuerpo = Node3D.new()
@@ -219,68 +217,20 @@ func _construir_visual() -> void:
 	_cuerpo.add_child(_giro3d)
 	Mundo3D.instancia.add_child(_cuerpo)
 	_cuerpo.position = Vector3(position.x, 0.0, position.y)
-
-	if Quality.nivel("npc") >= 2 and str(d.get("modelo", "")) != "":
-		if _construir_malla_3d(d):
-			return
-	_construir_quad(d)
-
-
-## El cuerpo como QUAD tumbado: el arte cenital de siempre sobre el plano del
-## juego. Es el placeholder del original y el camino de media/baja y de las
-## especies que aun no tienen malla.
-func _construir_quad(d: Dictionary) -> void:
-	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("npc") >= 2 else {}
-	var tex: Texture2D
-	if anim.is_empty():
-		tex = _textura(d.get("texture", ""), "res://assets/npcs/vex-base.png")
-	else:
-		tex = _textura(anim.get("atlas", ""), "res://assets/npcs/vex-base.png")
-	var tam := float(d.get("screen_size", 141))   # ahora: unidades de MUNDO
-	_sprite3d = Mundo3D.sprite_plano(tex, tam, int(anim.get("vframes", 1)))
-	if not anim.is_empty():
-		_sprite3d.hframes = int(anim.get("hframes", 1))
-		_sprite3d.vframes = int(anim.get("vframes", 1))
-		_anim_total = int(anim.get("count", _sprite3d.hframes * _sprite3d.vframes))
-		_anim_vaiven = bool(anim.get("pingpong", false))
-		_anim_fps = float(anim.get("fps", 12.0))
-		var periodo_ := (_anim_total * 2 - 2) if _anim_vaiven else _anim_total
-		_anim_t = randf() * float(periodo_) / maxf(_anim_fps, 1.0)
-	_giro3d.add_child(_sprite3d)
-	_escala_cuerpo = _sprite3d.pixel_size
-
-	# capa emisiva pulsante (solo el camino PNG: el atlas trae la luz cocida)
-	var tex_emisiva := _textura(d.get("emissive", ""), "") \
-		if _anim_total == 0 and Quality.nivel("emissive") >= 1 else null
-	if tex_emisiva != null:
-		_emissive3d = Mundo3D.sprite_plano(tex_emisiva, tam)
-		_emissive3d.position.y = 2.0       # sobre el casco, sin z-fighting
-		_giro3d.add_child(_emissive3d)
-		var p: Dictionary = d.get("pulse", {})
-		_pulse_min = float(p.get("min_intensity", 0.2))
-		_pulse_max = float(p.get("max_intensity", 2.4))
-		_pulse_speed = float(p.get("speed", 2.6))
-		_pulse_sharp = float(p.get("sharpness", 2.8))
-
-	# motores del JSON (pixeles de textura = unidades de mundo, misma escala 1:1
-	# que tenia el mundo 2D). Nivel 0 = sin llamas.
-	if Quality.nivel("engine") >= 1:
-		var trail: Dictionary = d.get("engine_trail", {})
-		for motor in d.get("engines", []):
-			_crear_llama_en(Vector3(float(motor.get("x", 0)), 1.0, float(motor.get("y", 0))),
-				trail, float(motor.get("scale", 1.0)))
+	if str(d.get("modelo", "")) != "":
+		_construir_malla_3d(d)
 
 
 ## El cuerpo como MALLA en la escena unica. Ya no hay SubViewport ni camara por
 ## bicho: la luz, el encuadre y la perspectiva los pone la camara del mundo.
-## Devuelve false si el GLB aun no esta (se pide en hilo y se monta el quad).
+## Devuelve false si el GLB aun no esta (se pide en hilo; el cuerpo espera vacio).
 func _construir_malla_3d(d: Dictionary) -> bool:
 	var ruta := str(d["modelo"])
 	var escena: PackedScene = _glb_cache.get(ruta)
 	if escena == null:
 		if not _glb_solicitados.has(ruta):
 			if ResourceLoader.load_threaded_request(ruta) != OK:
-				push_warning("EntityNode: no se pudo pedir %s; se queda el quad" % ruta)
+				push_warning("EntityNode: no se pudo pedir %s; el cuerpo se queda vacio" % ruta)
 				return false
 			_glb_solicitados[ruta] = true
 		_glb_pendiente = ruta
@@ -298,7 +248,9 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_mats_3d = AssetDefs.materiales_3d(_modelo)
 	# LAVA QUE VIAJA (`lava` en el JSON): pase aditivo como next_pass, igual que
 	# en la era de viewports — el material es el mismo.
-	var lv: Dictionary = d.get("lava", {})
+	# `emissive` 0 = emision FIJA: ni lava que viaja ni pulso (el pulso se
+	# anula dejando min = max; el bucle de _process sigue, pero escribe 1.0)
+	var lv: Dictionary = d.get("lava", {}) if Quality.nivel("emissive") >= 1 else {}
 	if not lv.is_empty():
 		for mat in _mats_3d:
 			if mat.emission_texture == null:
@@ -315,6 +267,9 @@ func _construir_malla_3d(d: Dictionary) -> bool:
 	_pulse_min = float(pul.get("min_intensity", 0.25))
 	_pulse_max = float(pul.get("max_intensity", 2.6))
 	_pulse_sharp = float(pul.get("sharpness", 2.4))
+	if Quality.nivel("emissive") == 0:
+		_pulse_min = 1.0
+		_pulse_max = 1.0
 	var cg: Array = d.get("cuernos_grados", [])
 	if cg.size() == 2:
 		_cuernos_min = float(cg[0])
@@ -375,7 +330,9 @@ func _montar_anclajes(d: Dictionary) -> void:
 	if not canones.is_empty():
 		canones.sort_custom(func(a, b): return a.x < b.x)
 		_canones = canones
-	if Quality.nivel("engine") >= 1 and not toberas.is_empty():
+	# `engine` 0 = solo el heroe: un emisor por NPC es lo unico que escala
+	# con 54 bichos (el original tambien lo reservaba a HIGH)
+	if not toberas.is_empty() and (es_heroe or Quality.nivel("engine") >= 1):
 		toberas.sort_custom(func(a, b): return a.x < b.x)
 		var escala := ancho_boca / 20.0 if ancho_boca > 0.0 else 1.0
 		var trail: Dictionary = d.get("engine_trail", {})
@@ -486,6 +443,8 @@ func _crear_llama_en(punto: Vector3, trail: Dictionary, escala: float) -> void:
 		_malla_llama_cache.material = mat
 	var llama := GPUParticles3D.new()
 	llama.amount = 40
+	# `engine` < 2: la mitad de las bolas, mismo penacho (amount_ratio no reinicia)
+	llama.amount_ratio = 1.0 if Quality.nivel("engine") >= 2 else 0.5
 	llama.lifetime = 1.0
 	llama.preprocess = 1.0        # el penacho existe desde el primer frame
 	llama.local_coords = true     # sigue a la nave, como el follow del original
@@ -507,15 +466,11 @@ func reconstruir() -> void:
 	_cuerpo = null
 	_giro3d = null
 	_modelo = null
-	_sprite3d = null
-	_emissive3d = null
 	_mats_3d.clear()
 	_lava_3d.clear()
 	_huesos_3d.clear()
 	_flames.clear()
 	_canones.clear()
-	_anim_total = 0
-	_anim_vaiven = false
 	_construir_visual()
 	_montar_canones_json()
 	_set_visual_angle(_visual_angle)
@@ -561,17 +516,6 @@ func _construir_hud(d: Dictionary, heroe: bool, spawn) -> void:
 	var barra_y := -(medio_cuerpo + CLEARANCE)
 	_escudo = _crear_barra(barra_y - BARRA_SEPARACION, NTheme.SHIELD, _shield_pct)
 	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
-
-
-static func _textura(ruta: Variant, respaldo: String) -> Texture2D:
-	var r := str(ruta)
-	if not r.is_empty() and ResourceLoader.exists(r):
-		return load(r)
-	if not r.is_empty():
-		push_warning("textura ausente en el JSON: " + r)
-	if respaldo.is_empty():
-		return null
-	return load(respaldo)
 
 
 func _crear_barra(y: float, color: Color, pct: float) -> ColorRect:
@@ -622,27 +566,6 @@ func _process(delta: float) -> void:
 			llama.emitting = llama.visible
 			var k: float = llama.get_meta("k", 1.0)
 			llama.scale = Vector3.ONE * maxf(_thrust, 0.01) * k
-
-	# atlas del quad: mismos fotogramas, mismo vaiven
-	if _anim_total > 0 and _sprite3d != null:
-		_anim_t += delta
-		var i := int(_anim_t * _anim_fps)
-		if _anim_vaiven:
-			var periodo := _anim_total * 2 - 2
-			i = i % maxi(periodo, 1)
-			if i >= _anim_total:
-				i = periodo - i
-		else:
-			i = i % _anim_total
-		_sprite3d.frame = i
-
-	# pulso emisivo del quad (fase por entidad; el brillo acompania al casco)
-	if _emissive3d != null:
-		var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed + entity_id * 1.7)
-		onda = pow(onda, _pulse_sharp)
-		var k: float = _pulse_min + (_pulse_max - _pulse_min) * onda
-		k *= lerpf(GLOW_HP_MIN, 1.0, _hp_pct)
-		_emissive3d.modulate = Color(k, k, k, 1.0)
 
 	# ---- el cuerpo articulado (malla): aleteo, cola, brazos, destello ----
 	if not _huesos_3d.is_empty():
@@ -751,13 +674,13 @@ func _atender_glb() -> void:
 		_glb_pendiente = ""
 		reconstruir()
 	elif st != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
-		push_warning("EntityNode: fallo la carga en hilo de %s; se queda el quad"
+		push_warning("EntityNode: fallo la carga en hilo de %s; el cuerpo se queda vacio"
 			% _glb_pendiente)
 		_glb_pendiente = ""
 
 
 ## BANKING real (G§5.2): el alabeo persigue al error angular pendiente con el
-## ease incremental del original. Se aplica al cuerpo entero — malla o quad —
+## ease incremental del original. Se aplica al cuerpo entero (la malla)
 ## alrededor de su eje longitudinal, y con la camara a 45 grados SE VE.
 func _process_banking(delta: float, en_vuelo: bool) -> void:
 	var error := fposmod(_visual_target - _visual_angle + 180.0, 360.0) - 180.0

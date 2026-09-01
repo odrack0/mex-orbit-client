@@ -1,8 +1,6 @@
 {
   "_comentario": "El portal entre sectores. Su POSICION no vive aqui: es dato de BD (map_portal) y llega en EnterMap. Esto son solo sus particularidades de arte.",
   "code": "portal",
-  "texture": "res://assets/world/portal.png",
-  "emissive": "res://assets/world/portal-emissive.png",
   "world_size": 380,
   "click_radius": 190,
   "spin": {
@@ -23,18 +21,6 @@
     "color": "A78BFA",
     "radius": 3.0
   },
-  "_asset": "SECUENCIA DE ENCENDIDO, no bucle. Es el tercer patron de asset del catalogo: los bichos animados repiten un ciclo para siempre; el portal REPOSA en su primer fotograma y reproduce los 2,1 s de encendido una sola vez al activarlo. Por eso el atlas se exporta con RANGO=0:24 y el analisis de bucle se salta entero — no hay costura que cerrar cuando nadie vuelve al principio.",
   "_por_que_dura_eso": "2,1 s no es un numero estetico: es el hueco donde cabe la latencia. La animacion corre mientras el server resuelve el salto de sector, asi que el viaje de ida y vuelta se paga en pantalla en vez de en una espera.",
-  "_color_pendiente": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas.",
-  "frames": {
-    "atlas": "res://assets/world/portal-anim.png",
-    "hframes": 5,
-    "vframes": 5,
-    "count": 25,
-    "fps": 12,
-    "normal": "res://assets/world/portal-anim-normal.png"
-  },
-  "_dos_caminos": "En calidad ALTA se monta `frames`; en MEDIA y BAJA, `texture` con su capa emisiva, su `spin` y su `pulse`. Ojo a la diferencia de lectura, que aqui es mayor que en los bichos: con atlas el portal se ve DORMIDO hasta que lo activas, y sin atlas se ve encendido desde el principio y el salto pasa sin ceremonia. Es lo correcto — en calidad baja no se pagan dos segundos de espectaculo — pero no son el mismo portal.",
-  "normal": "res://assets/world/portal-normal.png",
-  "_relieve": "Mapa de normales, uno por camino. Ni el portal ni la caja ROTAN, asi que aqui el relieve no arregla que la luz gire con ellos —nunca giraba— sino que su sombreado venga de la misma luz que todo lo demas. Sus emisivos (el plasma y los tubos de neon) los protege el shader: no se apagan porque la luz venga del otro lado."
+  "_color_pendiente": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas."
 }

@@ -1,23 +1,10 @@
 {
   "_comentario": "La caja de carga que sueltan los aliens (unica fuente de crudos, guidelines §8). Su posicion y su contenido son del server; esto es su arte. La banda emisiva late en ALFA (no en intensidad como el nucleo de un alien): es una luz de baliza, no un reactor.",
   "code": "cargo-box",
-  "_asset": "ATLAS ANIMADO. Su luz recorre el contorno de la tapa y cierra el ciclo por construccion: la costura mide 0,9 veces un paso normal entre fotogramas, o sea que el bucle es mejor que invisible. A 192 px por fotograma cuesta 6,9 MB de VRAM.",
-  "frames": {
-    "atlas": "res://assets/world/cargo-box-anim.png",
-    "hframes": 7,
-    "vframes": 7,
-    "count": 48,
-    "fps": 12,
-    "normal": "res://assets/world/cargo-box-anim-normal.png"
-  },
   "world_size": 64,
   "click_radius": 34,
   "minimap": {
     "color": "FFC85C",
     "radius": 2.0
-  },
-  "_dos_caminos": "DOS CAMINOS. El respaldo fijo NO es el PNG viejo sino el fotograma 0 del propio atlas: el diseño de la caja cambio con el video, y usar el viejo mostraria una caja distinta al bajar la calidad.",
-  "texture": "res://assets/world/cargo-box-still.png",
-  "normal": "res://assets/world/cargo-box-still-normal.png",
-  "_relieve": "Mapa de normales, uno por camino. Ni el portal ni la caja ROTAN, asi que aqui el relieve no arregla que la luz gire con ellos —nunca giraba— sino que su sombreado venga de la misma luz que todo lo demas. Sus emisivos (el plasma y los tubos de neon) los protege el shader: no se apagan porque la luz venga del otro lado."
+  }
 }

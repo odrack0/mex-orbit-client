@@ -1,42 +1,25 @@
 {
   "_comentario": "Vorax: el devorador. Carne lustrosa y semitraslucida con las visceras encendidas, asi que su capa emisiva cubre TODO el cuerpo en vez de un nucleo. Late como una digestion: lento en el valle y con un pico marcado.",
   "code": "vorax",
-  "_asset": "ATLAS ANIMADO de celda RECTANGULAR (128x512). Cuadrarla habria desperdiciado el 80% de cada celda: el bicho mide 125x638. Asi cuesta 12,2 MB en vez de 27,6.",
-  "frames": {
-    "atlas": "res://assets/npcs/vorax-anim.png",
-    "hframes": 7,
-    "vframes": 7,
-    "count": 45,
-    "fps": 12,
-    "normal": "res://assets/npcs/vorax-anim-normal.png"
-  },
   "screen_size": 205,
   "click_radius": 66,
-  "engines": [],
   "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 210
   },
-  "_dos_caminos": "DOS CAMINOS declarados a proposito. En calidad ALTA se monta `frames` (el atlas del video); en MEDIA y BAJA, `texture` con su capa emisiva y sus shaders. El nivel elige, el JSON no sabe de calidad. Por eso nunca se borro el render fijo al convertir el bicho a atlas.",
-  "texture": "res://assets/npcs/vorax-base.png",
-  "emissive": "res://assets/npcs/vorax-emissive.png",
   "pulse": {
     "min_intensity": 0.22,
     "max_intensity": 2.3,
     "speed": 2.0,
     "sharpness": 2.6
   },
-  "normal": "res://assets/npcs/vorax-base-normal.png",
-  "_relieve": "Mapa de normales derivado del render (tools/gen-normal.py). Uno por camino: el del atlas se genera celda a celda pero con UNA sola fuerza para toda la hoja, o cada fotograma tendria su intensidad y el bicho parpadearia al animarse. Va a MEDIA resolucion: las normales son de frecuencia mas baja que el color y a tamanio completo doblarian la VRAM del asset.",
   "modelo": "res://assets/npcs/vorax.glb",
   "_modelo": "Malla 3D con esqueleto para calidad ALTA, en un SubViewport por entidad. Esqueleto RADIAL: raiz + ocho brazos, sin alas ni cola. Los angulos NO se reparten a 360/8 — se miden de la malla, que sale asimetrica del generador: 36, 84, 102, 122, 146, 188, 286 y 342 grados.",
-  "_horneado": "Media y baja salen del MISMO modelo (tools/hornear-sprite.py), no de un render aparte. Si algo no cuadra entre calidades se mueve el PNG, nunca el GLB: el PNG se rehornea y un ajuste hecho del otro lado se pierde solo.",
   "brazos": {
     "grados": 16.0,
     "eje": 2,
     "ciclo": 2.4
   },
-  "_brazos": "Barrido de los tentaculos. EJE 2, medido con repro_eje_hueso: es el unico que gira el brazo DENTRO del plano del disco, o sea el que barre la silueta; el 0 y el 1 lo inclinan hacia la camara y desde arriba casi no se ven (1,02 de diferencia contra 0,79 y 0,83). AMPLITUD acotada por los vecinos, no por lo que se lea: los brazos mas juntos estan a 18-20 grados uno de otro, asi que un barrido grande los cruza. A 205 px la silueta cambia un 8% con 18 grados y un 10,6% con 45 — rendimientos decrecientes justo donde empieza el riesgo de cruce. El desfase por defecto es 1/n: la onda da una vuelta entera al anillo en vez de mover los ocho a la vez, que se leeria como que respira y no como que se mueve.",
-  "_shaders_2d": "Se quitan `undulate` y `peristalsis`: describian al gusano anterior. El bicho nuevo es radial y su movimiento sale del esqueleto, no de deformar la textura."
+  "_brazos": "Barrido de los tentaculos. EJE 2, medido con repro_eje_hueso: es el unico que gira el brazo DENTRO del plano del disco, o sea el que barre la silueta; el 0 y el 1 lo inclinan hacia la camara y desde arriba casi no se ven (1,02 de diferencia contra 0,79 y 0,83). AMPLITUD acotada por los vecinos, no por lo que se lea: los brazos mas juntos estan a 18-20 grados uno de otro, asi que un barrido grande los cruza. A 205 px la silueta cambia un 8% con 18 grados y un 10,6% con 45 — rendimientos decrecientes justo donde empieza el riesgo de cruce. El desfase por defecto es 1/n: la onda da una vuelta entera al anillo en vez de mover los ocho a la vez, que se leeria como que respira y no como que se mueve."
 }

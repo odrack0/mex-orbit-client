@@ -1,9 +1,6 @@
 {
   "_comentario": "La estacion de la base. world_size es su diametro en unidades de mundo (el rango seguro que manda el server es 1500). El reactor late con la capa emisiva cian, mas lento y suave que el nucleo de un alien.",
   "code": "station",
-  "_texture": "HORNEADOS de base.glb (ago-2026), ya no arte IA: hornear-sprite.py con HORNO_ELEVACION=30 (la camara oblicua del cliente), HORNO_LUZ=mundo (no rota, asi que lleva el sol direccional real y no el axial de los bichos), HORNO_SOL=0.8 (= el sol cian del cliente 1:1 tras el puerto del legacy ago-2026; era 1.0 con el sol blanco), HORNO_AMBIENTE=0.15 (el casco es metalico por textura y en Blender el fondo se REFLEJA: necesita menos ambiente que nadie), GLOW_FUERZA=0 (glow apagado en alta) y GLOW_NUCLEO=3.0 (la ganancia `emision` del modelo, cocida en la capa porque el pulso 2D no la multiplica). Homologado contra alta en el juego: 0.0749 contra 0.0809 en el mismo recorte. Si el GLB no carga en alta, el respaldo es este mismo PNG fijo.",
-  "texture": "res://assets/world/station.png",
-  "emissive": "res://assets/world/station-emissive.png",
   "world_size": 1100,
   "pulse": {
     "min_intensity": 0.25,
@@ -16,7 +13,6 @@
     "alpha": 0.22,
     "width": 3.0
   },
-  "_dos_caminos": "DOS caminos desde ago-2026: en ALTA la malla 3D, en MEDIA y BAJA `texture` con su capa emisiva y su pulso. El atlas de video (40 MB, el asset mas caro del juego) se RETIRO: era el render IA viejo con la luz vieja, y solo se montaba como respaldo si el GLB no cargaba — un respaldo que enseniaba otra estacion no respalda nada.",
   "modelo": "res://assets/world/base.glb",
   "_modelo": "Malla 3D para calidad ALTA, en su propio SubViewport alimentando el Sprite2D de siempre. Gana mas que en un bicho: la estacion se dibuja a 820 px y el atlas de video tenia celda de 632, o sea que se AMPLIABA 1,3 veces; un modelo no tiene resolucion. Y se ahorran los 40 MB del atlas, el asset mas caro del juego. NO rota, asi que el modelo se monta y se queda quieto: lo que late es su emision.",
   "_camara": "OBLICUA (EST_ELEVACION en world.gd, 30 grados). Es el UNICO asset del juego que no se mira desde arriba, y es direccion de arte: la estacion es una torre, y una torre en cenital es un punto. El encuadre va con `extension_vista` y no con la huella — al bajar la camara la altura pasa a ocupar pantalla y con la huella la torre se sale por arriba.",

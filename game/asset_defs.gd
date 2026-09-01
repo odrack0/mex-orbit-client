@@ -52,18 +52,14 @@ const LUZ_MUNDO_PAN := 35.0
 ## relleno rosado tenue del original. El 0.5 anterior lavaba los colores de los
 ## props (se veian vivos, despegados del entorno). Se conserva el tonemap
 ## FILMIC, que es de Godot y no del legacy, porque el lineal aplana los medios.
-## OJO: cambiar esto descalibra el HORNO_AMBIENTE de cada bicho horneado — media
-## se rehornea y se rehomologa con medir_emision, no se deja a ojo.
+## Desde el 1-sep no hay horneado que recalibrar: la malla es el unico cuerpo.
 const LUZ_MUNDO_AMBIENTE_COLOR := Color("ffa5ae")
 const LUZ_MUNDO_AMBIENTE := 0.2
 
 ## La LUZ DEL HEROE: un punto azul (0x2E7DFF, diffuse 0.6) pegado a tu propia nave,
-## portado del legacy. AVISO de arquitectura: en el original vivia en el mundo
-## compartido y baniaba a las entidades cercanas con radio 450 unidades de MUNDO;
-## aqui cada entidad se renderiza en su SubViewport AISLADO (own_world_3d), asi que
-## solo puede iluminar la malla del propio heroe — es un rim azul sobre tu nave, no
-## un foco que derrama sobre los vecinos. El radio 450 del legacy es de unidades de
-## mundo y no porta: aqui se dimensiona contra la extension del modelo.
+## portado del legacy: en la escena unica vive en el mundo compartido y bania a
+## las entidades cercanas con radio 450 unidades de mundo, como el original
+## (la monta entity_node; solo con `luces` >= 1).
 const LUZ_HEROE_COLOR := Color("2e7dff")
 const LUZ_HEROE_ENERGIA := 0.6
 
@@ -78,17 +74,9 @@ const LUZ_HEROE_ENERGIA := 0.6
 ##    Godot es `rim`; separa la silueta del negro del espacio.
 ## Lo que de verdad quita lo plano —la reflexion de entorno (FresnelEnvMapMethod)— NO
 ## esta aqui: necesita una fuente de reflexion en el viewport y va aparte.
-## OJO homologacion: el rim es view-dependent y un sprite horneado (media) NO puede
-## reproducirlo —es estatico—, asi que alta tendra un borde vivo que media no. La
-## ROUGHNESS si se iguala: media se rehornea con la misma rugosidad en Blender.
 const MAT_ROUGHNESS := 0.35
 const MAT_RIM := 0.3
 const MAT_RIM_TINT := 0.5
-
-
-## El vector de la luz del mundo, listo para el shader de relieve.
-static func luz_mundo() -> Vector2:
-	return Vector2.RIGHT.rotated(deg_to_rad(LUZ_MUNDO_GRADOS))
 
 
 ## La luz de fondo y el tonemap del mundo, aplicados a un Environment. UN solo
@@ -107,9 +95,7 @@ static func ambiente_mundo(ent: Environment) -> void:
 ## El SOL del mundo 3D como nodo listo, HERMANO de ambiente_mundo(): color, energia
 ## y direccion en UN sitio. El sol estaba copiado suelto en cada viewport (el juego
 ## y sus rigs) con energia 1.0 y SIN color; el ambiente si estaba centralizado pero
-## el sol no, asi que el puerto del legacy (cian a 0.8) habria dejado a medir_emision
-## comparando media contra un "alta" que el juego ya no renderiza — la homologacion
-## mentiria. `energia` admite el override por bicho (`luz.sol` del JSON); por defecto,
+## el sol no, y cada rig media contra una luz distinta. `energia` admite el override por bicho (`luz.sol` del JSON); por defecto,
 ## la del mundo. El banco NO usa esto a proposito: tiene sus valores de perf (2.6) y
 ## no es la referencia de aspecto.
 static func sol_mundo(energia := LUZ_MUNDO_ENERGIA) -> DirectionalLight3D:
@@ -125,27 +111,6 @@ static func sol_mundo(energia := LUZ_MUNDO_ENERGIA) -> DirectionalLight3D:
 	sol.shadow_enabled = false
 	return sol
 
-
-## El material de relieve para una textura de normales, o null si no hay mapa.
-## Vive aqui porque lo montan CUATRO sitios —naves y bichos, estacion, portal y
-## caja— y una copia por sitio es una copia que se queda atras el dia que cambie
-## la luz. Es la leccion del recorte del croma, que vivio copiado en dos scripts
-## hasta que uno se quedo con el despill viejo.
-static func material_relieve(ruta: String) -> ShaderMaterial:
-	if ruta == "" or not ResourceLoader.exists(ruta):
-		return null
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://game/shaders/relieve.gdshader")
-	mat.set_shader_parameter("normal_map", load(ruta))
-	mat.set_shader_parameter("luz_dir", luz_mundo())
-	return mat
-
-
-## La ruta del mapa de normales que toca segun el camino: con atlas manda el del
-## atlas. Mezclarlos es peor que no tener ninguno — un mapa que no casa con la
-## silueta que ilumina inventa bultos donde no hay nada.
-static func ruta_normal(d: Dictionary, animado: bool) -> String:
-	return d.get("frames", {}).get("normal", "") if animado else d.get("normal", "")
 
 static var _cache := {}
 

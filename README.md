@@ -591,7 +591,7 @@ está fuera de los límites publicados — la misma geometría que aplica el ser
 (`Geometry.OutsideBounds`) — y el coste ya llega por `HeroStats`. Un mensaje propio sería estado
 duplicado del que ya se tiene. Al entrar y salir, línea en el Registro y en la línea de estado.
 
-## Calidad gráfica: niveles por subsistema
+## Calidad gráfica: todo es 3D, cada nivel solo quita coste
 
 `Quality` (autoload, `game/quality.gd`) es un puerto del prototipo, que a su vez replicaba el
 `QualitySettings` del cliente original. La idea que importa **no es el interruptor alta/media/baja**,
@@ -599,40 +599,43 @@ sino que cada sistema pregunte por lo suyo al dibujar: `Quality.nivel("engine") 
 preajustes solo mueven ese diccionario, así que añadir un modo "personalizado" es abrir la ventana,
 no rehacer nada.
 
-| clave | 0 (Baja) | 1 (Media) | 2 (Alta) |
-|---|---|---|---|
-| `npc` | PNG fijo | PNG fijo | **atlas animado** |
-| `shader` | — | ondulación · peristalsis · anillos | ídem |
-| `emissive` | — | capa emisiva pulsando | ídem |
-| `engine` | sin llamas | llamas | llamas |
-| `collectable` | caja congelada en su fotograma 0 | ídem | caja animada |
-| `background` | solo polvo estelar | fondo y planetas | + mosaicos de paralaje |
-| `explosion` | no se dibuja | se dibuja | ídem |
+**La escalera se rehízo el 1-sep-2026.** La anterior venía del cliente 2D: *alta* era la malla y
+media/baja eran el PNG horneado del mismo modelo, tumbado en el plano. Con la escena única eso no
+describía nada — un PNG cenital bajo una cámara a 45° se ve roto, y no ahorra: cambia *qué* es la
+cosa, no cuánto cuesta. Ahora **una nave es siempre su malla** y lo que baja con el nivel es lo que
+de verdad pesa. El original hacía lo mismo (G§12: nunca cambia qué es una nave, cambia cuánto la
+adorna); la diferencia es que aquí la palanca grande es la resolución del render 3D, que en 2013 no
+existía.
 
-**El corte caro está entre Media y Alta**: ahí los atlas dejan de cargarse y se liberan **106 MB**
-de VRAM (los **nueve** bichos, la caja y el portal). Media conserva los shaders a propósito — cuestan casi nada (una operación de fragment sobre un
-sprite que ya se dibuja) y son lo único que da vida a los bichos que nunca tendrán vídeo.
+| clave | 0 (Baja) | 1 (Media) | 2 (Alta) | qué ahorra |
+|---|---|---|---|---|
+| `render` | 0,5× | 0,75× | 1× | **la palanca de GPU**: fill-rate del skybox, nebulosas, partículas. El 2D no escala |
+| `aa` (MSAA 3D) | — | 2× | 4× | fill-rate (el 8–16× del original no paga en Vulkan) |
+| `luces` | solo el sol | + la de tu nave | + el pool de 3 de efectos | por luz dinámica |
+| `engine` | llamas **solo en tu nave**, media partícula | todas, media partícula | todas, completas | un emisor por NPC: lo único que escala con 54 bichos |
+| `background` | skybox | + polvo estelar | + nebulosas, planetas, flares | 1500 quads en mosaico + planos |
+| `collectable` | props quietos | animados | animados | casi nada |
+| `explosion` | se dibuja | se dibuja | se dibuja | solo la auto-calidad la apaga, al final |
+| `emissive` | pulsa | pulsa | pulsa | ídem (pulso y lava son un `next_pass`) |
 
-**El repliegue no costó ni un asset nuevo.** Al convertir un bicho a atlas nunca se borró su render
-fijo ni su capa emisiva; por eso los JSON de los animados declaran **los dos caminos** y el nivel
-elige cuál se monta. La excepción es la caja: su diseño cambió con el vídeo, así que su respaldo es
-el **fotograma 0 del propio atlas** (`cargo-box-still.png`) y no el PNG viejo, que mostraría una caja
-distinta al bajar la calidad.
+BAJA es «todo lo de ALTA, más barato» con **una** excepción tomada del original: las llamas de los
+NPC (DO las reservaba a HIGH por lo mismo). BAJA se ve *borrosa*, no *pobre* — ese es el trato.
+
+**Lo que murió con la escalera vieja:** las claves `npc` y `shader`, `_construir_quad` y el
+`Sprite3D` tumbado, el atlas/PNG de caja, portal y estación, los shaders de sprite (`undulate`,
+`peristalsis`, `rings`, `relieve`), `pruebas/medir_emision.tscn` (homologaba media contra alta:
+ya no hay media que homologar) y el horno de `mex-orbit-art`. **Una entidad sin `modelo` en su
+JSON no se dibuja** — existe (HUD, click, combate, minimapa) pero no tiene cuerpo. El 1-sep eso
+son Gravit, Gravon, Mordax, Skarn, la caja y el portal: la decisión fue no dejar el PNG de respaldo,
+porque un respaldo que nadie mira es la forma de que seis especies se queden sin malla para siempre.
+Sus GLB son la primera prioridad de arte (`plan-cliente-3d.md`, «una especie por ronda»).
+
+**La auto-calidad** (`AQ_ESCALERA`) recorta en este orden: antialias → resolución → fondo y
+partículas → luces → explosiones y pulso. Los dos primeros peldaños no se ven; los mide el fps.
 
 **Se persiste por cuenta, en `user://quality.cfg`.** Dos personas que comparten un PC guardan
 ajustes distintos, y a la vez el valor **no viaja con la cuenta** a otra máquina — la calidad es una
 capacidad del equipo, no una preferencia de la partida.
-
-**El cambio se aplica al instante.** `Quality.cambiada` lleva las claves que se movieron;
-`EntityNode.reconstruir()` rehace solo la parte visual (el nombre, las barras, los cañones y el rumbo
-no dependen del nivel), las cajas se recrean en su sitio y el fondo se reconstruye. La nave, su rumbo
-y el estado del mundo no se tocan.
-
-**Los Ajustes se abren por el engranaje de la sysbar** (arriba a la derecha), y **Escape** los cierra.
-Estuvieron en **F1**, y esa tecla no era suya: el §6 del sistema de diseño reserva **F1–F10** para la
-barra de acción II, así que el atajo se habría comido un slot en cuanto existan las barras. Escape es
-la única tecla que el documento no reparte. El autotest en modo bestiario **baja la calidad con el mundo ya poblado** y retrata el
-resultado: si reconstruir rompiera algo, revienta ahí.
 
 ## Filtrado de textura: mipmaps sí, pero no en los atlas
 
@@ -685,145 +688,14 @@ ninguna otra prueba mira. Va por la constante y no por un número a mano: con un
 que se recalibre el rango la prueba retrataría un encuadre que ya no existe, que es peor que no
 retratar nada.
 
-## Dos tipos de asset para los bichos
+## Un solo tipo de asset: la malla
 
-**PNG + shaders** es el caso normal: una textura, su capa emisiva y los efectos declarados en el
-JSON (`undulate`, `peristalsis`, `rings`). Barato, y en el 1-1 hay quince Vex.
-
-**Atlas animado** es el segundo tipo, para los de arriba de la escalera. Una rejilla de fotogramas
-sacada de un vídeo en bucle con `mex-orbit-art/tools/video-atlas.py`; el JSON declara `frames` en
-lugar de `texture` y `EntityNode` monta un `Sprite2D` con `hframes`/`vframes` que avanza solo.
-
-```json
-"frames": { "atlas": "res://assets/npcs/gravon-anim.png",
-            "hframes": 7, "vframes": 7, "count": 49, "fps": 12 }
-```
-
-### Qué cuesta un atlas, contado bien
-
-Durante tres bichos este README dijo que el coste se controlaba con la jerarquía del bestiario
-—"hay tres Gravon frente a quince Vex"—, y **esa cuenta estaba mal**. Una textura se sube a la GPU
-**una vez** y la comparten todas las instancias: quince Vex no gastan quince PNG. El número de
-bichos no multiplica nada.
-
-Lo que de verdad se paga es **por especie**, y en dos monedas:
-
-| | de qué depende | cómo se controla |
-|---|---|---|
-| VRAM | del tamaño del atlas | eligiendo la celda por el `screen_size` del bicho |
-| presupuesto total | de **cuántas especies** llevan atlas | no dándoselo a todas |
-
-De ahí sale la regla de la celda, que es la lección del Gravit: **la celda se elige por lo que el
-bicho mide en pantalla, no copiando la del anterior**. El Gravon usa 384 porque ocupa 214 px; el
-Gravit ocupa 124, así que con 384 estaríamos pagando triple muestreo que nadie ve. Con 256 cuesta
-12,2 MB en vez de 27,6 — la mitad del presupuesto de la ronda, ahorrada por mirar un número que ya
-estaba en el JSON.
-
-| bicho | en pantalla | celda | fotogramas | VRAM |
-|---|---|---|---|---|
-| Gravon | 214 px | 384 | 49 | 27,6 MB |
-| Skarnox | 208 px | 384 | 42 | 27,6 MB |
-| Skarn | 196 px | 320 | 48 | 19,1 MB |
-| Ferox | 190 px | 320 | 46 | 19,1 MB |
-| Mordax | 186 px | 320 | 48 | 19,1 MB |
-| Vex | 141 px | 256 | 48 | 12,2 MB |
-| Vexor | 178 px | 320 | 26 | 11,7 MB |
-| Gravit | 124 px | 256 | 45 | 12,2 MB |
-| Vorax | 232 px | 128×512 | 49 | 12,2 MB |
-| caja | 96 px | 192 | 49 | 6,9 MB |
-| portal | 380 u | 384 | 25 | 14,1 MB |
-
-El Vorax es el recordatorio de que la celda **no tiene por qué ser cuadrada**: es un gusano de
-125×638, y cuadrarlo tiraría el 80% de cada celda.
-
-Tres cosas que conviene no olvidar:
-
-- **La luz va cocida** en los fotogramas, así que estos bichos **no llevan capa emisiva ni shaders**
-  — su vida ya está en el asset. El `pulse` no les aplica. Esto estaba escrito aquí desde el Gravon
-  pero el código solo lo cumplía a medias: se saltaba la capa emisiva y **no** el shader del cuerpo.
-  Nunca se notó porque ningún animado traía efectos de cuerpo… hasta el Gravit, cuyos aros se abren
-  en el vídeo **y** los giraba `rings` por encima. Ahora `_montar_ondulacion` sale en cuanto hay
-  atlas: **la animación manda sobre el truco**. En media y baja, donde no hay atlas, el shader vuelve
-  — y los pernos del Gravit siguen orbitando sobre su PNG.
-- Lo que evita que tres Gravon animen al unísono es un **desfase del índice de fotograma** por
-  entidad, no la fase del pulso. Es el mismo problema de los gusanos ondulando en fase, resuelto en
-  otro sitio.
-- Con atlas, el tamaño en pantalla se calcula sobre el alto del **fotograma**, no el de la textura
-  entera. Olvidarlo hace al bicho siete veces más pequeño.
-
-Es lo que hacía el cliente original con sus aliens (`loopPlay`), con una diferencia que importa: los
-suyos **por eso no rotaban**. Los nuestros sí — en Godot el bucle es contenido y el rumbo lo pone el
-nodo, así que el Gravon gira hacia donde vuela mientras sus engranajes se destapan.
-
-**Los props también entienden los dos tipos.** La caja de carga es la primera: su JSON declara
-`frames` y `_on_box_spawn` monta el atlas igual que `EntityNode`, con desfase por caja para que un
-campo de ellas no parpadee al unísono. Su bucle es el mejor del catálogo — la costura mide **0,9
-veces** un paso normal entre fotogramas, es decir que salta menos que avanzar un fotograma. No es
-suerte: su luz **da la vuelta completa** al contorno de la tapa, así que el ciclo cierra por
-construcción. Es la forma de pedir una animación que loopee sin depender de que el modelo acierte.
-
-**La costura se mide contra el paso normal entre fotogramas, no en absoluto.** Un vídeo con mucho
-movimiento salta mucho en cualquier transición; lo que delata un bucle roto es que la última salte
-**más** que las demás. Con seis medidas ya se ve el patrón:
-
-| asset | costura | qué pasó |
-|---|---|---|
-| Ferox | **0,5×** | salta **menos** que avanzar un fotograma: no hay nada que arreglar |
-| caja | 0,9× | cierra por construcción: la luz da la vuelta entera |
-| Gravit | 1,1× | se pasaba de ciclo (4,12 contra 1,18); recortar 3 fotogramas lo arregló |
-| Mordax | 1,4× | entero: el mejor recorte apenas mejoraba y costaba 7 fotogramas |
-| Vexor | 1,2× | su ciclo **se repite dos veces**: media película basta |
-| Skarnox | 2,0× | 13× de crudo; recortar 6 fotogramas lo salvó |
-| Gravon | 3,0× | el vídeo **era** un ciclo entero que no cerraba: recortar solo quita movimiento |
-| Vex | 3,9× | no es un ciclo, es una **rampa** — se arregla con vaivén, no recortando |
-| Skarn | 14,7× | la peor, y **no por mal vídeo**: la roca casi no cambia entre fotogramas (paso normal 0,28), así que cualquier salto canta. Vaivén |
-
-El Gravit y el Skarnox son el caso que el recorte arregla —sobra material—; el Gravon es el que no
-—falta cierre—. Por eso el script solo recorta si la mejora es grande, y si no, avisa y deja el
-vídeo entero: la discrepancia se arregla **al generar**, no componiendo en 2D.
-
-### Vaivén: cuando el vídeo no es un ciclo sino una rampa
-
-El vídeo del Vex **no vuelve al principio**: el bicho se enciende progresivamente y despliega las alas
-durante los 4 s, y ahí se queda. La costura mide **3,9 veces** el paso normal, la peor del catálogo, y
-ningún recorte la mejora — no sobra material, es que no hay ciclo.
-
-Con `"pingpong": true` se reproduce **de ida y vuelta**. El cierre es perfecto **por construcción**
-—dos fotogramas seguidos son siempre vecinos, así que no hay costura que medir— y **no cuesta un
-fotograma más**: el atlas es el mismo, solo cambia cómo se recorre. El ciclo pasa a durar 8 s y lo que
-se ve es un ala que se abre y se cierra. La rampa deja de ser un defecto y pasa a ser el movimiento.
-
-**Una costura enorme no significa un vídeo malo.** El Skarn cierra a **14,7×**, la peor cifra del
-catálogo, y su vídeo está impecable — el mejor encuadre de todos, con 0,1% de deriva. Lo que pasa es
-que una roca casi no cambia entre fotogramas: su paso normal es **0,28** cuando el del Mordax es 3,16.
-Contra un paso tan pequeño, cualquier salto se dispara en la proporción. Es el recordatorio de que la
-métrica es una **razón**, y una razón se puede disparar por el denominador.
-
-**Se había descartado, y estaba bien descartado.** El comentario de `video-atlas.py` lo dice desde el
-Gravon: sus aros tienen rotación **neta**, y al revés se mecerían en vez de girar. Pero un ala que se
-abre no tiene ese problema — **cerrarse ES su vuelta**. La técnica no era mala, era el bicho
-equivocado; lo que importa es si el movimiento tiene una dirección privilegiada.
-
-Un detalle que se escapa fácil: con vaivén el periodo es casi el **doble**, así que el desfase por
-entidad tiene que repartirse sobre `2n−2` y no sobre `count`. Repartiendo sobre `count`, los quince
-Vex caen todos en la misma mitad de la onda y abren el ala a la vez — justo lo que el desfase existe
-para evitar.
-
-### Mirar si el vídeo se repite antes de exportarlo entero
-
-El Vexor pliega y despliega las alas **dos veces** en sus 4 s. Exportar el tramo `0:25` —2,2 s, 26
-fotogramas— cierra a **1,2×**, igual de bien que los 48, con **la mitad de la VRAM**. La comprobación
-es barata: medir el salto del fotograma `k` contra el `0` para todo `k`, y buscar el primer valle.
-
-**Pero un valle no basta: tiene que cerrar IGUAL DE BIEN que el vídeo entero.** El Ferox tiene un
-valle en `0:29` que ahorraría 7 MB, y no se usa — porque cierra a 1,49× cuando el entero cierra a
-0,5×. Un sub-bucle que cierra *peor* no es un ciclo que se repite, es un **parecido**, y recortar ahí
-quita movimiento real. Es la lección del Gravon vista desde el otro lado: el Vexor podía recortarse
-porque su valle empataba con el total (0,95 contra 0,99); el Ferox no.
-
-Por eso `RANGO` y `SECUENCIA` son dos cosas distintas en la herramienta, aunque nacieran juntas con el
-portal: **recortar y no-cerrar son decisiones independientes.** El portal quiere las dos; el Vexor
-quiere recortar y sigue siendo un bucle.
+Hasta el 1-sep-2026 aquí se documentaban **dos tipos** —PNG + shaders de sprite, y atlas animado
+sacado de un vídeo (`video-atlas.py`)— con su contabilidad de VRAM por especie y el vaivén de los
+bucles que no cierran. Todo eso era del mundo de sprites y murió con la calidad por niveles (ver
+«Calidad gráfica»): la única forma de un bicho es su GLB con esqueleto, y su vida la dan los huesos
+(alas, cola, cuernos, brazos) y la emisión que late. La receta completa vive en el skill
+`mexorbit-asset-3d` y en el README de `mex-orbit-art`.
 
 ## El salto de sector
 

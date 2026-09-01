@@ -70,10 +70,6 @@ var _estacion_pos := Vector2.ZERO
 var _estacion_rango := 0.0
 var _en_base := false
 var _estacion: Node3D                            # el cuerpo de la base en la escena
-var _estacion_sprite: Sprite3D                   # el camino quad (PNG o atlas), o null
-var _estacion_anim_total := 0
-var _estacion_anim_fps := 12.0
-var _estacion_anim_t := 0.0
 var _estacion_modelo: Node
 var _estacion_mats: Array[BaseMaterial3D] = []
 var _est_emision := 1.0
@@ -83,8 +79,6 @@ var _est_pulso_vel := 1.1
 var _est_pulso_dureza := 1.6
 var _laser_on := false
 var _cajas := {}                  # box_id -> Node2D (posicion; su cuerpo vive en Mundo3D)
-var _caja_anim_total := 0         # >0 = la caja es un atlas animado
-var _caja_anim_fps := 12.0
 var _portales := {}               # portal_id -> PortalNode
 var _pending_box := 0             # flujo del prototipo: volar a la caja y recoger al llegar
 var _pending_box_pos := Vector2.ZERO
@@ -337,16 +331,13 @@ func _desmontar_mapa() -> void:
 	if _estacion != null:
 		_estacion.queue_free()
 		_estacion = null
-		_estacion_sprite = null
 		_estacion_mats = []
-		_estacion_anim_total = 0
 	if _fondo3d != null:
 		_fondo3d.queue_free()
 		_fondo3d = null
 	_hero = null
 	_at_target = 0
 	_pending_box = 0
-	_caja_anim_total = 0
 	# El destino del movimiento pertenece al MAPA, no al jugador.
 	#
 	# Al hacer clic en un portal se guarda su posicion como autopiloto, y esas
@@ -414,33 +405,11 @@ func _construir_estacion() -> void:
 	anillo.position.y = 1.0
 	_estacion.add_child(anillo)
 
-	# DOS caminos en la escena unica: la MALLA directamente en el mundo (ya sin
-	# viewport intermedio — la torre ensenia su altura con la camara a 45), o el
-	# quad tumbado con su PNG/atlas. La emisiva 2D del reactor viejo murio con el
-	# canvas: pertenecia al PNG fijo del mundo de sprites.
-	_estacion_anim_total = 0
-	if Quality.nivel("collectable") >= 2 and _montar_estacion_3d(d):
-		return
-	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
-	var tex: Texture2D
-	if anim.is_empty():
-		tex = load(d.get("texture", "res://assets/world/station.png"))
-	else:
-		tex = load(anim.get("atlas", "res://assets/world/station-anim.png"))
-	# `world_size` es la HUELLA de la base; con el quad manda el ancho del
-	# fotograma, como siempre
-	var ancho_px := float(tex.get_width()) / maxf(float(anim.get("hframes", 1)), 1.0)
-	var alto_px := float(tex.get_height()) / maxf(float(anim.get("vframes", 1)), 1.0)
-	var tam := float(d.get("world_size", 820)) * alto_px / maxf(ancho_px, 1.0)
-	_estacion_sprite = Mundo3D.sprite_plano(tex, tam, int(anim.get("vframes", 1)))
-	if not anim.is_empty():
-		_estacion_sprite.hframes = int(anim.get("hframes", 1))
-		_estacion_sprite.vframes = int(anim.get("vframes", 1))
-		_estacion_anim_total = int(anim.get("count",
-			_estacion_sprite.hframes * _estacion_sprite.vframes))
-		_estacion_anim_fps = float(anim.get("fps", 12))
-		_estacion_anim_t = 0.0
-	_estacion.add_child(_estacion_sprite)
+	# La MALLA directamente en el mundo (ya sin viewport intermedio — la torre
+	# ensenia su altura con la camara a 45), en TODOS los niveles: el quad PNG
+	# murio con la calidad por niveles (1-sep). Sin malla, solo el anillo.
+	if not _montar_estacion_3d(d):
+		push_warning("estacion: sin `modelo` en data/props/station.json no se dibuja")
 
 
 func _construir_base() -> void:
@@ -547,22 +516,15 @@ func _alternar_ajustes() -> void:
 ## visual, las cajas se recrean y el fondo se reconstruye. Nada de esperar a
 ## reconectar — la nave, su rumbo y el estado del mundo no se tocan.
 func _on_calidad_cambiada(claves: Array) -> void:
-	if claves.has("npc") or claves.has("emissive") or claves.has("shader") \
-			or claves.has("engine") or claves.has("luces"):
+	# render y antialias no reconstruyen nada: van directos al viewport
+	if claves.has("render") or claves.has("aa"):
+		_mundo.aplicar_calidad_render()
+	if claves.has("emissive") or claves.has("engine") or claves.has("luces"):
 		for id in _entidades:
 			_entidades[id].reconstruir()
 	if claves.has("collectable"):
 		for id in _portales:
 			_portales[id].reconstruir()
-	if claves.has("collectable") or claves.has("emissive"):
-		var pendientes := []
-		for id in _cajas:
-			pendientes.append([id, _cajas[id].position])
-			_cajas[id].queue_free()
-		_cajas.clear()
-		_caja_anim_total = 0
-		for par in pendientes:
-			_crear_caja(par[0], par[1])
 	if claves.has("background") and _fondo3d != null:
 		_fondo3d.queue_free()
 		_fondo3d = null
@@ -991,8 +953,8 @@ func _crear_caja(box_id: int, pos: Vector2) -> void:
 		return
 	# todas las particularidades de la caja salen de su JSON (data/props/cargo-box.json)
 	# El nodo del diccionario sigue siendo un Node2D con `position` en juego —
-	# todo el flujo de recoger/minimapa lo lee asi—; su CUERPO es un quad en la
-	# escena unica, que muere con el (tree_exited).
+	# todo el flujo de recoger/minimapa lo lee asi—; su CUERPO vive en la
+	# escena unica y muere con el (tree_exited).
 	var d := AssetDefs.prop("cargo-box")
 	var caja := Node2D.new()
 	caja.position = pos
@@ -1002,38 +964,16 @@ func _crear_caja(box_id: int, pos: Vector2) -> void:
 	_mundo.add_child(cuerpo)
 	caja.tree_exited.connect(func(): if is_instance_valid(cuerpo): cuerpo.queue_free())
 
-	var anim: Dictionary = d.get("frames", {}) if Quality.nivel("collectable") >= 2 else {}
-	var tex: Texture2D
-	if anim.is_empty():
-		tex = load(d.get("texture", "res://assets/world/cargo-box-still.png"))
-	else:
-		tex = load(anim.get("atlas", ""))
-	var alto_px := float(tex.get_height()) / maxf(float(anim.get("vframes", 1)), 1.0)
-	var ancho_px := float(tex.get_width()) / maxf(float(anim.get("hframes", 1)), 1.0)
-	var tam := float(d.get("world_size", 48)) * alto_px / maxf(ancho_px, 1.0)
-	var s := Mundo3D.sprite_plano(tex, tam, int(anim.get("vframes", 1)))
-	if not anim.is_empty():
-		s.hframes = int(anim.get("hframes", 1))
-		s.vframes = int(anim.get("vframes", 1))
-		_caja_anim_total = int(anim.get("count", s.hframes * s.vframes))
-		_caja_anim_fps = float(anim.get("fps", 12.0))
-		# desfase por caja: un campo de cajas parpadeando a la vez canta a bucle
-		caja.set_meta("anim_t", randf() * float(_caja_anim_total) / maxf(_caja_anim_fps, 1.0))
-		caja.set_meta("sprite", s)
-	cuerpo.add_child(s)
-	# la banda emisiva late en ALFA para llamar al jugador (fase por caja). Una
-	# caja de atlas no la lleva: su luz ya viene cocida en los fotogramas.
-	if anim.is_empty() and d.has("emissive") and Quality.nivel("emissive") >= 1:
-		var brillo := Mundo3D.sprite_plano(load(d.emissive), tam)
-		brillo.position.y = 1.5
-		cuerpo.add_child(brillo)
-		var p: Dictionary = d.get("pulse", {})
-		var medio: float = float(p.get("half_period", 0.9))
-		var tw := caja.create_tween().set_loops()
-		tw.tween_property(brillo, "modulate:a", float(p.get("min_alpha", 0.25)), medio) \
-			.set_trans(Tween.TRANS_SINE)
-		tw.tween_property(brillo, "modulate:a", float(p.get("max_alpha", 1.0)), medio) \
-			.set_trans(Tween.TRANS_SINE)
+	# la malla, escalada a `world_size` por su huella, como la estacion. Sin
+	# `modelo` la caja queda INVISIBLE (decision del 1-sep: el PNG murio con la
+	# calidad por niveles): el nodo logico —recoger, minimapa, click— sigue vivo
+	var ruta := str(d.get("modelo", ""))
+	if ruta != "" and ResourceLoader.exists(ruta):
+		var escena: PackedScene = load(ruta)
+		if escena != null:
+			var m: Node3D = escena.instantiate()
+			cuerpo.add_child(m)
+			m.scale = Vector3.ONE * (float(d.get("world_size", 64)) / AssetDefs.extension_3d(m))
 	_cajas[box_id] = caja
 
 
@@ -1420,10 +1360,6 @@ func _process(delta: float) -> void:
 		_fondo3d.update(_foco, delta)
 
 	# la base animada avanza sus fotogramas
-	if _estacion_anim_total > 0 and _estacion_sprite != null:
-		_estacion_anim_t += delta
-		_estacion_sprite.frame = int(_estacion_anim_t * _estacion_anim_fps) % _estacion_anim_total
-
 	# La estacion 3D RESPIRA por su emision. Es el mismo latido que tenia la capa
 	# emisiva en 2D —los mismos diales `pulse` de su ficha— aplicado a la emision
 	# del material en vez de al alfa de un sprite encima.
@@ -1456,15 +1392,6 @@ func _process(delta: float) -> void:
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)
-
-	if _caja_anim_total > 0:
-		for caja in _cajas.values():
-			var s: Sprite3D = caja.get_meta("sprite", null)
-			if s == null:
-				continue
-			var t: float = float(caja.get_meta("anim_t", 0.0)) + delta
-			caja.set_meta("anim_t", t)
-			s.frame = int(t * _caja_anim_fps) % _caja_anim_total
 
 	if Session.autotest_screenshot != "":
 		_autotest(delta)
@@ -1758,17 +1685,9 @@ func _autotest(delta: float) -> void:
 			if _autotest_t - _at_ultimo_vuelo > 3.0:
 				var img_a := get_viewport().get_texture().get_image()
 				img_a.save_png(Session.autotest_screenshot.replace(".png", "-portal-abierto.png"))
-				var con_atlas := Quality.nivel("collectable") >= 2
-				if Session.calidad_forzada == "" and not con_atlas:
-					_at_captura("AUTOTEST FALLO — sin -Calidad esto corre en alta: "
-						+ "el portal tenia que montar el atlas y no lo hizo", 1)
-					return
-				if con_atlas and not _at_portal_animado:
-					_at_captura("AUTOTEST FALLO — el portal no arranco el encendido", 1)
-					return
-				if _at_portal_animado and not _portales.values()[0].encendido_completo():
-					_at_captura("AUTOTEST FALLO — el encendido del portal no llego al final", 1)
-					return
+				# El portal no tiene cuerpo hasta tener GLB (1-sep): no hay atlas de
+				# encendido que afirmar. La fase queda como el hueco de la ceremonia,
+				# para cuando el encendido sea una animacion del modelo.
 				_at_fase = 10
 		10:
 			_autotest_bestiario()
