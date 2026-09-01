@@ -27,7 +27,7 @@ signal cambiada(claves: Array)
 const RUTA := "user://quality.cfg"
 
 ## Que controla cada clave:
-##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,5x ·
+##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,65x ·
 ##                 1 = 0,85x · 2 = 1x, ampliado con FSR. El 2D (HUD, ventanas)
 ##                 no escala nunca.
 ##  - aa:          MSAA del 3D: 0 ninguno · 1 = 2x · 2 = 4x (el 8-16x del

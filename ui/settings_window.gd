@@ -17,7 +17,7 @@ const ICONO := "res://assets/ui/icons/gear.svg"
 const ANCHO := 344                # el ancho del `#w-cfg` del prototipo
 const ORDEN := ["baja", "media", "alta"]
 const DETALLE := {
-	"baja": "Todo en 3D a media resolución · sin antialias · solo el sol · llamas solo en tu nave",
+	"baja": "Render a 0,65× · sin antialias · solo el sol · llamas solo en tu nave",
 	"media": "Render a 0,85× · antialias 2× · luz de tu nave · polvo estelar",
 	"alta": "Resolución completa · antialias 4× · todas las luces · nebulosas y planetas",
 }

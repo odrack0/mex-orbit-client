@@ -91,9 +91,9 @@ func _ready() -> void:
 ## ventana; con el estiramiento `canvas_items` del proyecto la interfaz sigue
 ## nitida. Es la unica parte de la calidad que no reconstruye nada: se aplica
 ## en caliente y el siguiente frame ya sale asi.
-## MEDIA a 0,85 y no a 0,75 (1-sep, en vivo): con FSR la diferencia de coste es
-## chica y la de nitidez se nota; BAJA se queda en 0,5, que es donde ahorra.
-const ESCALAS_RENDER := [0.5, 0.85, 1.0]
+## Calibrado en vivo el 1-sep, con FSR ya puesto: MEDIA 0,85 (de 0,75) y BAJA
+## 0,65 (de 0,5) — la diferencia de coste es chica y la de nitidez se nota.
+const ESCALAS_RENDER := [0.65, 0.85, 1.0]
 const MSAA := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]
 
 func aplicar_calidad_render() -> void:
