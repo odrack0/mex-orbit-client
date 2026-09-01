@@ -27,6 +27,8 @@ var _entidades := {}          # entity_id -> EntityNode
 var _hero: EntityNode
 var _mundo: Mundo3D
 var _capa_juego: Node2D       # HUD del mundo (barras, nombres, numeros), proyectado
+var _aviso_radiacion: RadiationWarning   # peligro persistente: fuera de los limites
+var _en_radiacion := false                # edge-trigger para el Registro
 var _foco := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
 var _fondo3d: Fondo3D         # el fondo completo del original (F3)
 var _seq := 0
@@ -211,6 +213,14 @@ func _construir_hud() -> void:
 	_hud_estado.offset_top = -34
 	_hud_estado.offset_bottom = -14
 	capa.add_child(_hud_estado)
+
+	# el aviso de la zona radiactiva: encima del HUD proyectado (capa 5) y
+	# debajo de las ventanas N (11+), como el toast del prototipo (z 40)
+	var capa_aviso := CanvasLayer.new()
+	capa_aviso.layer = 8
+	add_child(capa_aviso)
+	_aviso_radiacion = RadiationWarning.crear()
+	capa_aviso.add_child(_aviso_radiacion)
 
 
 func _estado(texto: String, color: Color) -> void:
@@ -1340,6 +1350,30 @@ func _cursor_mundo() -> Vector2:
 	return punto if punto != Vector2.INF else (_hero.position if _hero != null else Vector2.ZERO)
 
 
+## La zona radiactiva se DETECTA aqui, no llega por red: la regla es
+## geometrica —fuera de los limites publicados del mapa— y es exactamente la
+## que aplica el server (Geometry.OutsideBounds); el coste ya llega por
+## HeroStats. Un mensaje propio seria estado duplicado del que ya se tiene.
+func _process_radiacion(delta: float) -> void:
+	var fuera := _hero != null and not _muerto and _fuera_del_mapa(_hero.position)
+	_aviso_radiacion.actualizar(fuera, delta)
+	if fuera == _en_radiacion:
+		return
+	_en_radiacion = fuera
+	if fuera:
+		_estado("Zona radiactiva: el casco pierde un 10% por segundo, y sube", NTheme.HOSTILE)
+		if _chat != null:
+			_chat.add_system("Entraste en la zona radiactiva", NTheme.HOSTILE)
+	else:
+		_estado("De vuelta en el sector", NTheme.MUTED)
+		if _chat != null:
+			_chat.add_system("Saliste de la zona radiactiva")
+
+
+func _fuera_del_mapa(p: Vector2) -> bool:
+	return p.x < 0.0 or p.y < 0.0 or p.x > _limites.x or p.y > _limites.y
+
+
 func _volar_a(destino: Vector2) -> void:
 	if _hero == null:
 		return
@@ -1410,6 +1444,7 @@ func _process(delta: float) -> void:
 		_foco = _hero.position
 		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
 	_mundo.actualizar(_foco)
+	_process_radiacion(delta)
 	# El HUD (nombre/barras) se proyecta AQUI, explicitamente despues de mover
 	# la camara — nunca dentro del _process de cada EntityNode (ver el
 	# comentario grande en sincronizar_hud()): es la unica forma de que la

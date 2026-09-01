@@ -564,6 +564,13 @@ El autopiloto y las patrullas de bicho **siguen** clampeados al límite estricto
 (`_on_autopilot`, `_at_destino_patrulla`): solo un click directo del jugador puede
 cruzar a la zona radiactiva, igual que en DarkOrbit real.
 
+**El aviso en pantalla** (`ui/radiation_warning.gd`) es el *peligro persistente* del §9 del
+sistema N: el toast en `--hostile`, que no caduca y late, más una viñeta hostil en los bordes
+latiendo en fase. **Se detecta aquí, no llega por red**: `_process_radiacion` mira si el héroe
+está fuera de los límites publicados — la misma geometría que aplica el server
+(`Geometry.OutsideBounds`) — y el coste ya llega por `HeroStats`. Un mensaje propio sería estado
+duplicado del que ya se tiene. Al entrar y salir, línea en el Registro y en la línea de estado.
+
 ## Calidad gráfica: niveles por subsistema
 
 `Quality` (autoload, `game/quality.gd`) es un puerto del prototipo, que a su vez replicaba el
