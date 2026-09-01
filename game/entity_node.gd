@@ -95,6 +95,8 @@ var _escala_cuerpo := 1.0        # unidades de mundo por unidad de modelo/pixel
 
 # ---- HUD 2D (vive en capa_hud, proyectado cada frame) ----
 var _hud: Node2D
+## La proyeccion que produjo el ultimo snap del HUD (ver sincronizar_hud).
+var _hud_sp := Vector2.INF
 var _nombre: Label
 var _hp: ColorRect
 var _escudo: ColorRect
@@ -724,7 +726,18 @@ func _process(delta: float) -> void:
 ## y las barras seguian, porque quedaron del lado que ahora leia viejo.
 func sincronizar_hud() -> void:
 	if _hud != null and Mundo3D.instancia != null:
-		_hud.position = Mundo3D.instancia.a_pantalla(position).floor()
+		var sp := Mundo3D.instancia.a_pantalla(position)
+		# HISTERESIS del snap (1-sep): el heroe cae SIEMPRE en el mismo punto
+		# de pantalla —el centro, un entero exacto— y la matriz de proyeccion
+		# lo devuelve con ruido de ~1e-6 distinto en cada frame en que la camara
+		# se recalcula (moverse, zoom). `floor()` a secas alternaba 684/685 y
+		# 359/360: un temblor de 1 px de nombre y barras que solo tenia el heroe
+		# (los NPC nunca se quedan en una frontera) y que aparecia incluso
+		# parado, con la rueda del zoom. Solo se re-snapea si la proyeccion se
+		# movio DE VERDAD; el ruido ya no cruza la frontera.
+		if _hud_sp == Vector2.INF or sp.distance_to(_hud_sp) > 0.05:
+			_hud_sp = sp
+			_hud.position = sp.floor()
 
 
 func _atender_glb() -> void:

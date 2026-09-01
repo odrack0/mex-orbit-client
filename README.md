@@ -518,6 +518,26 @@ gastando. Los máximos llegan de `HeroStats` para tu nave y de `TargetInfo` para
 objetivo; sin máximo conocido la barra conserva el porcentaje que trajo su
 `EntitySpawn`, porque convertir absolutos sin denominador la haría mentir.
 
+### Dónde y cómo se proyecta el HUD de una nave (dos trampas medidas)
+
+Nombre y barras son 2D en pantalla sobre un cuerpo 3D: `sincronizar_hud()` proyecta
+`position` con la cámara y clava el `Node2D` ahí. Dos cosas que costaron cada una su
+sesión de diagnóstico:
+
+1. **Se llama desde `World._process`, después de mover la cámara**, nunca dentro del
+   `_process` de la entidad: las entidades procesan con prioridad −10 (antes que
+   `World`), así que dentro de su propio `_process` la cámara aún es la del frame
+   anterior y el HUD sale desfasado un frame respecto al cuerpo (31-ago).
+2. **El snap a píxel lleva histéresis** (1-sep): el héroe cae *siempre* en el mismo
+   punto de pantalla —el centro, un entero exacto— y la proyección lo devuelve con
+   ruido de precisión simple (medido: Y entre 359,99988 y 360,00009, la ulp de un
+   float32 en 360) distinto en cada frame en que la cámara se recalcula. `floor()` a
+   secas alternaba 359↔360: un temblor de 1 px de nombre y barras que **solo tenía
+   el héroe** (un NPC nunca se queda en una frontera), al moverse y también parado
+   con la rueda del zoom. El HUD solo se re-snapea si la proyección se movió más de
+   **0,05 px** (`_hud_sp`); el ruido ya no cruza la frontera. Medido con log por
+   frame: 5.960 frames, una sola posición del HUD.
+
 ## Chat y reconexión (I7)
 
 **COMMS** (`ui/chat_window.gd`) es una ventana del sistema N — cristal, esquinas en L,
