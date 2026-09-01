@@ -110,11 +110,25 @@ func luz_efecto(pos: Vector3, color: Color, energia: float, rango: float,
 	luz.set_meta("tw", tw)
 
 
-## Recoloca la camara sobre su foco (coordenadas de JUEGO). Seguimiento RIGIDO
-## a enteros, como el original — la suavidad viene de que el heroe ya llega
-## interpolado por el modelo.
+## Recoloca la camara sobre su foco (coordenadas de JUEGO).
+##
+## ANTES snapeaba `foco.floor()` (seguimiento RIGIDO a enteros, como el
+## original), con el razonamiento de que "la suavidad viene de que el heroe
+## ya llega interpolado por el modelo". Ese razonamiento estaba incompleto:
+## en el original 2D, la NAVE tambien se dibujaba pixel-snapeada, asi que
+## camara y nave saltaban JUNTAS y no habia desajuste. Aqui el cuerpo del
+## heroe se posiciona en su `position` CONTINUA (game/entity_node.gd,
+## `_cuerpo.position`), sin redondear — asi que redondear solo la camara
+## abre una brecha entre donde esta la nave y hacia donde mira la camara,
+## que crece con el movimiento y se resetea de golpe cada vez que `foco`
+## cruza un limite de unidad entera: un serrucho continuo en la posicion EN
+## PANTALLA del heroe (el unico punto que la camara seguia), aunque su
+## posicion logica sea perfectamente suave. Reportado 31-ago como "vibracion
+## de proa, solo mi nave, incluso sin tocar el mouse" — dos pruebas lo
+## aislaron: seguia sin input (no es del control) y no le pasaba a los NPC
+## (no los sigue la camara). Foco CONTINUO: sin el desajuste no hace falta.
 func actualizar(foco: Vector2) -> void:
-	_foco = foco.floor()
+	_foco = foco
 	var reduc := clampf((zoom - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN) * TILT_ZOOM_REDUC,
 		0.0, TILT_ZOOM_REDUC)
 	var t := deg_to_rad(TILT - reduc)

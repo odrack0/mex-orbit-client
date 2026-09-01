@@ -39,7 +39,6 @@ const MARGEN := 1.5
 const POLVO_N := 1500
 const POLVO_CAJA := Vector3(4200.0, 300.0, 4200.0)
 const POLVO_Y := -160.0
-const POLVO_REJILLA := 1000.0
 const POLVO_VIDA := 25.0
 
 var _limites := Vector2.ONE
@@ -259,8 +258,8 @@ func _montar_prop(p: Dictionary) -> void:
 
 
 ## El polvo (G§10.4): particulas en un volumen alrededor del foco, SUELTAS AL
-## MUNDO (local_coords off) con deriva lenta; el emisor salta por la rejilla
-## siguiendo a la camara y las particulas viejas se quedan donde nacieron.
+## MUNDO (local_coords off) con deriva lenta; el emisor SIGUE al foco cada
+## frame y las particulas viejas se quedan donde nacieron.
 func _montar_polvo(tinte: Color, tinte_ratio: float) -> void:
 	_polvo = GPUParticles3D.new()
 	_polvo.amount = POLVO_N
@@ -389,9 +388,16 @@ func update(foco: Vector2, delta: float) -> void:
 	for g: Dictionary in _girando:
 		(g.nodo as Node3D).rotation_degrees += (g.spin as Vector3) * delta
 	if _polvo != null:
-		var centro := Vector3(foco.x, POLVO_Y, foco.y)
-		if Vector2(_polvo.position.x, _polvo.position.z).distance_to(foco) > POLVO_REJILLA:
-			_polvo.position = centro.snapped(Vector3.ONE * POLVO_REJILLA)
+		# ANTES saltaba a la rejilla mas cercana solo al alejarse 1000 unidades:
+		# el reposicionamiento en un salto de golpe (no gradual) se sentia como
+		# un atoron/parpadeo del polvo (y del juego en general) cada pocos
+		# segundos de vuelo sostenido — reportado 31-ago, junto al arreglo del
+		# foco de camara (mismo tipo de bug: algo que se snapea en bloques
+		# grandes en vez de seguir continuo). Las particulas YA emitidas no
+		# les afecta mover el emisor (local_coords=false, quedan donde nacieron
+		# en espacio de mundo); seguir el foco cada frame no cambia el
+		# comportamiento del rastro, solo quita el salto.
+		_polvo.position = Vector3(foco.x, POLVO_Y, foco.y)
 	if not _ghosts.is_empty():
 		var px := Mundo3D.instancia.a_pantalla(_sol_pos, _sol.position.y)
 		var viewport := get_viewport().get_visible_rect().size

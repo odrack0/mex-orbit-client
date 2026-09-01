@@ -5,7 +5,7 @@ enum EntityKind { PLAYER = 0, NPC = 1 }
 enum DespawnReason { RANGE = 0, LEFT = 1, DEAD = 2 }
 enum BoxDespawnReason { COLLECTED = 0, EXPIRED = 1, RANGE = 2 }
 enum Weapon { LASER = 0 }
-enum DeathCause { NPC = 0, PLAYER = 1 }
+enum DeathCause { NPC = 0, PLAYER = 1, RADIATION = 2 }
 enum StorageReason { COLLECT = 0, REFINE_IN = 1, REFINE_OUT = 2, SELL = 3, UNLOAD = 4 }
 enum ChatChannel { GLOBAL = 0, FACTION = 1, CLAN = 2 }
 enum ErrorCode { GENERIC = 0, BAD_TICKET = 1, VERSION_UNSUPPORTED = 2, BANNED = 3, RESUME_EXPIRED = 4, TOO_FAR = 5, GONE = 6, INSUFFICIENT = 7, RATE_LIMITED = 8, INVALID = 9 }

@@ -31,6 +31,9 @@ var _foco := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
 var _fondo3d: Fondo3D         # el fondo completo del original (F3)
 var _seq := 0
 var _limites := Vector2(20800, 12800)
+# zona radiactiva: cuanto se puede rebasar el limite antes del borde de
+# verdad (Dials.RadiationMargin en el server — mismo numero en los dos lados)
+const RADIACION_MARGEN := 1000.0
 
 # vuelo sostenido (herencia del prototipo)
 var _hold_move := false
@@ -1160,9 +1163,10 @@ func _handle_click(world_pos: Vector2) -> void:
 	# (el vuelo manual cancela el autopiloto, como en el prototipo)
 	_pending_box = 0
 	_autopilot = Vector2.INF
-	_volar_a(world_pos)
 	_hold_move = true
 	_hold_timer = 0.0
+	if not _cerca_del_heroe(world_pos):
+		_volar_a(world_pos)
 
 
 ## El portal al alcance del salto, si lo hay. El server valida el rango otra vez:
@@ -1304,8 +1308,21 @@ func _process_hold_move(delta: float) -> void:
 		return
 	_hold_timer = 0.0
 	var target := _cursor_mundo()
-	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA:
+	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA and not _cerca_del_heroe(target):
 		_volar_a(target)
+
+
+## El clic sobre la propia nave (o muy cerca) nunca cuenta como orden de
+## vuelo — igual que DarkOrbit: el usuario lo confirmo jugando el original
+## y aqui era ademas la ultima fuente real del "brinco" (31-ago): un destino
+## practicamente encima de la nave deja `en_vuelo` en falso desde el
+## arranque, asi que la correccion de reconcile() nunca se difiere (el
+## guardia de "solo corrige si esta quieta" no protege lo que YA esta
+## quieto) y cada eco del server se aplicaba directo. `_entity_at` ya excluye
+## al heroe de la seleccion (linea de arriba, "if e == _hero: continue");
+## esto es el mismo criterio aplicado al vuelo libre.
+func _cerca_del_heroe(punto: Vector2) -> bool:
+	return _hero != null and _hero.position.distance_to(punto) < _hero.click_radius
 
 
 func _sigue_pulsado() -> bool:
@@ -1339,9 +1356,11 @@ func _volar_a(destino: Vector2) -> void:
 	# jugador pueda ver bien. Lo unico correcto es no tocarla.
 	if _saltando:
 		return
-	# a diferencia del prototipo (mapa "infinito" + radiacion), v1 clampea igual
-	# que el server: cliente y autoridad siempre coinciden en el destino
-	destino = destino.clamp(Vector2.ZERO, _limites)
+	# zona radiactiva: se puede rebasar el limite del mapa y seguir volando
+	# (con danio por segundo, ver el server), asi que el clamp de aqui ya NO es
+	# al limite a secas — es al mismo margen que aplica el server, para que
+	# cliente y autoridad sigan coincidiendo en el destino
+	destino = destino.clamp(Vector2.ZERO, _limites + Vector2.ONE * RADIACION_MARGEN)
 	# prediccion optimista: el heroe parte YA; el eco del server lo reconcilia
 	_hero.set_objetivo(destino)
 	_last_sent_target = destino
@@ -1385,6 +1404,14 @@ func _process(delta: float) -> void:
 		_foco = _hero.position
 		_nave.poner_texto("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
 	_mundo.actualizar(_foco)
+	# El HUD (nombre/barras) se proyecta AQUI, explicitamente despues de mover
+	# la camara — nunca dentro del _process de cada EntityNode (ver el
+	# comentario grande en sincronizar_hud()): es la unica forma de que la
+	# posicion (ya actualizada, las entidades procesan con prioridad -10,
+	# antes que World) y la camara (recien actualizada arriba) esten frescas
+	# A LA VEZ para el mismo fotograma.
+	for e: EntityNode in _entidades.values():
+		e.sincronizar_hud()
 
 	# (los disparos son proyectiles que viajan, uno por AttackEvent del server:
 	# ya no hay haz permanente entre las naves)

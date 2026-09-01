@@ -63,6 +63,12 @@ var turn_deg_per_sec := 0.0
 var attack_target: EntityNode = null
 ## Segundos que le quedan al rumbo DEDUCIDO de los disparos (0 = no caduca).
 var _attack_ttl := 0.0
+## Correccion de `reconcile()` pendiente de absorber (ver _process_correccion):
+## el eco del server llega en un mensaje de red, fuera del ritmo de fotogramas,
+## y aplicar el ajuste de golpe ahi mismo era un salto real en un solo frame
+## disfrazado de "lerp suave". Se guarda el vector completo y se reparte en el
+## tiempo, frame a frame, como el giro y el banking.
+var _correccion := Vector2.ZERO
 ## Donde cree el SERVER que esta este bicho (extrapolacion lineal). La posicion
 ## visual la persigue; ver el comentario grande en _process.
 var _shadow := Vector2.ZERO
@@ -100,9 +106,11 @@ var max_hp_abs := 0
 var max_shield_abs := 0
 
 var _visual_angle := 0.0          # grados de pantalla de la proa
-var _turn_tween: Tween
 var _idle_timer := 0.0
 var _visual_target := 0.0         # a donde va el giro en curso (fuente del banking)
+## Velocidad angular EFECTIVA del giro en curso: 0 = naves, ease a TURN_TIME
+## sin importar la magnitud; >0 = velocidad angular constante (bichos).
+var _turn_vel := 0.0
 var _roll := 0.0
 var _hover_fase := 0.0
 var _hover_gain := 0.0
@@ -166,6 +174,17 @@ var _impactos_escudo := 0       # tope del original: 9
 
 
 func setup(spawn, heroe: bool) -> void:   # spawn: MexProtocol.EntitySpawn
+	# Las entidades son HIJAS de World (world.gd add_child), y Godot procesa
+	# el _process del PADRE antes que el de los hijos por defecto — asi que
+	# world.gd leia `_hero.position` para la camara ANTES de que el heroe
+	# actualizara su propia posicion ESTE fotograma: la camara siempre iba un
+	# fotograma detras del heroe, y con la camara inclinada 45 grados ese
+	# rezago se proyecta sobre todo en el eje VERTICAL de pantalla — el
+	# nombre y las barras (fijos a `position`, iguales para todos) se veian
+	# "moverse segun el movimiento de la nave" (reportado 1-sep). Prioridad
+	# negativa: las entidades procesan ANTES que World, la camara siempre ve
+	# la posicion YA fresca de este fotograma.
+	process_priority = -10
 	entity_id = spawn.entity_id
 	es_heroe = heroe
 	es_npc = spawn.kind == MexProtocol.EntityKind.NPC
@@ -519,15 +538,25 @@ func _construir_hud(d: Dictionary, heroe: bool, spawn) -> void:
 	else:
 		add_child(_hud)
 	var color := NTheme.CYAN if heroe else (NTheme.TXT if not es_npc else NTheme.HOSTILE)
+	# El offset era una constante fija (-52/+44), calibrada de ojo contra ALGUNA
+	# especie: para la Phoenix (screen_size 141, medio-cuerpo ~70) la barra
+	# caia DENTRO de la silueta del casco, casi tocandolo — reportado 31-ago
+	# como "las barras brincan", que en realidad era la MISMA nave (el ligero
+	# vaiven del banking, el borde del modelo) leyendose contra un vecino
+	# demasiado pegado. Proporcional al medio-cuerpo real de CADA nave/bicho
+	# mas un margen fijo de aire: nunca vuelve a caer dentro de la silueta,
+	# sea cual sea la especie.
+	const CLEARANCE := 14.0
+	var medio_cuerpo := float(d.get("screen_size", 141)) * 0.5
 	_nombre = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
-	_nombre.position = Vector2(-70, 44)
+	_nombre.position = Vector2(-70, medio_cuerpo + CLEARANCE)
 	_nombre.custom_minimum_size = Vector2(140, 0)
 	_nombre.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_nombre.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	_nombre.add_theme_constant_override("outline_size", 4)
 	_hud.add_child(_nombre)
 	_shield_pct = clampf(spawn.shield_pct, 0.0, 1.0)
-	var barra_y := -52.0
+	var barra_y := -(medio_cuerpo + CLEARANCE)
 	_escudo = _crear_barra(barra_y - BARRA_SEPARACION, NTheme.SHIELD, _shield_pct)
 	_hp = _crear_barra(barra_y, NTheme.HP if not es_npc else NTheme.HOSTILE, _hp_pct)
 
@@ -657,6 +686,7 @@ func _process(delta: float) -> void:
 			position = position.move_toward(_shadow, vel * delta)
 		else:
 			position = position.move_toward(objetivo, speed * delta)
+	_process_correccion(delta)
 
 	if attack_target != null and not is_instance_valid(attack_target):
 		attack_target = null
@@ -673,11 +703,26 @@ func _process(delta: float) -> void:
 			_idle_timer = 2.0 + randf() * 5.0
 			_girar_a(_visual_angle + (randf() - 0.5) * 360.0)
 
-	# ---- sincronia del cuerpo 3D y del HUD ----
+	# ---- sincronia del cuerpo 3D (el HUD se proyecta aparte, ver abajo) ----
 	_cuerpo.position = Vector3(position.x, 0.0, position.y)
+	if not _congelado:
+		_process_giro(delta)
 	if turn_deg_per_sec == 0.0 and not _congelado:
 		_process_banking(delta, en_vuelo)
 		_process_hover(delta, en_vuelo)
+
+
+## Proyecta el HUD (nombre/barras) a pantalla. NO va dentro de `_process`: el
+## render 3D usa lo que quede al FINAL del fotograma (siempre consistente,
+## por eso la nave dejo de brincar con la prioridad -10), pero `a_pantalla`
+## lee la camara AL MOMENTO de llamarse — y `Mundo3D.actualizar()` corre en
+## World, un nodo aparte. Cualquier orden fijo entre nodos deja a uno de los
+## dos lados (posicion o camara) leyendo el valor de ANTES de actualizarse
+## este fotograma. La unica manera de que ambos esten frescos A LA VEZ es que
+## World llame esto EXPLICITAMENTE, justo despues de mover la camara —
+## reportado 1-sep: la nave dejo de brincar con la prioridad, pero el nombre
+## y las barras seguian, porque quedaron del lado que ahora leia viejo.
+func sincronizar_hud() -> void:
 	if _hud != null and Mundo3D.instancia != null:
 		_hud.position = Mundo3D.instancia.a_pantalla(position).floor()
 
@@ -748,9 +793,18 @@ func set_attack_target(objetivo_ataque: EntityNode, segundos := 0.0) -> void:
 		_encarar(attack_target.position)
 
 
+## El vector punto-position es la DIRECCION que se convierte en rumbo — y la
+## direccion de un vector casi nulo es numericamente inestable: cualquier
+## ruido minusculo en el clic (o en la posicion propia) lo hace girar al
+## azar, no un poco. El guardia viejo (> 1.0) es trivial de cruzar con un
+## clic normal SOBRE la nave — y ahi es exactamente donde el usuario reporto
+## que el "brinco" se intensifica (31-ago). `click_radius` ya es "que tan
+## cerca cuenta como clicar la nave"; reusarlo aqui es el mismo criterio:
+## dentro de ese circulo, la direccion no es confiable y no vale la pena
+## recalcular el rumbo.
 func _encarar(punto: Vector2) -> void:
 	var rumbo := punto - position
-	if rumbo.length() > 1.0:
+	if rumbo.length() > click_radius:
 		_girar_a(_angulo_visual_hacia(punto),
 			TURN_FLIGHT_DEG_PER_SEC if turn_deg_per_sec > 0.0 else 0.0)
 
@@ -780,28 +834,55 @@ func set_objetivo(destino: Vector2) -> void:
 ##   corto, CONTINUO — el giro del cliente 3D original. La cuantizacion de 32
 ##   pasos era el look del sheet 2D y murio con el mundo de sprites.
 ## - BICHOS (turn_deg_per_sec > 0): velocidad angular constante, su peso.
+##
+## Solo fija el OBJETIVO — no anima nada aqui. `_process_giro` (por frame,
+## como el banking) hace la integracion. Antes esto mataba y recreaba un
+## Tween en cada llamada: con "mantener presionado para volar" reenviando el
+## rumbo cada 0.25 s (world.gd HOLD_RESEND_SEC), cada pequenio ajuste del
+## cursor reiniciaba el EASE_OUT desde cero — la nave nunca llegaba a la cola
+## suave de la curva, solo veia el arranque brusco una y otra vez, y eso se
+## leia como una VIBRACION continua de proa (reportada 31-ago). El banking ya
+## resolvia esto mismo con una integracion incremental por frame, robusta a
+## un objetivo que se mueve; el giro pasa al mismo patron.
+## Zona muerta angular: el error de proa amplifica cualquier temblor de
+## posicion del objetivo en un giro de rumbo mucho mayor cuanto mas cerca
+## esta — 5 unidades laterales a 1000 de distancia son 0.3 grados, mismas
+## 5 unidades a 50 de distancia son 5.7 grados, 20x mas sensible. `_encarar`
+## llama a `_girar_a` TODO fotograma mientras hay attack_target, asi que en
+## combate cuerpo a cuerpo ese ruido se recalcula 60 veces por segundo.
+## Reportado 31-ago: "brinco" solo en clics/combate cerca de la nave, nunca
+## lejos. Si el rumbo nuevo esta a menos de esto del YA comandado, se ignora.
+const RUIDO_RUMBO_DEG := 1.5
+
 func _girar_a(grados: float, dps := 0.0) -> void:
 	var destino_ang := fposmod(grados, 360.0)
-	var delta := fposmod(destino_ang - _visual_angle + 180.0, 360.0) - 180.0
-	if is_zero_approx(delta):
+	var vs_comandado := fposmod(destino_ang - _visual_target + 180.0, 360.0) - 180.0
+	if absf(vs_comandado) < RUIDO_RUMBO_DEG:
 		return
+	var delta := fposmod(destino_ang - _visual_angle + 180.0, 360.0) - 180.0
 	_visual_target = fposmod(_visual_angle + delta, 360.0)
-	var duracion := TURN_TIME
-	var vel := dps if dps > 0.0 else turn_deg_per_sec
-	if vel > 0.0:
-		duracion = clampf(absf(delta) / vel, 0.06, 8.0)
-	if _turn_tween != null:
-		_turn_tween.kill()
-	_turn_tween = create_tween()
-	_turn_tween.tween_method(_set_visual_angle, _visual_angle, _visual_angle + delta, duracion) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_turn_vel = dps if dps > 0.0 else turn_deg_per_sec
+
+
+## Un frame de giro: NAVES easean con la misma formula del banking (siempre
+## converge, nunca "reinicia" — un _visual_target nuevo a medio camino solo
+## redirige la curva); BICHOS avanzan a velocidad angular constante.
+func _process_giro(delta: float) -> void:
+	var error := fposmod(_visual_target - _visual_angle + 180.0, 360.0) - 180.0
+	if is_zero_approx(error):
+		return
+	if _turn_vel > 0.0:
+		var paso := _turn_vel * delta
+		_set_visual_angle(_visual_angle + clampf(error, -paso, paso))
+	else:
+		var k := minf(1.0, (delta / TURN_TIME) * (2.0 - delta / TURN_TIME))
+		_set_visual_angle(_visual_angle + error * k)
 
 
 ## Fija el rumbo VISUAL en el acto (enganche del autotest).
 func rumbo_visual(grados: float) -> void:
-	if _turn_tween != null and _turn_tween.is_valid():
-		_turn_tween.kill()
 	_visual_target = fposmod(grados, 360.0)
+	_turn_vel = 0.0
 	_set_visual_angle(grados)
 
 
@@ -839,6 +920,17 @@ func solo_casco(activo: bool) -> void:
 
 
 ## Eco autoritativo del server: correccion suave si la deriva es chica, snap si es grande.
+##
+## El SNAP se queda instantaneo a proposito — es la deriva grande, se ve
+## igual sea de golpe o repartida, y encima quitarlo tapa un teleport real. La
+## deriva CHICA es la que cambio: antes `position.lerp(server_pos, 0.35)` se
+## aplicaba aqui mismo, en el mensaje de red, FUERA del ritmo de fotogramas —
+## un salto real del 35% del error en un solo frame, disfrazado de "suave"
+## por el nombre del metodo. Con reconcile() disparando en cada Move del
+## server (cada clic corto genera varios, muy seguidos) eso se leia como
+## brinco constante — reportado 31-ago junto al de la camara. Ahora solo se
+## GUARDA el vector completo; `_process_correccion` lo reparte de verdad, en
+## el tiempo, frame a frame.
 func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, teleport: bool) -> void:
 	speed = nueva_vel
 	var server_pos := Vector2(x, y)
@@ -846,11 +938,39 @@ func reconcile(x: float, y: float, tx: float, ty: float, nueva_vel: float, telep
 		_shadow = server_pos
 		if teleport or position.distance_to(server_pos) > 500.0:
 			position = server_pos
+			_correccion = Vector2.ZERO
 	elif teleport or position.distance_to(server_pos) > 220.0:
 		position = server_pos
+		_correccion = Vector2.ZERO
 	else:
-		position = position.lerp(server_pos, 0.35)
+		# El eco del server SIEMPRE llega mostrando donde estabas hace un
+		# instante (round-trip), no donde estas ya — un drift de latencia
+		# normal, no un error. Reportado 31-ago: durante hold-drag el reenvio
+		# cada 0.25 s (world.gd HOLD_RESEND_SEC) genera un RECONCILE casi tan
+		# seguido, con drift real (medido: 0.5-20 unidades, sin patron) —
+		# _correccion nunca terminaba de asentarse antes del siguiente, y eso
+		# SI se sentia como brinco constante, a diferencia de un vuelo largo
+		# con pocos reenvios. Mientras la nave sigue volando de verdad
+		# (en_vuelo, persiguiendo un objetivo que YA se refresca solo), el
+		# drift es irrelevante — el proximo objetivo lo absorbe gratis. Solo
+		# importa aplicarlo cuando la nave esta quieta o a punto de estarlo:
+		# ahi si hay que llegar EXACTO a donde dice el server.
+		if position.distance_to(objetivo) <= 0.5:
+			_correccion += server_pos - position
 	set_objetivo(Vector2(tx, ty))
+
+
+## Un frame de correccion: absorbe `_correccion` con la misma ease incremental
+## del giro y el banking — nunca de golpe, y un reconcile nuevo a medio
+## camino solo suma al vector pendiente en vez de reiniciar nada.
+const CORRECCION_TIEMPO := 0.3
+func _process_correccion(delta: float) -> void:
+	if _correccion.is_zero_approx():
+		return
+	var k := minf(1.0, (delta / CORRECCION_TIEMPO) * (2.0 - delta / CORRECCION_TIEMPO))
+	var paso := _correccion * k
+	position += paso
+	_correccion -= paso
 
 
 func set_hp_pct(pct: float) -> void:

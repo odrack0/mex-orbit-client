@@ -541,7 +541,23 @@ son del chat (izquierda) y del minimapa (derecha).
 > corre `godot --headless --path . --import` antes de lanzar el cliente; sin ese paso un
 > script recién creado revienta con *"Could not find type"*.
 
-Diferencia deliberada contra el prototipo: **v1 clampea el destino a los límites del mapa** (igual que el server); el prototipo navegaba "mapa infinito" con la radiación como freno.
+## Zona radiactiva (más allá del límite del mapa)
+
+**Ya no hay clamp seco al límite.** La primera versión clampeaba el destino a los
+límites del mapa igual que el server —diferencia deliberada contra el prototipo,
+que navegaba "mapa infinito" con la radiación como freno—. Ahora sí hay margen:
+`_volar_a` (`game/world.gd`) clampea a `_limites + RADIACION_MARGEN` (1000 u), el
+**mismo número** que `Dials.RadiationMargin` del server — cliente y autoridad
+siguen coincidiendo en el destino, solo que el destino válido ahora llega un poco
+más lejos. Pasado el límite de verdad la nave recibe daño por segundo, escalando
+mientras se quede ahí (ver `## Zona radiactiva` en el README de
+`mex-orbit-game-server` para la fórmula; aquí no hay lógica propia, solo el
+mismo clamp con un número más grande y `HeroStats` reflejando el daño como
+cualquier otro).
+
+El autopiloto y las patrullas de bicho **siguen** clampeados al límite estricto
+(`_on_autopilot`, `_at_destino_patrulla`): solo un click directo del jugador puede
+cruzar a la zona radiactiva, igual que en DarkOrbit real.
 
 ## Calidad gráfica: niveles por subsistema
 
