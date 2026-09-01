@@ -31,10 +31,11 @@ var _foco := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
 var _fondo3d: Fondo3D         # el fondo completo del original (F3)
 var _seq := 0
 var _limites := Vector2(20800, 12800)
-# zona radiactiva: cuanto se puede rebasar el limite antes del borde de
-# verdad, POR LOS CUATRO LADOS — por el lado del 0 el destino va en negativo
-# (Dials.RadiationMargin en el server — mismo numero en los dos lados)
-const RADIACION_MARGEN := 1000.0
+# zona radiactiva: la radiacion NO es una pared, es un reloj — la nave sigue
+# volando mas alla del limite hasta explotar. Esto es el tope estructural del
+# server (Dials.RadiationReach, mismo numero), por los cuatro lados y negativo
+# por el lado del 0; esta puesto donde nadie llega con vida.
+const RADIACION_ALCANCE := 50000.0
 
 # vuelo sostenido (herencia del prototipo)
 var _hold_move := false
@@ -1358,13 +1359,14 @@ func _volar_a(destino: Vector2) -> void:
 	if _saltando:
 		return
 	# zona radiactiva: se puede rebasar el limite del mapa y seguir volando
-	# (con danio por segundo, ver el server), asi que el clamp de aqui ya NO es
-	# al limite a secas — es al mismo margen que aplica el server, por los
-	# cuatro lados (negativo por el lado del 0), para que cliente y autoridad
-	# sigan coincidiendo en el destino. El `Vector2.ZERO` que habia aqui era
-	# una de las capas que dejaban el borde izquierdo/superior en pared.
-	var margen := Vector2.ONE * RADIACION_MARGEN
-	destino = destino.clamp(-margen, _limites + margen)
+	# hasta explotar (el danio por segundo es del server), asi que el clamp de
+	# aqui ya NO es al limite — es al mismo alcance estructural que aplica el
+	# server, por los cuatro lados (negativo por el lado del 0), para que
+	# cliente y autoridad sigan coincidiendo en el destino. El `Vector2.ZERO`
+	# que habia aqui era una de las capas que dejaban el borde izquierdo en
+	# pared; el margen de 1000 que vino despues se sentia igual de pared.
+	var alcance := Vector2.ONE * RADIACION_ALCANCE
+	destino = destino.clamp(-alcance, _limites + alcance)
 	# prediccion optimista: el heroe parte YA; el eco del server lo reconcilia
 	_hero.set_objetivo(destino)
 	_last_sent_target = destino

@@ -738,10 +738,10 @@ class EntitySpawn:
 		assert(type_id.length() <= 64, "EntitySpawn.type_id demasiado largo")
 		assert(name.length() <= 64, "EntitySpawn.name demasiado largo")
 		assert(faction <= 8, "EntitySpawn.faction > 8")
-		assert(x >= -10000, "EntitySpawn.x < -10000")
-		assert(x <= 110000, "EntitySpawn.x > 110000")
-		assert(y >= -10000, "EntitySpawn.y < -10000")
-		assert(y <= 110000, "EntitySpawn.y > 110000")
+		assert(x >= -100000, "EntitySpawn.x < -100000")
+		assert(x <= 200000, "EntitySpawn.x > 200000")
+		assert(y >= -100000, "EntitySpawn.y < -100000")
+		assert(y <= 200000, "EntitySpawn.y > 200000")
 		assert(speed <= 2000, "EntitySpawn.speed > 2000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
@@ -851,14 +851,14 @@ class EntityMove:
 	var teleport: bool = false
 
 	func validate() -> void:
-		assert(x >= -10000, "EntityMove.x < -10000")
-		assert(x <= 110000, "EntityMove.x > 110000")
-		assert(y >= -10000, "EntityMove.y < -10000")
-		assert(y <= 110000, "EntityMove.y > 110000")
-		assert(target_x >= -10000, "EntityMove.target_x < -10000")
-		assert(target_x <= 110000, "EntityMove.target_x > 110000")
-		assert(target_y >= -10000, "EntityMove.target_y < -10000")
-		assert(target_y <= 110000, "EntityMove.target_y > 110000")
+		assert(x >= -100000, "EntityMove.x < -100000")
+		assert(x <= 200000, "EntityMove.x > 200000")
+		assert(y >= -100000, "EntityMove.y < -100000")
+		assert(y <= 200000, "EntityMove.y > 200000")
+		assert(target_x >= -100000, "EntityMove.target_x < -100000")
+		assert(target_x <= 200000, "EntityMove.target_x > 200000")
+		assert(target_y >= -100000, "EntityMove.target_y < -100000")
+		assert(target_y <= 200000, "EntityMove.target_y > 200000")
 		assert(speed <= 2000, "EntityMove.speed > 2000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
@@ -1023,10 +1023,10 @@ class MoveIntent:
 	var target_y: int = 0
 
 	func validate() -> void:
-		assert(target_x >= -10000, "MoveIntent.target_x < -10000")
-		assert(target_x <= 110000, "MoveIntent.target_x > 110000")
-		assert(target_y >= -10000, "MoveIntent.target_y < -10000")
-		assert(target_y <= 110000, "MoveIntent.target_y > 110000")
+		assert(target_x >= -100000, "MoveIntent.target_x < -100000")
+		assert(target_x <= 200000, "MoveIntent.target_x > 200000")
+		assert(target_y >= -100000, "MoveIntent.target_y < -100000")
+		assert(target_y <= 200000, "MoveIntent.target_y > 200000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
@@ -1390,10 +1390,10 @@ class BoxSpawn:
 
 	func validate() -> void:
 		assert(box_type.length() <= 32, "BoxSpawn.box_type demasiado largo")
-		assert(x >= -10000, "BoxSpawn.x < -10000")
-		assert(x <= 110000, "BoxSpawn.x > 110000")
-		assert(y >= -10000, "BoxSpawn.y < -10000")
-		assert(y <= 110000, "BoxSpawn.y > 110000")
+		assert(x >= -100000, "BoxSpawn.x < -100000")
+		assert(x <= 200000, "BoxSpawn.x > 200000")
+		assert(y >= -100000, "BoxSpawn.y < -100000")
+		assert(y <= 200000, "BoxSpawn.y > 200000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)

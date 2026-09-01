@@ -546,10 +546,11 @@ son del chat (izquierda) y del minimapa (derecha).
 **Ya no hay clamp seco al límite.** La primera versión clampeaba el destino a los
 límites del mapa igual que el server —diferencia deliberada contra el prototipo,
 que navegaba "mapa infinito" con la radiación como freno—. Ahora sí hay margen:
-`_volar_a` (`game/world.gd`) clampea a `[-RADIACION_MARGEN, _limites + RADIACION_MARGEN]`
-(1000 u), el **mismo número** que `Dials.RadiationMargin` del server — cliente y
-autoridad siguen coincidiendo en el destino, solo que el destino válido ahora llega
-un poco más lejos **por los cuatro lados**. Por el lado del 0 eso es **negativo**:
+`_volar_a` (`game/world.gd`) clampea a `[-RADIACION_ALCANCE, _limites + RADIACION_ALCANCE]`
+(50 000 u), el **mismo número** que `Dials.RadiationReach` del server — cliente y
+autoridad siguen coincidiendo en el destino. No es una pared: la radiación es un
+reloj y la nave sigue **hasta explotar**; el tope está donde nadie llega con vida.
+(Un primer margen de 1000 u se sintió como un muro a un paso del límite.) Por el lado del 0 eso es **negativo**:
 la primera versión clampeaba a `Vector2.ZERO` y el borde izquierdo/superior seguía
 siendo pared (reportado en vivo el 1-sep). Va de la mano del protocolo, que pasó
 las coordenadas de entidades a `sint` — el `messages_g.gd` de este repo tiene que
