@@ -98,8 +98,16 @@ func aplicar_calidad_render() -> void:
 	var vp := get_viewport()
 	if vp == null:
 		return
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	vp.scaling_3d_scale = ESCALAS_RENDER[clampi(Quality.nivel("render"), 0, 2)]
+	var escala: float = ESCALAS_RENDER[clampi(Quality.nivel("render"), 0, 2)]
+	# FSR y no bilineal (1-sep, reportado en vivo): el bilineal amplia cada
+	# pixel del render chico tal cual, y sobre una silueta contra el negro
+	# del espacio eso son escalones de 2 px — "la nave se ve pixelada". FSR
+	# (FidelityFX 1.0) reconstruye los bordes al ampliar y afila: a 0,75x
+	# queda casi nativo y a 0,5x blando, pero sin dientes. A 1x no hay nada
+	# que ampliar y el bilineal es gratis.
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if escala < 1.0 \
+		else Viewport.SCALING_3D_MODE_BILINEAR
+	vp.scaling_3d_scale = escala
 	vp.msaa_3d = MSAA[clampi(Quality.nivel("aa"), 0, 2)]
 	# se deja dicho, como la auto-calidad: es lo unico que permite saber desde
 	# un log si el ajuste llego al viewport o se quedo en el diccionario
