@@ -28,7 +28,8 @@ const RUTA := "user://quality.cfg"
 
 ## Que controla cada clave:
 ##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,5x ·
-##                 1 = 0,75x · 2 = 1x. El 2D (HUD, ventanas) no escala nunca.
+##                 1 = 0,85x · 2 = 1x, ampliado con FSR. El 2D (HUD, ventanas)
+##                 no escala nunca.
 ##  - aa:          MSAA del 3D: 0 ninguno · 1 = 2x · 2 = 4x (el 8-16x del
 ##                 original no paga en Vulkan; medido en el plan del cliente 3D).
 ##  - luces:       las DINAMICAS del mundo 3D (F2): 0 ninguna · 1 heroe + una

@@ -609,7 +609,7 @@ existía.
 
 | clave | 0 (Baja) | 1 (Media) | 2 (Alta) | qué ahorra |
 |---|---|---|---|---|
-| `render` | 0,5× | 0,75× | 1× | **la palanca de GPU**: fill-rate del skybox, nebulosas, partículas. El 2D no escala. Se amplía con **FSR**, no bilineal: el bilineal dejaba las siluetas contra el negro con escalones de 2 px («la nave se ve pixelada», reportado en vivo) |
+| `render` | 0,5× | 0,85× | 1× | **la palanca de GPU**: fill-rate del skybox, nebulosas, partículas. El 2D no escala. Se amplía con **FSR**, no bilineal: el bilineal dejaba las siluetas contra el negro con escalones de 2 px («la nave se ve pixelada», reportado en vivo). MEDIA subió de 0,75 a 0,85 en vivo: con FSR la nitidez se nota y el coste apenas |
 | `aa` (MSAA 3D) | — | 2× | 4× | fill-rate (el 8–16× del original no paga en Vulkan) |
 | `luces` | solo el sol | + la de tu nave | + el pool de 3 de efectos | por luz dinámica |
 | `engine` | llamas **solo en tu nave**, media partícula | todas, media partícula | todas, completas | un emisor por NPC: lo único que escala con 54 bichos |
