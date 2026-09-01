@@ -632,6 +632,11 @@ Sus GLB son la primera prioridad de arte (`plan-cliente-3d.md`, «una especie po
 
 **La auto-calidad** (`AQ_ESCALERA`) recorta en este orden: antialias → resolución → fondo y
 partículas → luces → explosiones y pulso. Los dos primeros peldaños no se ven; los mide el fps.
+Baja un escalón con media < 10 fps en 20 s y **recupera al 90 % del refresco del monitor**
+(`AQ_SUBE_FRACCION`): el original recuperaba «por encima de 60», pero aquí el VSync —default de
+Godot, sin tope propio de `max_fps`— clava el máximo al refresco (59–60 Hz), así que una media
+nunca pasa de 60 y la escalera podía bajar pero jamás volver a subir. Los 60 fps que ves son el
+VSync contra el monitor, no un tope del juego; `banco_3d` lo apaga para medir de verdad.
 
 **Se persiste por cuenta, en `user://quality.cfg`.** Dos personas que comparten un PC guardan
 ajustes distintos, y a la vez el valor **no viaja con la cuenta** a otra máquina — la calidad es una

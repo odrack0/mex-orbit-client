@@ -78,7 +78,17 @@ var _cuenta := 0
 ## los fps capados no es una maquina lenta), y en autotest no corre.
 const AQ_VENTANA_SEC := 20.0
 const AQ_FPS_BAJA := 10.0
-const AQ_FPS_SUBE := 60.0
+## El original recuperaba "por encima de 60" — era un SWF sin VSync. Aqui el
+## VSync (default de Godot) clava el tope al refresco del monitor, asi que la
+## media NUNCA pasa de 60 y la escalera podia bajar pero jamas volver a subir
+## (1-sep). Se recupera al 90 % del refresco real: holgura de verdad, no un
+## numero que el VSync hace inalcanzable.
+const AQ_SUBE_FRACCION := 0.9
+
+
+func _umbral_sube() -> float:
+	var hz := DisplayServer.screen_get_refresh_rate()
+	return (hz if hz > 0.0 else 60.0) * AQ_SUBE_FRACCION
 ## La escalera de recortes, del mas barato al mas doloroso. Cada peldanio es un
 ## mapa de TOPES por clave; lo que no aparece no se toca. Los dos primeros
 ## (antialias, resolucion) no se ven; el ultimo es el que el original tambien
@@ -125,7 +135,7 @@ func _process(delta: float) -> void:
 	_aq_muestras = 0
 	if media < AQ_FPS_BAJA and auto_reduccion < AQ_ESCALERA.size() - 1:
 		_reduccion_a(auto_reduccion + 1, media)
-	elif media > AQ_FPS_SUBE and auto_reduccion > 0:
+	elif media > _umbral_sube() and auto_reduccion > 0:
 		_reduccion_a(auto_reduccion - 1, media)
 
 
