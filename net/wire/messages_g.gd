@@ -738,8 +738,10 @@ class EntitySpawn:
 		assert(type_id.length() <= 64, "EntitySpawn.type_id demasiado largo")
 		assert(name.length() <= 64, "EntitySpawn.name demasiado largo")
 		assert(faction <= 8, "EntitySpawn.faction > 8")
-		assert(x <= 100000, "EntitySpawn.x > 100000")
-		assert(y <= 100000, "EntitySpawn.y > 100000")
+		assert(x >= -10000, "EntitySpawn.x < -10000")
+		assert(x <= 110000, "EntitySpawn.x > 110000")
+		assert(y >= -10000, "EntitySpawn.y < -10000")
+		assert(y <= 110000, "EntitySpawn.y > 110000")
 		assert(speed <= 2000, "EntitySpawn.speed > 2000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
@@ -754,9 +756,9 @@ class EntitySpawn:
 		Wire.write_tag(buf, 5, 0)
 		Wire.write_varint(buf, faction)
 		Wire.write_tag(buf, 6, 0)
-		Wire.write_varint(buf, x)
+		Wire.write_varint(buf, Wire.zig(x))
 		Wire.write_tag(buf, 7, 0)
-		Wire.write_varint(buf, y)
+		Wire.write_varint(buf, Wire.zig(y))
 		Wire.write_tag(buf, 8, 5)
 		Wire.write_f32(buf, hp_pct)
 		Wire.write_tag(buf, 9, 0)
@@ -776,8 +778,8 @@ class EntitySpawn:
 				3: m.type_id = Wire.read_string(b, pos)
 				4: m.name = Wire.read_string(b, pos)
 				5: m.faction = Wire.read_varint(b, pos)
-				6: m.x = Wire.read_varint(b, pos)
-				7: m.y = Wire.read_varint(b, pos)
+				6: m.x = Wire.zag(Wire.read_varint(b, pos))
+				7: m.y = Wire.zag(Wire.read_varint(b, pos))
 				8: m.hp_pct = Wire.read_f32(b, pos)
 				9: m.speed = Wire.read_varint(b, pos)
 				10: m.shield_pct = Wire.read_f32(b, pos)
@@ -849,23 +851,27 @@ class EntityMove:
 	var teleport: bool = false
 
 	func validate() -> void:
-		assert(x <= 100000, "EntityMove.x > 100000")
-		assert(y <= 100000, "EntityMove.y > 100000")
-		assert(target_x <= 100000, "EntityMove.target_x > 100000")
-		assert(target_y <= 100000, "EntityMove.target_y > 100000")
+		assert(x >= -10000, "EntityMove.x < -10000")
+		assert(x <= 110000, "EntityMove.x > 110000")
+		assert(y >= -10000, "EntityMove.y < -10000")
+		assert(y <= 110000, "EntityMove.y > 110000")
+		assert(target_x >= -10000, "EntityMove.target_x < -10000")
+		assert(target_x <= 110000, "EntityMove.target_x > 110000")
+		assert(target_y >= -10000, "EntityMove.target_y < -10000")
+		assert(target_y <= 110000, "EntityMove.target_y > 110000")
 		assert(speed <= 2000, "EntityMove.speed > 2000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
 		Wire.write_varint(buf, entity_id)
 		Wire.write_tag(buf, 2, 0)
-		Wire.write_varint(buf, x)
+		Wire.write_varint(buf, Wire.zig(x))
 		Wire.write_tag(buf, 3, 0)
-		Wire.write_varint(buf, y)
+		Wire.write_varint(buf, Wire.zig(y))
 		Wire.write_tag(buf, 4, 0)
-		Wire.write_varint(buf, target_x)
+		Wire.write_varint(buf, Wire.zig(target_x))
 		Wire.write_tag(buf, 5, 0)
-		Wire.write_varint(buf, target_y)
+		Wire.write_varint(buf, Wire.zig(target_y))
 		Wire.write_tag(buf, 6, 0)
 		Wire.write_varint(buf, speed)
 		Wire.write_tag(buf, 7, 0)
@@ -879,10 +885,10 @@ class EntityMove:
 			var wt := key & 7
 			match tag:
 				1: m.entity_id = Wire.read_varint(b, pos)
-				2: m.x = Wire.read_varint(b, pos)
-				3: m.y = Wire.read_varint(b, pos)
-				4: m.target_x = Wire.read_varint(b, pos)
-				5: m.target_y = Wire.read_varint(b, pos)
+				2: m.x = Wire.zag(Wire.read_varint(b, pos))
+				3: m.y = Wire.zag(Wire.read_varint(b, pos))
+				4: m.target_x = Wire.zag(Wire.read_varint(b, pos))
+				5: m.target_y = Wire.zag(Wire.read_varint(b, pos))
 				6: m.speed = Wire.read_varint(b, pos)
 				7: m.teleport = Wire.read_varint(b, pos) != 0
 				_: Wire.skip(b, pos, wt)
@@ -1017,18 +1023,18 @@ class MoveIntent:
 	var target_y: int = 0
 
 	func validate() -> void:
-		assert(target_x >= 0, "MoveIntent.target_x < 0")
-		assert(target_x <= 100000, "MoveIntent.target_x > 100000")
-		assert(target_y >= 0, "MoveIntent.target_y < 0")
-		assert(target_y <= 100000, "MoveIntent.target_y > 100000")
+		assert(target_x >= -10000, "MoveIntent.target_x < -10000")
+		assert(target_x <= 110000, "MoveIntent.target_x > 110000")
+		assert(target_y >= -10000, "MoveIntent.target_y < -10000")
+		assert(target_y <= 110000, "MoveIntent.target_y > 110000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
 		Wire.write_varint(buf, seq)
 		Wire.write_tag(buf, 2, 0)
-		Wire.write_varint(buf, target_x)
+		Wire.write_varint(buf, Wire.zig(target_x))
 		Wire.write_tag(buf, 3, 0)
-		Wire.write_varint(buf, target_y)
+		Wire.write_varint(buf, Wire.zig(target_y))
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> MoveIntent:
 		var m := MoveIntent.new()
@@ -1038,8 +1044,8 @@ class MoveIntent:
 			var wt := key & 7
 			match tag:
 				1: m.seq = Wire.read_varint(b, pos)
-				2: m.target_x = Wire.read_varint(b, pos)
-				3: m.target_y = Wire.read_varint(b, pos)
+				2: m.target_x = Wire.zag(Wire.read_varint(b, pos))
+				3: m.target_y = Wire.zag(Wire.read_varint(b, pos))
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m
@@ -1384,8 +1390,10 @@ class BoxSpawn:
 
 	func validate() -> void:
 		assert(box_type.length() <= 32, "BoxSpawn.box_type demasiado largo")
-		assert(x <= 100000, "BoxSpawn.x > 100000")
-		assert(y <= 100000, "BoxSpawn.y > 100000")
+		assert(x >= -10000, "BoxSpawn.x < -10000")
+		assert(x <= 110000, "BoxSpawn.x > 110000")
+		assert(y >= -10000, "BoxSpawn.y < -10000")
+		assert(y <= 110000, "BoxSpawn.y > 110000")
 
 	func encode_fields(buf: PackedByteArray) -> void:
 		Wire.write_tag(buf, 1, 0)
@@ -1393,9 +1401,9 @@ class BoxSpawn:
 		Wire.write_tag(buf, 2, 2)
 		Wire.write_string(buf, box_type)
 		Wire.write_tag(buf, 3, 0)
-		Wire.write_varint(buf, x)
+		Wire.write_varint(buf, Wire.zig(x))
 		Wire.write_tag(buf, 4, 0)
-		Wire.write_varint(buf, y)
+		Wire.write_varint(buf, Wire.zig(y))
 
 	static func decode_from(b: PackedByteArray, pos: Array) -> BoxSpawn:
 		var m := BoxSpawn.new()
@@ -1406,8 +1414,8 @@ class BoxSpawn:
 			match tag:
 				1: m.box_id = Wire.read_varint(b, pos)
 				2: m.box_type = Wire.read_string(b, pos)
-				3: m.x = Wire.read_varint(b, pos)
-				4: m.y = Wire.read_varint(b, pos)
+				3: m.x = Wire.zag(Wire.read_varint(b, pos))
+				4: m.y = Wire.zag(Wire.read_varint(b, pos))
 				_: Wire.skip(b, pos, wt)
 		m.validate()
 		return m

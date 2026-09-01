@@ -32,7 +32,8 @@ var _fondo3d: Fondo3D         # el fondo completo del original (F3)
 var _seq := 0
 var _limites := Vector2(20800, 12800)
 # zona radiactiva: cuanto se puede rebasar el limite antes del borde de
-# verdad (Dials.RadiationMargin en el server — mismo numero en los dos lados)
+# verdad, POR LOS CUATRO LADOS — por el lado del 0 el destino va en negativo
+# (Dials.RadiationMargin en el server — mismo numero en los dos lados)
 const RADIACION_MARGEN := 1000.0
 
 # vuelo sostenido (herencia del prototipo)
@@ -1358,9 +1359,12 @@ func _volar_a(destino: Vector2) -> void:
 		return
 	# zona radiactiva: se puede rebasar el limite del mapa y seguir volando
 	# (con danio por segundo, ver el server), asi que el clamp de aqui ya NO es
-	# al limite a secas — es al mismo margen que aplica el server, para que
-	# cliente y autoridad sigan coincidiendo en el destino
-	destino = destino.clamp(Vector2.ZERO, _limites + Vector2.ONE * RADIACION_MARGEN)
+	# al limite a secas — es al mismo margen que aplica el server, por los
+	# cuatro lados (negativo por el lado del 0), para que cliente y autoridad
+	# sigan coincidiendo en el destino. El `Vector2.ZERO` que habia aqui era
+	# una de las capas que dejaban el borde izquierdo/superior en pared.
+	var margen := Vector2.ONE * RADIACION_MARGEN
+	destino = destino.clamp(-margen, _limites + margen)
 	# prediccion optimista: el heroe parte YA; el eco del server lo reconcilia
 	_hero.set_objetivo(destino)
 	_last_sent_target = destino
