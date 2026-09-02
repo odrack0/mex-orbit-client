@@ -293,8 +293,12 @@ La caja de carga la coloca el server al morir un alien (`BoxSpawn`). El cliente
 solo pone el arte, y ese arte sale de `data/props/`.
 
 - **`PortalNode`** (`game/portal_node.gd`): su malla **de pie**, como el jumpgate del DO 3D
-  (normalizada con `TUMBAR=0`: un anillo vertical, no un disco), girada a tres cuartos
-  (`orientacion.pan`, 35°) y apoyada en el plano con `AssetDefs.caja_3d`. En reposo lleva el
+  (normalizada con `TUMBAR=0`: un anillo vertical, no un disco), **de cara a la cámara** — su
+  normal apunta a la cámara del rig (tilt base 45° + pan del mapa), fija: es una pose, no un
+  billboard, y al hacer zoom no se voltea — y **centrada en el plano de vuelo**, no apoyada: la
+  nave se queda dentro del aro, con la mitad de abajo por delante (en el espacio no hay suelo).
+  La primera versión iba a tres cuartos y apoyada, y la nave quedaba colgando bajo el aro
+  (reportado en vivo). `orientacion.pan` es un giro extra sobre esa cara. En reposo lleva el
   **balanceo de ±3°** y el **glow senoidal de ~5 s** del original (`flotar`, `pulse`). Al
   pulsar **J** al alcance arranca el **encendido de 2,1 s** —los que cubren la latencia del
   salto—: la emisión sube en rampa hasta `encendido.glow`, el aro acelera hasta `giro_dps`

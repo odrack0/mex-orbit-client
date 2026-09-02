@@ -4,7 +4,10 @@
 # El nodo sigue siendo la LOGICA (posicion de juego, rango de salto, senial de
 # encendido). Su cuerpo es su MALLA en la escena unica, en todos los niveles de
 # calidad — y desde el 1-sep va DE PIE, como el jumpgate del DO 3D: un anillo
-# vertical a tres cuartos, apoyado en el plano, con el balanceo de +-3 grados
+# DE CARA A LA CAMARA (su normal es la direccion del rig: tilt base + pan del
+# mapa, fija, no un billboard) y CENTRADO en el plano de vuelo, asi que la nave
+# se queda dentro del aro, con la mitad de abajo por delante — en el espacio
+# no hay suelo que lo apoye. Con el balanceo de +-3 grados
 # y el pulso de 5 s del original (G: `<floating rotation 3>`, `<glow
 # duration="5">`). El encendido son los 2,1 s que cubren la latencia del
 # salto: las luces suben en rampa, el aro gira sobre su eje (una sola pieza:
@@ -37,8 +40,8 @@ var _escala := 1.0
 var _tam := 380.0
 
 # pose de reposo (JSON `orientacion` / `flotar`)
-var _pan := 35.0                  # giro en el plano: tres cuartos, como en la captura del DO
-var _tilt := 0.0
+var _pan := 0.0                   # giro EXTRA sobre la cara a camara (0 = de frente)
+var _base := Basis()              # la cara a camara, calculada una vez
 var _flotar_grados := 3.0         # el `floating rotation` del original
 var _flotar_ciclo := 6.0
 var _fase := 0.0
@@ -112,15 +115,20 @@ func _construir() -> void:
 			# `world_size` es el DIAMETRO del aro: se escala por la huella, como
 			# la estacion (el anillo de pie mide su diametro en X)
 			_escala = _tam / AssetDefs.extension_3d(_modelo)
-			# apoyado en el plano: la base del aro a la altura del cuerpo. El
-			# giro de pose es alrededor de Y y no cambia la altura de la caja.
-			var caja := AssetDefs.caja_3d(_modelo)
-			_modelo.position.y = -caja.position.y * _escala
+			# CENTRADO en el plano de vuelo (no apoyado): la nave se queda dentro
+			# del aro, como en el original. La caja del modelo ya viene centrada
+			# por el normalizador (pivote al centro).
 			_mats = AssetDefs.materiales_3d(_modelo)
 
 	var ori: Dictionary = d.get("orientacion", {})
-	_pan = float(ori.get("pan", 35.0))
-	_tilt = float(ori.get("tilt", 0.0))
+	_pan = float(ori.get("pan", 0.0))
+	# de cara a la camara: la normal del aro (Z del modelo) apunta a donde
+	# esta la camara del rig con el tilt BASE (sin el acoplamiento del zoom:
+	# es una pose, no un billboard) y el pan del mapa, mas el giro extra
+	var t := deg_to_rad(Mundo3D.TILT)
+	var pn := deg_to_rad(Mundo3D.instancia.pan_grados + _pan)
+	var hacia := Vector3(sin(t) * sin(pn), -cos(t), sin(t) * cos(pn)).normalized()
+	_base = Basis.looking_at(-hacia, Vector3.UP)   # -Z mira a -hacia: +Z (la normal) mira a la camara
 	var fl: Dictionary = d.get("flotar", {})
 	_flotar_grados = float(fl.get("grados", 3.0))
 	_flotar_ciclo = float(fl.get("ciclo", 6.0))
@@ -139,8 +147,9 @@ func _construir() -> void:
 	_montar_etiqueta(d)
 
 
-## La pose del aro: giro de tres cuartos, inclinacion, el balanceo lento del
-## original y el giro sobre su propio eje (Z del modelo: la normal del anillo).
+## La pose del aro: la cara a camara, el balanceo lento del original y el giro
+## sobre su propio eje (Z del modelo: la normal del anillo, que queda mirando
+## a la camara, asi que el giro se ve como un circulo que rota).
 ## Se compone entera cada frame — la base lleva tambien la escala, y asignar
 ## una base nueva la pisaria.
 func _aplicar_pose() -> void:
@@ -148,8 +157,8 @@ func _aplicar_pose() -> void:
 		return
 	var t := Time.get_ticks_msec() * 0.001 / _flotar_ciclo * TAU + _fase
 	var bal := deg_to_rad(_flotar_grados)
-	var rot := Basis(Vector3.UP, deg_to_rad(_pan)) \
-		* Basis(Vector3.RIGHT, deg_to_rad(_tilt) + sin(t) * bal) \
+	var rot := _base \
+		* Basis(Vector3.RIGHT, sin(t) * bal) \
 		* Basis(Vector3.UP, cos(t * 0.8) * bal) \
 		* Basis(Vector3.BACK, deg_to_rad(_giro))
 	_modelo.basis = rot.scaled(Vector3.ONE * _escala)

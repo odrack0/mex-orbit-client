@@ -25,10 +25,9 @@
   "_color_pendiente": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas.",
   "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
   "modelo": "res://assets/world/portal.glb",
-  "_orientacion": "De PIE, como el jumpgate del DO 3D (normalizado con TUMBAR=0): `pan` gira el aro en el plano para verlo a tres cuartos; `tilt` lo inclina. `flotar` es el `floating rotation 3` del original: +-grados con ese ciclo en segundos.",
+  "_orientacion": "De PIE y DE CARA A LA CAMARA (normalizado con TUMBAR=0): la normal del aro apunta a la camara del rig (tilt base 45 + pan del mapa), fija — no es billboard, al hacer zoom no se voltea. Centrado en el plano de vuelo: la nave se queda dentro del aro. `pan` es un giro extra sobre esa cara (0 = de frente). `flotar` es el `floating rotation 3` del original.",
   "orientacion": {
-    "pan": 35.0,
-    "tilt": 0.0
+    "pan": 0.0
   },
   "flotar": {
     "grados": 3.0,
