@@ -24,5 +24,22 @@
   "_por_que_dura_eso": "2,1 s no es un numero estetico: es el hueco donde cabe la latencia. La animacion corre mientras el server resuelve el salto de sector, asi que el viaje de ida y vuelta se paga en pantalla en vez de en una espera.",
   "_color_pendiente": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas.",
   "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
-  "modelo": "res://assets/world/portal.glb"
+  "modelo": "res://assets/world/portal.glb",
+  "_orientacion": "De PIE, como el jumpgate del DO 3D (normalizado con TUMBAR=0): `pan` gira el aro en el plano para verlo a tres cuartos; `tilt` lo inclina. `flotar` es el `floating rotation 3` del original: +-grados con ese ciclo en segundos.",
+  "orientacion": {
+    "pan": 35.0,
+    "tilt": 0.0
+  },
+  "flotar": {
+    "grados": 3.0,
+    "ciclo": 6.0
+  },
+  "_pulse": "El `<glow duration=5>` del original: seno con fase propia sobre la emision del material. speed en rad/s (0,9 ~ 7 s), sharpness marca el destello.",
+  "_encendido": "Los 2,1 s que cubren la latencia del salto: el glow sube en rampa hasta `glow`, el aro acelera hasta `giro_dps` sobre su eje y una luz del pool destella con `destello` de energia. Al final queda ABIERTO y avisa (encendido_terminado).",
+  "encendido": {
+    "segundos": 2.1,
+    "glow": 4.0,
+    "giro_dps": 240.0,
+    "destello": 6.0
+  }
 }

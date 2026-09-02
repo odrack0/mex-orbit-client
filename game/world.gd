@@ -1141,8 +1141,8 @@ func _intentar_salto() -> void:
 		_estado("No hay ningún portal al alcance", NTheme.MUTED)
 		return
 	if not portal.activar():
-		# sin atlas (calidad media o baja) no hay animacion que esperar: el salto
-		# es instantaneo y eso es lo correcto ahi
+		# sin malla (o ya abierto) no hay encendido que esperar: el salto es
+		# instantaneo y eso es lo correcto ahi
 		_salto_portal = null
 	else:
 		_salto_portal = portal
@@ -1685,9 +1685,15 @@ func _autotest(delta: float) -> void:
 			if _autotest_t - _at_ultimo_vuelo > 3.0:
 				var img_a := get_viewport().get_texture().get_image()
 				img_a.save_png(Session.autotest_screenshot.replace(".png", "-portal-abierto.png"))
-				# El portal no tiene cuerpo hasta tener GLB (1-sep): no hay atlas de
-				# encendido que afirmar. La fase queda como el hueco de la ceremonia,
-				# para cuando el encendido sea una animacion del modelo.
+				# el encendido es del MODELO desde la tarde del 1-sep (luces en
+				# rampa + giro, 2,1 s): se afirma que llego a su final, que es
+				# donde el portal se queda al saltar
+				if not _at_portal_animado:
+					_at_captura("AUTOTEST FALLO — el portal no arranco el encendido", 1)
+					return
+				if not _portales.values()[0].encendido_completo():
+					_at_captura("AUTOTEST FALLO — el encendido del portal no llego al final", 1)
+					return
 				_at_fase = 10
 		10:
 			_autotest_bestiario()

@@ -292,15 +292,20 @@ que portales, estaciones y POIs se envíen enteros al entrar, no por relevancia.
 La caja de carga la coloca el server al morir un alien (`BoxSpawn`). El cliente
 solo pone el arte, y ese arte sale de `data/props/`.
 
-- **`PortalNode`** (`game/portal_node.gd`): en calidad **alta** el portal **reposa
-  dormido** en el primer fotograma de su atlas y, al activarlo, reproduce **2,1 s
-  de encendido una sola vez**. Clic estando encima = activar; clic desde lejos =
-  rumbo a él. En **media y baja** cae al camino de siempre: el aro quieto con la
-  capa emisiva —el vórtice— girando y latiendo (rotar el sprite entero delataría
-  los pernos). Debajo va la etiqueta del sector destino, en `--violet`. Un portal
-  con `is_working = 0` se pinta apagado y no se puede activar.
-- **Caja de carga**: su pulso es de **alfa**, no de intensidad — es una luz de
-  baliza que llama al jugador, no un reactor como el núcleo de un alien.
+- **`PortalNode`** (`game/portal_node.gd`): su malla **de pie**, como el jumpgate del DO 3D
+  (normalizada con `TUMBAR=0`: un anillo vertical, no un disco), girada a tres cuartos
+  (`orientacion.pan`, 35°) y apoyada en el plano con `AssetDefs.caja_3d`. En reposo lleva el
+  **balanceo de ±3°** y el **glow senoidal de ~5 s** del original (`flotar`, `pulse`). Al
+  pulsar **J** al alcance arranca el **encendido de 2,1 s** —los que cubren la latencia del
+  salto—: la emisión sube en rampa hasta `encendido.glow`, el aro acelera hasta `giro_dps`
+  sobre su eje (la malla es una pieza: girar el anillo entero se lee como que gira el centro)
+  y una luz del pool destella; al final queda **abierto** y emite `encendido_terminado`, que es
+  lo que el salto espera antes de soltar la reconexión. Sin malla o ya abierto, `activar()`
+  devuelve `false` y el salto va sin ceremonia. Debajo va la etiqueta del sector destino, en
+  `--violet`. Un portal con `is_working = 0` alumbra al cuarto y no se puede activar.
+- **Caja de carga**: su malla (canal ámbar, el color de su punto en el minimapa), escalada por
+  su huella a `world_size`. El pulso de alfa de la baliza 2D murió con el sprite; si la caja
+  pide latido, es emisión del material como la estación.
 - **Minimapa**: estación y portales se dibujan como **rombos** (cian y violeta),
   forma distinta de los círculos de naves y cajas, para que el mobiliario fijo no
   se confunda con lo que se mueve.

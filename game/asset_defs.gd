@@ -242,11 +242,12 @@ static func mundo_3d(escena: PackedScene, lado: int, extension: float,
 ## alto contra 1,05 de planta— obligaria a alejar la camara casi al doble y la
 ## estacion saldria diminuta dentro de su propio hueco.
 ##
+## (`caja_3d` es la caja entera; `extension_3d` su huella, `extension_vista` lo que ve la camara.)
 ## Y la transformacion se acumula A MANO hasta la raiz: `transform` es solo la
 ## local y `global_transform` NO vale, porque esto corre antes de que el modelo
 ## entre en el arbol. Usarlo devuelve la identidad y suelta un error por consola
 ## que no detiene nada — el encuadre sale mal y el juego sigue.
-static func extension_3d(nodo: Node) -> float:
+static func caja_3d(nodo: Node) -> AABB:
 	var caja := AABB()
 	var primera := true
 	for m in nodo.find_children("*", "MeshInstance3D", true, false):
@@ -261,7 +262,13 @@ static func extension_3d(nodo: Node) -> float:
 		caja = a if primera else caja.merge(a)
 		primera = false
 	if primera:
-		return 2.0
+		return AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2))   # sin malla: 2 de lado, como siempre
+	return caja
+
+
+## La HUELLA del modelo (X y Z): lo que ocupa visto desde arriba.
+static func extension_3d(nodo: Node) -> float:
+	var caja := caja_3d(nodo)
 	return maxf(maxf(caja.size.x, caja.size.z), 0.001)
 
 
@@ -274,21 +281,7 @@ static func extension_3d(nodo: Node) -> float:
 ## sobre la pantalla. Se proyectan las ocho esquinas de la caja al espacio de la
 ## camara y se toma el lado mayor — exacto y sin casos especiales.
 static func extension_vista(nodo: Node, elevacion: float) -> float:
-	var caja := AABB()
-	var primera := true
-	for m in nodo.find_children("*", "MeshInstance3D", true, false):
-		var malla: MeshInstance3D = m
-		var tr := Transform3D()
-		var n: Node = malla
-		while n != null and n != nodo:
-			if n is Node3D:
-				tr = (n as Node3D).transform * tr
-			n = n.get_parent()
-		var a := tr * malla.get_aabb()
-		caja = a if primera else caja.merge(a)
-		primera = false
-	if primera:
-		return 2.0
+	var caja := caja_3d(nodo)
 	# La misma camara que monta `mundo_3d`, para medir lo que ella va a ver.
 	var el := deg_to_rad(elevacion)
 	var ojo := Vector3(0.0, 8.0 * sin(el), 8.0 * cos(el))
