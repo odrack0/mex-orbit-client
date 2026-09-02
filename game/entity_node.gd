@@ -33,7 +33,7 @@ const BANK_COMBAT_EASE := 0.08
 ## FLOTACION idle (G§5.3): Lissajous del cuerpo, solo parada, fase propia,
 ## fundido 0.5 s. En 3D la componente vertical es altura DE VERDAD.
 const HOVER_AMP := 5.0
-const HOVER_CICLO := 2.0
+const HOVER_CYCLE := 2.0
 
 ## Llama al ralenti (G§6.2): jugador parado 0.7, NPC 0, en vuelo 1.
 const FLAME_IDLE := 0.7
@@ -707,7 +707,7 @@ func _process_hover(delta: float, in_flight: bool) -> void:
 	if _hover_gain <= 0.0:
 		_spin3d.position = Vector3.ZERO
 		return
-	_hover_phase += delta / HOVER_CICLO
+	_hover_phase += delta / HOVER_CYCLE
 	var a := _hover_phase
 	_spin3d.position = Vector3(sin(a) * cos(a), pow(sin(a), 2.0),
 		sin(a * 1.13) * cos(a * 0.87)) * (HOVER_AMP * _hover_gain)

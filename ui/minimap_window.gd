@@ -16,7 +16,7 @@ const WIDTHS := [180, 238, 300, 380, 460]
 var _world: Node          # el mundo: entidades, cajas, heroe, limites
 var _wi := 2              # indice del paso de zoom
 var _canvas: Control
-var _lado := Vector2.ZERO      # el tamanio REAL del mapa dibujado, sin deformar
+var _side := Vector2.ZERO      # el tamanio REAL del mapa dibujado, sin deformar
 var _t := 0.0
 
 
@@ -64,8 +64,8 @@ func _zoom(delta: int) -> void:
 func _apply_zoom() -> void:
 	var w: float = WIDTHS[_wi]
 	var bounds: Vector2 = _world.bounds()
-	_lado = Vector2(w, w * bounds.y / bounds.x)
-	_canvas.custom_minimum_size = _lado
+	_side = Vector2(w, w * bounds.y / bounds.x)
+	_canvas.custom_minimum_size = _side
 	_readjust.call_deferred()
 
 
@@ -73,16 +73,16 @@ func _apply_zoom() -> void:
 ## capturas —un mapa estirado sigue pareciendo un mapa— y por eso llego hasta el
 ## usuario: hace falta comparar el ratio con un numero, no mirarlo.
 func deformation() -> float:
-	if _lado.y <= 0.0:
+	if _side.y <= 0.0:
 		return 999.0
 	var bounds: Vector2 = _world.bounds()
-	return absf(_lado.x / _lado.y - bounds.x / bounds.y)
+	return absf(_side.x / _side.y - bounds.x / bounds.y)
 
 
 ## Y que el canvas mida de verdad lo que dice medir: si el contenedor lo estira,
 ## el dibujo y los clicks dejan de coincidir con lo que se ve.
 func canvas_fits() -> bool:
-	return _canvas != null and _canvas.size.distance_to(_lado) < 2.0
+	return _canvas != null and _canvas.size.distance_to(_side) < 2.0
 
 
 func zoom_steps() -> int:
@@ -118,17 +118,17 @@ func _process(delta: float) -> void:
 
 func _to_map(world_pos: Vector2) -> Vector2:
 	var bounds: Vector2 = _world.bounds()
-	return world_pos / bounds * _lado
+	return world_pos / bounds * _side
 
 
 func _canvas_click(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var bounds: Vector2 = _world.bounds()
-		fly_to.emit(event.position / _lado * bounds)
+		fly_to.emit(event.position / _side * bounds)
 
 
 func _redraw() -> void:
-	var s := _lado
+	var s := _side
 	# fondo y borde del canvas (tokens N)
 	_canvas.draw_rect(Rect2(Vector2.ZERO, s), Color(0.02, 0.03, 0.055, 0.9))
 	# rejilla tenue 5x4

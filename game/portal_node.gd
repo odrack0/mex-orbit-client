@@ -159,14 +159,14 @@ func _build() -> void:
 	_pulse_max_e = float(pulse_def.get("max_intensity", 1.6))
 	_pulse_speed_e = float(pulse_def.get("speed", 0.9))
 	_pulse_sharpness = float(pulse_def.get("sharpness", 1.4))
-	var enc: Dictionary = d.get("encendido", {})
-	_ign_sec = float(enc.get("segundos", 2.1))
-	_ign_glow = float(enc.get("glow", 4.0))
-	_ign_spin_dps = float(enc.get("giro_dps", 240.0))
-	_ign_flash = float(enc.get("destello", 6.0))
-	_ign_blink_hz = float(enc.get("parpadeo_hz", 6.0))
-	_ign_blink_min = float(enc.get("parpadeo_min", 0.15))
-	_ign_vortex = bool(enc.get("vortice", false))
+	var ign_def: Dictionary = d.get("encendido", {})
+	_ign_sec = float(ign_def.get("segundos", 2.1))
+	_ign_glow = float(ign_def.get("glow", 4.0))
+	_ign_spin_dps = float(ign_def.get("giro_dps", 240.0))
+	_ign_flash = float(ign_def.get("destello", 6.0))
+	_ign_blink_hz = float(ign_def.get("parpadeo_hz", 6.0))
+	_ign_blink_min = float(ign_def.get("parpadeo_min", 0.15))
+	_ign_vortex = bool(ign_def.get("vortice", false))
 	_phase = randf() * TAU
 	_apply_pose()
 	_mount_tag(d)
@@ -181,10 +181,10 @@ func _apply_pose() -> void:
 	if _model == null:
 		return
 	var t := Time.get_ticks_msec() * 0.001 / _float_cycle * TAU + _phase
-	var bal := deg_to_rad(_float_deg)
+	var sway := deg_to_rad(_float_deg)
 	var rot := _base \
-		* Basis(Vector3.RIGHT, sin(t) * bal) \
-		* Basis(Vector3.UP, cos(t * 0.8) * bal)
+		* Basis(Vector3.RIGHT, sin(t) * sway) \
+		* Basis(Vector3.UP, cos(t * 0.8) * sway)
 	if _core != null:
 		_core.rotation = Vector3(0.0, 0.0, deg_to_rad(_spin))
 	else:
