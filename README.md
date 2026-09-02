@@ -305,9 +305,10 @@ solo pone el arte, y ese arte sale de `data/props/`.
   `parpadeo_hz`, 6 Hz, que baja a `parpadeo_min`, 0,15, en cada apagado; abierto = fijas), y
   **el centro** (el vórtice), que **en reposo no está**, aparece creciendo con la rampa y acelera
   hasta `giro_dps` sobre la normal del aro; el anillo se queda quieto — el GLB viene partido
-  en dos piezas, `aro` y `centro`, por `mex-orbit-art/tools/partir-centro.py` (reparte islas
-  enteras: al centro las que entran por debajo de r 0,52 del radio; cortar triángulos por su
-  centroide dejaba el borde del aro dentado, reportado en vivo); `PortalNode` busca el hijo
+  en dos piezas, `aro` y `centro`, por `mex-orbit-art/tools/partir-centro.py` (cinco criterios
+  medidos en la malla: islas por radio, losa del disco, astillas, firma del disco dentro de las
+  islas mixtas y largo del triángulo — cortar por un círculo dejaba el borde del aro dentado,
+  tres rondas en vivo hasta quedar limpio); `PortalNode` busca el hijo
   `centro` y le pone el giro, y si el GLB fuera de una pieza gira el aro entero como respaldo
   y una luz del pool destella; al final queda **abierto** y emite `encendido_terminado`, que es
   lo que el salto espera antes de soltar la reconexión. Sin malla o ya abierto, `activar()`
