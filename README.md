@@ -301,8 +301,10 @@ solo pone el arte, y ese arte sale de `data/props/`.
   (reportado en vivo). `orientacion.pan` es un giro extra sobre esa cara. En reposo lleva el
   **balanceo de ±3°** y el **glow senoidal de ~5 s** del original (`flotar`, `pulse`). Al
   pulsar **J** al alcance arranca el **encendido de 2,1 s** —los que cubren la latencia del
-  salto—: la emisión sube en rampa hasta `encendido.glow`, **el centro** (el vórtice) acelera
-  hasta `giro_dps` sobre la normal del aro y el anillo se queda quieto — el GLB viene partido
+  salto—: las luces del aro suben en rampa hasta `encendido.glow` **parpadeando** (onda a
+  `parpadeo_hz`, 6 Hz, que baja a `parpadeo_min`, 0,15, en cada apagado; abierto = fijas), y
+  **el centro** (el vórtice), que **en reposo no está**, aparece creciendo con la rampa y acelera
+  hasta `giro_dps` sobre la normal del aro; el anillo se queda quieto — el GLB viene partido
   en dos piezas, `aro` y `centro`, por `mex-orbit-art/tools/partir-centro.py` (corte circular a
   r 0,56 del radio, medido en el histograma radial de la malla); `PortalNode` busca el hijo
   `centro` y le pone el giro, y si el GLB fuera de una pieza gira el aro entero como respaldo

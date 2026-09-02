@@ -10,11 +10,12 @@
 # no hay suelo que lo apoye. Con el balanceo de +-3 grados
 # y el pulso de 5 s del original (G: `<floating rotation 3>`, `<glow
 # duration="5">`). El encendido son los 2,1 s que cubren la latencia del
-# salto: las luces suben en rampa, GIRA EL CENTRO (el vortice, pieza aparte del
-# GLB llamada `centro` — la parte `tools/partir-centro.py` del repo de arte por
-# radio; el aro se queda quieto) y un destello del pool
-# de luces; al final queda ABIERTO y avisa. La etiqueta del sector vive en la
-# capa HUD del mundo, proyectada.
+# salto: las luces del aro suben en rampa PARPADEANDO, el CENTRO (el vortice,
+# pieza aparte del GLB llamada `centro` — la parte `tools/partir-centro.py` del
+# repo de arte por radio) que en reposo NO ESTA aparece creciendo y girando, y
+# un destello del pool de luces; al final queda ABIERTO (vortice pleno, luces
+# fijas) y avisa. El aro no gira nunca. La etiqueta del sector vive en la capa
+# HUD del mundo, proyectada.
 class_name PortalNode
 extends Node2D
 
@@ -35,8 +36,9 @@ const RANGO_SALTO := 600.0
 var _datos = null                 # MexProtocol.MapPortal, para poder reconstruir
 var _cuerpo: Node3D               # el cuerpo en la escena unica
 var _modelo: Node3D               # la malla (null si el JSON no trae `modelo`)
-var _centro: Node3D               # la pieza `centro` del GLB: lo unico que gira
-var _mats: Array[BaseMaterial3D] = []
+var _centro: Node3D               # la pieza `centro` del GLB: oculta en reposo, gira al encender
+var _mats: Array[BaseMaterial3D] = []          # los del aro (cada pieza tiene su copia)
+var _mats_centro: Array[BaseMaterial3D] = []
 var _etiqueta: Label              # en la capa HUD del mundo, proyectada
 var _escala := 1.0
 var _tam := 380.0
@@ -59,6 +61,8 @@ var _enc_seg := 2.1
 var _enc_glow := 4.0
 var _enc_giro_dps := 240.0
 var _enc_destello := 6.0
+var _enc_parpadeo_hz := 6.0       # las luces del aro van y vienen mientras carga
+var _enc_parpadeo_min := 0.15     # a cuanto bajan en el "apagado" del parpadeo
 var _encendiendo := false
 var _abierto := false
 var _anim_t := 0.0
@@ -89,6 +93,7 @@ func _limpiar() -> void:
 	_modelo = null
 	_centro = null
 	_mats.clear()
+	_mats_centro.clear()
 	_etiqueta = null
 	_encendiendo = false
 	_abierto = false
@@ -122,9 +127,18 @@ func _construir() -> void:
 			# del aro, como en el original. La caja del modelo ya viene centrada
 			# por el normalizador (pivote al centro).
 			_mats = AssetDefs.materiales_3d(_modelo)
-			# el vortice: si el GLB viene partido, solo esa pieza gira; si no
-			# (un GLB de una pieza), gira el aro entero, que es el respaldo
+			# el vortice: si el GLB viene partido, esa pieza NO ESTA en reposo y
+			# aparece girando al encender; con sus materiales aparte, que el
+			# aro parpadea y el vortice sube en rampa. Si el GLB es de una
+			# pieza, gira el aro entero, que es el respaldo.
 			_centro = _modelo.find_child("centro", true, false) as Node3D
+			if _centro != null:
+				for m in _centro.find_children("*", "MeshInstance3D", true, false):
+					var mat = (m as MeshInstance3D).get_surface_override_material(0)
+					if mat is BaseMaterial3D:
+						_mats_centro.append(mat)
+						_mats.erase(mat)
+				_centro.visible = false
 
 	var ori: Dictionary = d.get("orientacion", {})
 	_pan = float(ori.get("pan", 0.0))
@@ -148,6 +162,8 @@ func _construir() -> void:
 	_enc_glow = float(enc.get("glow", 4.0))
 	_enc_giro_dps = float(enc.get("giro_dps", 240.0))
 	_enc_destello = float(enc.get("destello", 6.0))
+	_enc_parpadeo_hz = float(enc.get("parpadeo_hz", 6.0))
+	_enc_parpadeo_min = float(enc.get("parpadeo_min", 0.15))
 	_fase = randf() * TAU
 	_aplicar_pose()
 	_montar_etiqueta(d)
@@ -211,6 +227,8 @@ func reposo() -> void:
 	_abierto = false
 	_anim_t = 0.0
 	_giro = 0.0
+	if _centro != null:
+		_centro.visible = false
 
 
 ## Para que el autotest pueda AFIRMAR que el encendido llego al final.
@@ -233,21 +251,34 @@ func _process(delta: float) -> void:
 	var onda := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulso_vel + portal_id * 1.7)
 	var e: float = _pulso_min + (_pulso_max - _pulso_min) * pow(onda, _pulso_dureza)
 
+	var e_centro := 0.0
 	if _encendiendo or _abierto:
-		# encendido: luces en rampa y el aro acelerando hasta su giro pleno;
-		# abierto se queda en el pleno hasta que el salto se resuelva
+		# encendido: las luces del aro suben en rampa PARPADEANDO, y el vortice
+		# aparece creciendo con la rampa mientras acelera hasta su giro pleno;
+		# abierto se queda en el pleno (luces fijas) hasta que el salto se resuelva
 		var k := clampf(_anim_t / _enc_seg, 0.0, 1.0)
 		k = k * k * (3.0 - 2.0 * k)
 		e = lerpf(e, _enc_glow, k)
+		if _encendiendo:
+			var par := 0.5 + 0.5 * sin(_anim_t * _enc_parpadeo_hz * TAU)
+			e *= lerpf(_enc_parpadeo_min, 1.0, smoothstep(0.35, 0.65, par))
 		_giro = fmod(_giro + lerpf(0.0, _enc_giro_dps, k) * delta, 360.0)
+		e_centro = lerpf(0.0, _enc_glow, k)
+		if _centro != null:
+			_centro.visible = true
+			_centro.scale = Vector3.ONE * maxf(k, 0.02)
 		if _encendiendo:
 			_anim_t += delta
 			if _anim_t >= _enc_seg:
 				_encendiendo = false
 				_abierto = true
 				encendido_terminado.emit(portal_id)
+	elif _centro != null:
+		_centro.visible = false
 	if not is_working:
 		e *= 0.25          # un portal apagado apenas alumbra
 	for mat in _mats:
 		mat.emission_energy_multiplier = e
+	for mat in _mats_centro:
+		mat.emission_energy_multiplier = e_centro
 	_aplicar_pose()
