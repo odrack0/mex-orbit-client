@@ -1,8 +1,22 @@
 {
   "_comment": "Diales del AUTOTEST y del BESTIARIO de game/world.gd (corren headless, ver tools/dev-run.ps1). Valores tal cual estaban en el codigo el 2-sep-2026. Ojo: algunos textos de FALLO del codigo citan estos numeros a mano.",
-  "bestiary": ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"],
+  "bestiary": [
+    "vex",
+    "vexor",
+    "skarn",
+    "ferox",
+    "skarnox",
+    "gravit",
+    "mordax",
+    "gravon",
+    "vorax",
+    "drony"
+  ],
   "_bestiary": "Bichos a los que se les toma retrato de QA (uno por especie); agregar un alien = agregarlo aqui.",
-  "prey": ["vex", "vexor"],
+  "prey": [
+    "vex",
+    "vexor"
+  ],
   "_prey": "Especies que caza el loop: las dos comunes y flojas.",
   "timeouts": {
     "_comment": "Techo de reloj de cada modo; al pasarse se captura y se sale con codigo 1.",
@@ -13,11 +27,35 @@
   "flight": {
     "reroute_sec": 2.0,
     "_reroute_sec": "Cada cuanto se reemite el destino en vuelos largos (reevaluar presa, persecucion en combate y viaje al portal).",
-    "approach_offset": [120, 0],
+    "approach_offset": [
+      120,
+      0
+    ],
     "_approach_offset": "Se vuela a la presa con este desplazamiento, no encima."
   },
   "patrol": {
-    "waypoints": [[4000, 3000], [16000, 3000], [16000, 9500], [4000, 9500], [10400, 6400]],
+    "waypoints": [
+      [
+        4000,
+        3000
+      ],
+      [
+        16000,
+        3000
+      ],
+      [
+        16000,
+        9500
+      ],
+      [
+        4000,
+        9500
+      ],
+      [
+        10400,
+        6400
+      ]
+    ],
     "_waypoints": "Itinerario FIJO por el sector cuando no hay presa a la vista; se recorta a los limites del mapa.",
     "arrive_dist": 400.0,
     "_arrive_dist": "A menos de esto del waypoint se pasa al siguiente."
@@ -39,7 +77,10 @@
     "_combat_shots_for_photo": "Disparos vistos antes de la captura a media pelea.",
     "box_photo_dist": 520.0,
     "_box_photo_dist": "Retrato de la caja a esta distancia, antes de que la nave la tape.",
-    "station_approach_offset": [330, 60],
+    "station_approach_offset": [
+      330,
+      60
+    ],
     "station_near_dist": 420.0,
     "_station": "A donde se vuela al volver a la base (offset desde la estacion) y a que distancia de ella se descarga.",
     "step_wait_sec": 1.0,
@@ -77,7 +118,10 @@
     "first_frame_sec": 1.2,
     "second_frame_sec": 2.1,
     "_frames": "Instantes de las dos fotos de cada bicho (la segunda solo en modo bestiario).",
-    "dummy_pos_fraction": [0.5, 0.25],
+    "dummy_pos_fraction": [
+      0.5,
+      0.25
+    ],
     "_dummy_pos_fraction": "Donde se fabrica el ejemplar de laboratorio, como fraccion de los limites del mapa.",
     "crop_y_from": 0.3,
     "crop_y_to": 0.7,
