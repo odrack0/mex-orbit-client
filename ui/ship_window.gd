@@ -11,8 +11,9 @@
 class_name ShipWindow
 extends NWindow
 
-const ICON := "res://assets/ui/icons/ship.svg"
-const WIDTH := 232
+static var CFG: Dictionary = AssetDefs.config("ui").get("ship", {})
+static var ICON: String = str(CFG.get("icon", "res://assets/ui/icons/ship.svg"))
+static var WIDTH: int = int(AssetDefs.num(CFG, "width", 232))
 
 var _grid: GridContainer
 var _bars := {}
@@ -41,8 +42,8 @@ func _ready() -> void:
 func _body() -> void:
 	var grid := GridContainer.new()
 	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 7)
-	grid.add_theme_constant_override("v_separation", 6)
+	grid.add_theme_constant_override("h_separation", NTheme.ROW_GAP)
+	grid.add_theme_constant_override("v_separation", NTheme.STACK_GAP)
 	content.add_child(grid)
 	_grid = grid
 
@@ -54,7 +55,7 @@ func _body() -> void:
 
 
 func _tag(txt: String) -> Label:
-	var k := NTheme.label(txt, NTheme.exo2(), 11, NTheme.MUTED)
+	var k := NTheme.label(txt, NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return k
@@ -63,7 +64,7 @@ func _tag(txt: String) -> Label:
 ## El valor a la DERECHA de su columna: asi las cifras quedan alineadas entre si
 ## y se pueden comparar de un vistazo, que es para lo que sirve `tabular-nums`.
 func _value(key: String) -> Label:
-	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
+	var v := NTheme.label("—", NTheme.mono(), NTheme.ROW_VALUE_FONT_SIZE, NTheme.WARN)
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -120,10 +121,13 @@ static func _thousands(n: int) -> String:
 ## rayas no son adorno — impiden leer la barra como una regla continua y la
 ## emparentan con los medidores del HUD original.
 class BarraSegmentada extends Control:
-	const WIDTH_B := 96.0
-	const HEIGHT_B := 11.0
-	const DASH := 4.0
-	const GAP := 2.0
+	static var CFG_BAR: Dictionary = AssetDefs.config("ui").get("ship", {}).get("bar", {})
+	static var WIDTH_B: float = AssetDefs.num(CFG_BAR, "width", 96.0)
+	static var HEIGHT_B: float = AssetDefs.num(CFG_BAR, "height", 11.0)
+	static var DASH: float = AssetDefs.num(CFG_BAR, "dash", 4.0)
+	static var GAP: float = AssetDefs.num(CFG_BAR, "gap", 2.0)
+	static var BG_ALPHA: float = AssetDefs.num(CFG_BAR, "bg_alpha", 0.5)
+	static var INSET: float = AssetDefs.num(CFG_BAR, "inset", 1.0)   # el borde, por dentro
 
 	var color := Color(1, 1, 1)
 	var fraction := 0.0:
@@ -136,12 +140,12 @@ class BarraSegmentada extends Control:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	func _draw() -> void:
-		draw_rect(Rect2(0, 0, WIDTH_B, HEIGHT_B), Color(0, 0, 0, 0.5))
-		draw_rect(Rect2(0, 0, WIDTH_B, HEIGHT_B), NTheme.EDGE_SOFT, false, 1.0)
-		var util := WIDTH_B - 2.0
+		draw_rect(Rect2(0, 0, WIDTH_B, HEIGHT_B), Color(0, 0, 0, BG_ALPHA))
+		draw_rect(Rect2(0, 0, WIDTH_B, HEIGHT_B), NTheme.EDGE_SOFT, false, NTheme.HAIRLINE)
+		var util := WIDTH_B - 2.0 * INSET
 		var full := util * fraction
-		var x := 1.0
-		while x < 1.0 + full:
-			var w: float = minf(DASH, 1.0 + full - x)
-			draw_rect(Rect2(x, 1, w, HEIGHT_B - 2), color)
+		var x := INSET
+		while x < INSET + full:
+			var w: float = minf(DASH, INSET + full - x)
+			draw_rect(Rect2(x, INSET, w, HEIGHT_B - 2.0 * INSET), color)
 			x += DASH + GAP

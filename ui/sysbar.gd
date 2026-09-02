@@ -19,10 +19,14 @@
 class_name SysBar
 extends HBoxContainer
 
-const SIDE := 36
-const GAP := 5
-const MARGIN := 8
-const ICON := 16
+static var CFG: Dictionary = AssetDefs.config("ui").get("sysbar", {})
+static var SIDE: int = int(AssetDefs.num(CFG, "side", 36))
+static var GAP: int = int(AssetDefs.num(CFG, "gap", 5))
+static var MARGIN: int = NTheme.BAR_MARGIN
+static var ICON: int = int(AssetDefs.num(CFG, "icon", 16))
+static var OPEN_BORDER_ALPHA: float = AssetDefs.num(CFG, "open_border_alpha", 0.55)
+static var GLOW_ALPHA: float = AssetDefs.num(CFG, "glow_alpha", 0.22)
+static var GLOW_SIZE: int = int(AssetDefs.num(CFG, "glow_size", 10))
 
 var _buttons := {}
 
@@ -86,7 +90,7 @@ func mark(key: String, opened: bool) -> void:
 		return
 	_buttons[key]["abierta"] = opened
 	var b: Button = _buttons[key]["boton"]
-	var border := Color(NTheme.WARN, 0.55) if opened else NTheme.EDGE_SOFT
+	var border := Color(NTheme.WARN, OPEN_BORDER_ALPHA) if opened else NTheme.EDGE_SOFT
 	b.add_theme_stylebox_override("normal", _box(border, opened, NTheme.WARN))
 	_tint(key, false)
 
@@ -110,8 +114,8 @@ func _box(border: Color, glow: bool, color_glow := NTheme.CYAN) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = NTheme.GLASS_2
 	sb.border_color = border
-	sb.set_border_width_all(1)
+	sb.set_border_width_all(NTheme.BORDER_WIDTH)
 	if glow:
-		sb.shadow_color = Color(color_glow, 0.22)
-		sb.shadow_size = 10
+		sb.shadow_color = Color(color_glow, GLOW_ALPHA)
+		sb.shadow_size = GLOW_SIZE
 	return sb

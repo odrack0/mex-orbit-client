@@ -23,11 +23,45 @@ extends PanelContainer
 ## obligan al jugador a preguntarse cual es cual.
 signal closed
 
-const HEADER_HEIGHT := 26
-const SIDE_L := 13.0              # esquinas en L
-const THICKNESS_L := 1.5
-const BAND := 3.0                # franja cian de la cabecera
-const STATE_PATH := "user://ui_state.cfg"
+static var WINDOW_CFG: Dictionary = AssetDefs.config("ui").get("window", {})
+static var _HEADER: Dictionary = WINDOW_CFG.get("header", {})
+static var _GRADIENT: Dictionary = WINDOW_CFG.get("gradient", {})
+static var _HEADER_BUTTON: Dictionary = WINDOW_CFG.get("header_button", {})
+static var _CHROME_BUTTON: Dictionary = WINDOW_CFG.get("chrome_button", {})
+static var _GRIP: Dictionary = WINDOW_CFG.get("grip", {})
+
+static var HEADER_HEIGHT: int = int(AssetDefs.num(WINDOW_CFG, "header_height", 26))
+static var SIDE_L: float = AssetDefs.num(WINDOW_CFG, "l_side", 13.0)              # esquinas en L
+static var THICKNESS_L: float = AssetDefs.num(WINDOW_CFG, "l_thickness", 1.5)
+static var BAND: float = AssetDefs.num(WINDOW_CFG, "band", 3.0)                # franja cian de la cabecera
+static var BAND_GLOW_WIDTH: float = AssetDefs.num(WINDOW_CFG, "band_glow_width", 3.0)
+static var BAND_GLOW_ALPHA: float = AssetDefs.num(WINDOW_CFG, "band_glow_alpha", 0.18)
+static var STATE_PATH: String = str(WINDOW_CFG.get("state_path", "user://ui_state.cfg"))
+static var SHADOW_ALPHA: float = AssetDefs.num(WINDOW_CFG, "shadow_alpha", 0.06)
+static var SHADOW_SIZE: int = int(AssetDefs.num(WINDOW_CFG, "shadow_size", 26))
+
+static var HEADER_PAD_LEFT: int = int(AssetDefs.num(_HEADER, "padding_left", 10))
+static var HEADER_PAD_RIGHT: int = int(AssetDefs.num(_HEADER, "padding_right", 6))
+static var HEADER_SEPARATION: int = int(AssetDefs.num(_HEADER, "separation", 8))
+static var CHIP_SIZE: int = int(AssetDefs.num(_HEADER, "chip_size", 14))
+static var TITLE_FONT_SIZE: int = int(AssetDefs.num(_HEADER, "title_font_size", 9))
+static var TITLE_TRACKING: int = int(AssetDefs.num(_HEADER, "title_tracking", 1))
+
+static var GRADIENT_CYAN_ALPHA: float = AssetDefs.num(_GRADIENT, "cyan_alpha", 0.12)
+static var GRADIENT_VIOLET_ALPHA: float = AssetDefs.num(_GRADIENT, "violet_alpha", 0.05)
+static var GRADIENT_SPLIT: float = AssetDefs.num(_GRADIENT, "split", 0.55)
+
+static var HEADER_BUTTON_SIZE: int = int(AssetDefs.num(_HEADER_BUTTON, "size", 15))
+static var HEADER_BUTTON_FONT_SIZE: int = int(AssetDefs.num(_HEADER_BUTTON, "font_size", 10))
+static var HEADER_BUTTON_REST_ALPHA: float = AssetDefs.num(_HEADER_BUTTON, "rest_alpha", 0.06)
+static var CHROME_BUTTON_SIZE: int = int(AssetDefs.num(_CHROME_BUTTON, "size", 17))
+static var CHROME_BUTTON_FONT_SIZE: int = int(AssetDefs.num(_CHROME_BUTTON, "font_size", 10))
+
+static var GRIP_LINES: int = int(AssetDefs.num(_GRIP, "lines", 3))
+static var GRIP_START: float = AssetDefs.num(_GRIP, "start", 3.0)
+static var GRIP_STEP: float = AssetDefs.num(_GRIP, "step", 3.5)
+static var GRIP_ALPHA: float = AssetDefs.num(_GRIP, "alpha", 0.55)
+static var GRIP_INSET: float = AssetDefs.num(_GRIP, "inset", 1)
 
 var content: VBoxContainer      # donde cuelga lo que trae cada ventana
 var key := ""                   # para persistir la posicion
@@ -50,11 +84,11 @@ func _build(title_text: String, icon: String) -> void:
 	var box := StyleBoxFlat.new()
 	box.bg_color = NTheme.GLASS
 	box.border_color = NTheme.EDGE_SOFT
-	box.set_border_width_all(1)
+	box.set_border_width_all(NTheme.BORDER_WIDTH)
 	# la sombra del §4: 0 0 26px rgba(0,229,255,.06) — el halo cian que separa la
 	# ventana del espacio sin dibujarle un marco mas
-	box.shadow_color = Color(NTheme.CYAN, 0.06)
-	box.shadow_size = 26
+	box.shadow_color = Color(NTheme.CYAN, SHADOW_ALPHA)
+	box.shadow_size = SHADOW_SIZE
 	add_theme_stylebox_override("panel", box)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
@@ -65,13 +99,13 @@ func _build(title_text: String, icon: String) -> void:
 
 	# .fb del prototipo: padding 8px 10px 10px
 	var body_box := MarginContainer.new()
-	body_box.add_theme_constant_override("margin_left", 10)
-	body_box.add_theme_constant_override("margin_right", 10)
-	body_box.add_theme_constant_override("margin_top", 8)
-	body_box.add_theme_constant_override("margin_bottom", 10)
+	body_box.add_theme_constant_override("margin_left", NTheme.PANEL_PAD_LEFT)
+	body_box.add_theme_constant_override("margin_right", NTheme.PANEL_PAD_RIGHT)
+	body_box.add_theme_constant_override("margin_top", NTheme.PANEL_PAD_TOP)
+	body_box.add_theme_constant_override("margin_bottom", NTheme.PANEL_PAD_BOTTOM)
 	col.add_child(body_box)
 	content = VBoxContainer.new()
-	content.add_theme_constant_override("separation", 6)
+	content.add_theme_constant_override("separation", NTheme.STACK_GAP)
 	body_box.add_child(content)
 
 	# la decoracion va ENCIMA de todo y no come clicks: son adornos, no controles
@@ -88,22 +122,22 @@ func _build_header(title_text: String, icon: String) -> Control:
 	var backdrop := StyleBoxFlat.new()
 	backdrop.bg_color = Color(0, 0, 0, 0)
 	backdrop.border_color = NTheme.EDGE_SOFT
-	backdrop.border_width_bottom = 1
-	backdrop.content_margin_left = 10
-	backdrop.content_margin_right = 6
+	backdrop.border_width_bottom = NTheme.BORDER_WIDTH
+	backdrop.content_margin_left = HEADER_PAD_LEFT
+	backdrop.content_margin_right = HEADER_PAD_RIGHT
 	_header.add_theme_stylebox_override("panel", backdrop)
 	_header.mouse_filter = Control.MOUSE_FILTER_STOP
 	_header.mouse_default_cursor_shape = Control.CURSOR_MOVE
 	_header.gui_input.connect(_drag)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", HEADER_SEPARATION)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_header.add_child(row)
 
 	var chip := TextureRect.new()
 	chip.texture = load(icon)
-	chip.custom_minimum_size = Vector2(14, 14)
+	chip.custom_minimum_size = Vector2(CHIP_SIZE, CHIP_SIZE)
 	chip.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	chip.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	chip.modulate = NTheme.CYAN
@@ -111,7 +145,8 @@ func _build_header(title_text: String, icon: String) -> Control:
 	row.add_child(chip)
 
 	# Michroma 9px con .16em de tracking (~1,4 px a ese cuerpo)
-	var t := NTheme.label(title_text.to_upper(), NTheme.michroma_track(1), 9, NTheme.TXT)
+	var t := NTheme.label(title_text.to_upper(), NTheme.michroma_track(TITLE_TRACKING),
+		TITLE_FONT_SIZE, NTheme.TXT)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	t.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -130,18 +165,18 @@ func _build_header(title_text: String, icon: String) -> Control:
 func header_button(glyph: String, on_press: Callable) -> Button:
 	var b := Button.new()
 	b.text = glyph
-	b.custom_minimum_size = Vector2(15, 15)
+	b.custom_minimum_size = Vector2(HEADER_BUTTON_SIZE, HEADER_BUTTON_SIZE)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_override("font", NTheme.mono())
-	b.add_theme_font_size_override("font_size", 10)
+	b.add_theme_font_size_override("font_size", HEADER_BUTTON_FONT_SIZE)
 	b.add_theme_color_override("font_color", NTheme.CYAN)
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(NTheme.CYAN, 0.06)
+	box.bg_color = Color(NTheme.CYAN, HEADER_BUTTON_REST_ALPHA)
 	box.border_color = NTheme.EDGE_SOFT
-	box.set_border_width_all(1)
+	box.set_border_width_all(NTheme.BORDER_WIDTH)
 	b.add_theme_stylebox_override("normal", box)
 	var hover := box.duplicate()
-	hover.bg_color = Color(NTheme.CYAN, 0.16)
+	hover.bg_color = Color(NTheme.CYAN, NTheme.HOVER_ALPHA)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", hover)
 	b.pressed.connect(on_press)
@@ -159,16 +194,16 @@ func title_label() -> Label:
 func _chrome_button(glyph: String) -> Button:
 	var b := Button.new()
 	b.text = glyph
-	b.custom_minimum_size = Vector2(17, 17)
+	b.custom_minimum_size = Vector2(CHROME_BUTTON_SIZE, CHROME_BUTTON_SIZE)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_override("font", NTheme.mono())
-	b.add_theme_font_size_override("font_size", 10)
+	b.add_theme_font_size_override("font_size", CHROME_BUTTON_FONT_SIZE)
 	b.add_theme_color_override("font_color", NTheme.MUTED)
 	b.add_theme_color_override("font_hover_color", NTheme.CYAN)
 	var rest := StyleBoxFlat.new()
 	rest.bg_color = Color(0, 0, 0, 0)
 	rest.border_color = NTheme.EDGE_SOFT
-	rest.set_border_width_all(1)
+	rest.set_border_width_all(NTheme.BORDER_WIDTH)
 	b.add_theme_stylebox_override("normal", rest)
 	var hover := rest.duplicate()
 	hover.border_color = NTheme.EDGE
@@ -190,21 +225,24 @@ func _paint_deco() -> void:
 	# el titulo y los botones: el degradado no llegaba a la textura y quedaba el
 	# negro->blanco por defecto. Dos triangulos con color por vertice no tienen
 	# ese intermediario que puede fallar en silencio.
-	_stripe(0.0, s.x * 0.55, Color(NTheme.CYAN, 0.12), Color(NTheme.VIOLET, 0.05))
-	_stripe(s.x * 0.55, s.x, Color(NTheme.VIOLET, 0.05), Color(NTheme.CYAN, 0.0))
+	var split := s.x * GRADIENT_SPLIT
+	var violet := Color(NTheme.VIOLET, GRADIENT_VIOLET_ALPHA)
+	_stripe(0.0, split, Color(NTheme.CYAN, GRADIENT_CYAN_ALPHA), violet)
+	_stripe(split, s.x, violet, Color(NTheme.CYAN, 0.0))
 	# franja cian de 3 px a la izquierda de la cabecera, con su glow
 	_deco.draw_rect(Rect2(0, 0, BAND, HEADER_HEIGHT), NTheme.CYAN)
-	_deco.draw_rect(Rect2(BAND, 0, 3.0, HEADER_HEIGHT), Color(NTheme.CYAN, 0.18))
+	_deco.draw_rect(Rect2(BAND, 0, BAND_GLOW_WIDTH, HEADER_HEIGHT), Color(NTheme.CYAN, BAND_GLOW_ALPHA))
 	# esquinas en L: superior izquierda e inferior derecha
 	_deco.draw_rect(Rect2(0, 0, SIDE_L, THICKNESS_L), NTheme.CYAN)
 	_deco.draw_rect(Rect2(0, 0, THICKNESS_L, SIDE_L), NTheme.CYAN)
 	_deco.draw_rect(Rect2(s.x - SIDE_L, s.y - THICKNESS_L, SIDE_L, THICKNESS_L), NTheme.CYAN)
 	_deco.draw_rect(Rect2(s.x - THICKNESS_L, s.y - SIDE_L, THICKNESS_L, SIDE_L), NTheme.CYAN)
 	# grip: rayas a 135 grados en el triangulo inferior derecho
-	for i in 3:
-		var d := 3.0 + i * 3.5
-		_deco.draw_line(Vector2(s.x - 1 - d, s.y - 1), Vector2(s.x - 1, s.y - 1 - d),
-			Color(NTheme.EDGE, 0.55), 1.0)
+	var edge := Vector2(s.x - GRIP_INSET, s.y - GRIP_INSET)
+	for i in GRIP_LINES:
+		var d := GRIP_START + i * GRIP_STEP
+		_deco.draw_line(Vector2(edge.x - d, edge.y), Vector2(edge.x, edge.y - d),
+			Color(NTheme.EDGE, GRIP_ALPHA), NTheme.HAIRLINE)
 
 
 func _stripe(x0: float, x1: float, lft: Color, rgt: Color) -> void:

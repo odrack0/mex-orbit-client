@@ -18,9 +18,22 @@ extends Control
 ## Reglas del server (`/v1/auth/register`), repetidas aqui a proposito para poder
 ## decir QUE esta mal antes de gastar un viaje y recibir un 400 que no explica
 ## nada. El server sigue validando: esto es cortesia, no seguridad.
-const MIN_USERNAME := 3
-const MAX_USERNAME := 32
-const MIN_PASSWORD := 8
+static var CFG: Dictionary = AssetDefs.config("ui").get("login", {})
+static var MIN_USERNAME: int = int(AssetDefs.num(CFG, "min_username", 3))
+static var MAX_USERNAME: int = int(AssetDefs.num(CFG, "max_username", 32))
+static var MIN_PASSWORD: int = int(AssetDefs.num(CFG, "min_password", 8))
+
+static var COLUMN_SEPARATION: int = int(AssetDefs.num(CFG, "column_separation", 22))
+static var LOGO_FONT_SIZE: int = int(AssetDefs.num(CFG, "logo_font_size", 30))
+static var SUBTITLE_FONT_SIZE: int = int(AssetDefs.num(CFG, "subtitle_font_size", 8))
+static var API_FONT_SIZE: int = int(AssetDefs.num(CFG, "api_font_size", 9))
+static var CARD_WIDTH: int = int(AssetDefs.num(CFG, "card_width", 400))
+static var CARD_SEPARATION: int = int(AssetDefs.num(CFG, "card_separation", 10))
+static var BUTTON_FONT_SIZE: int = int(AssetDefs.num(CFG, "button_font_size", 10))
+static var BUTTON_HEIGHT: int = int(AssetDefs.num(CFG, "button_height", 38))
+static var STATUS_FONT_SIZE: int = int(AssetDefs.num(CFG, "status_font_size", 11))
+static var STATUS_HEIGHT: int = int(AssetDefs.num(CFG, "status_height", 34))
+static var FIELD_HEIGHT: int = int(AssetDefs.num(CFG, "field_height", 32))
 
 var _mode := "enlace"
 var _segments := {}
@@ -46,13 +59,13 @@ func _ready() -> void:
 	add_child(center)
 
 	var col := VBoxContainer.new()
-	col.add_theme_constant_override("separation", 22)
+	col.add_theme_constant_override("separation", COLUMN_SEPARATION)
 	center.add_child(col)
 
-	var logo := NTheme.label("MEX ORBIT", NTheme.michroma(), 30, NTheme.TXT)
+	var logo := NTheme.label("MEX ORBIT", NTheme.michroma(), LOGO_FONT_SIZE, NTheme.TXT)
 	logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(logo)
-	var sub := NTheme.label("CLIENTE V1 · VERTICAL SLICE", NTheme.michroma(), 8, NTheme.FAINT)
+	var sub := NTheme.label("CLIENTE V1 · VERTICAL SLICE", NTheme.michroma(), SUBTITLE_FONT_SIZE, NTheme.FAINT)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(sub)
 
@@ -61,40 +74,40 @@ func _ready() -> void:
 	# propio tester— y el unico modo de enterarse era llegar hasta el error. Un
 	# ajuste invisible se equivoca en silencio; uno que se lee se comprueba de un
 	# vistazo antes de tocar nada.
-	var dest := NTheme.label(Session.api_base, NTheme.mono(), 9, NTheme.FAINT)
+	var dest := NTheme.label(Session.api_base, NTheme.mono(), API_FONT_SIZE, NTheme.FAINT)
 	dest.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	col.add_child(dest)
 
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", NTheme.glass_panel())
-	card.custom_minimum_size = Vector2(400, 0)
+	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
 	col.add_child(card)
 
 	var inner := VBoxContainer.new()
-	inner.add_theme_constant_override("separation", 10)
+	inner.add_theme_constant_override("separation", CARD_SEPARATION)
 	card.add_child(inner)
 
 	inner.add_child(_selector())
-	inner.add_child(NTheme.label("Usuario", NTheme.exo2(), 12, NTheme.MUTED))
+	inner.add_child(NTheme.label("Usuario", NTheme.exo2(), NTheme.BODY_FONT_SIZE, NTheme.MUTED))
 	_user = _field(inner)
 	_email_row = _block(inner, "Correo")
 	_email = _field(inner)
 	_pilot_row = _block(inner, "Nombre de piloto")
 	_pilot = _field(inner)
-	inner.add_child(NTheme.label("Contraseña", NTheme.exo2(), 12, NTheme.MUTED))
+	inner.add_child(NTheme.label("Contraseña", NTheme.exo2(), NTheme.BODY_FONT_SIZE, NTheme.MUTED))
 	_pass = _field(inner)
 	_pass.secret = true
 
 	_button = Button.new()
 	_button.add_theme_font_override("font", NTheme.michroma())
-	_button.add_theme_font_size_override("font_size", 10)
+	_button.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
 	_button.add_theme_color_override("font_color", NTheme.CYAN)
-	_button.custom_minimum_size = Vector2(0, 38)
+	_button.custom_minimum_size = Vector2(0, BUTTON_HEIGHT)
 	_button.pressed.connect(_send)
 	inner.add_child(_button)
 
-	_status = NTheme.label("", NTheme.mono(), 11, NTheme.MUTED)
-	_status.custom_minimum_size = Vector2(0, 34)
+	_status = NTheme.label("", NTheme.mono(), STATUS_FONT_SIZE, NTheme.MUTED)
+	_status.custom_minimum_size = Vector2(0, STATUS_HEIGHT)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(_status)
 
@@ -160,7 +173,7 @@ func _try_high() -> void:
 
 func _selector() -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 3)
+	row.add_theme_constant_override("separation", NTheme.SEGMENT_GAP)
 	for par in [["enlace", "ENLACE"], ["alta", "ALTA"]]:
 		var b := NTheme.segment(par[1])
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -175,7 +188,7 @@ func _selector() -> Control:
 ## esconder solo el LineEdit dejaria un rotulo huerfano encima del siguiente
 ## campo, que es peor que no tener rotulo.
 func _block(parent: Container, txt: String) -> Control:
-	var l := NTheme.label(txt, NTheme.exo2(), 12, NTheme.MUTED)
+	var l := NTheme.label(txt, NTheme.exo2(), NTheme.BODY_FONT_SIZE, NTheme.MUTED)
 	parent.add_child(l)
 	return l
 
@@ -183,8 +196,8 @@ func _block(parent: Container, txt: String) -> Control:
 func _field(parent: Container) -> LineEdit:
 	var le := LineEdit.new()
 	le.add_theme_font_override("font", NTheme.mono())
-	le.add_theme_font_size_override("font_size", 12)
-	le.custom_minimum_size = Vector2(0, 32)
+	le.add_theme_font_size_override("font_size", NTheme.BODY_FONT_SIZE)
+	le.custom_minimum_size = Vector2(0, FIELD_HEIGHT)
 	le.text_submitted.connect(func(_t): _send())
 	parent.add_child(le)
 	return le

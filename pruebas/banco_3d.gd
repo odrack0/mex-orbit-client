@@ -9,12 +9,48 @@
 #   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
 extends Node3D
 
-var _path := "res://pruebas/vexor.glb"
+## Diales de data/config/tests.json: `bench_3d` es lo propio del banco y `common`
+## lo que comparten todas las escenas de pruebas/ (encuadre, camara, carpeta).
+static var CFG: Dictionary = AssetDefs.config("tests").get("bench_3d", {})
+static var CFG_COMMON: Dictionary = AssetDefs.config("tests").get("common", {})
+static var FRAME_MARGIN: float = AssetDefs.num(CFG_COMMON, "frame_margin", 1.15)
+static var DEFAULT_MODEL: String = str(CFG.get("default_model", "res://pruebas/vexor.glb"))
+static var DEFAULT_COUNT: int = int(AssetDefs.num(CFG, "default_count", 15))
+static var DEFAULT_ELEVATION_DEG: float = AssetDefs.num(CFG, "default_elevation_deg", 70.0)
+static var DEFAULT_SECONDS: float = AssetDefs.num(CFG, "default_seconds", 6.0)
+static var DEFAULT_WARMUP_S: float = AssetDefs.num(CFG, "default_warmup_s", 2.0)
+static var DEFAULT_SPIN_DEG_S: float = AssetDefs.num(CFG, "default_spin_deg_s", 100.0)
+static var DEFAULT_ANIM_MODE: String = str(CFG.get("default_anim_mode", "player"))
+static var DEFAULT_PULSE: String = str(CFG.get("default_pulse", "sync"))
+## Rejilla, camara y luz del banco (valores de perf, no la referencia de aspecto).
+static var GRID_SPACING: float = AssetDefs.num(CFG, "grid_spacing", 2.4)
+static var CAMERA_DISTANCE_FACTOR: float = AssetDefs.num(CFG, "camera_distance_factor", 3.0)
+static var BACKGROUND_COLOR: Color = AssetDefs.color(CFG.get("background_color"), Color("0b0d12"))
+static var SUN_ENERGY: float = AssetDefs.num(CFG, "sun_energy", 2.6)
+static var SUN_PITCH_DEG: float = AssetDefs.num(CFG, "sun_pitch_deg", -48.0)
+static var LABEL_POS: Vector2 = AssetDefs.vec2(CFG.get("label_pos"), Vector2(16, 12))
+static var LABEL_FONT_SIZE: int = int(AssetDefs.num(CFG, "label_font_size", 18))
+static var LABEL_COLOR: Color = AssetDefs.color(CFG.get("label_color"), Color("d9e6ff"))
+## Cada bicho gira a (base + step * (i % groups)) veces la velocidad pedida.
+static var SPIN_VARIATION_BASE: float = AssetDefs.num(CFG, "spin_variation_base", 0.6)
+static var SPIN_VARIATION_STEP: float = AssetDefs.num(CFG, "spin_variation_step", 0.4)
+static var SPIN_VARIATION_GROUPS: int = int(AssetDefs.num(CFG, "spin_variation_groups", 3))
+## Huesos de cola que se mapean y hasta que cola_N se buscan nodos en el GLB.
+static var TAIL_BONES: int = int(AssetDefs.num(CFG, "tail_bones", 3))
+static var TAIL_SEGMENTS_MAX: int = int(AssetDefs.num(CFG, "tail_segments_max", 8))
+## Estadistica: percentil que se compara, cuando se recalcula y cada cuanto traza.
+static var WORST_PERCENTILE: float = AssetDefs.num(CFG, "worst_percentile", 1.0)
+static var PERCENTILE_MIN_SAMPLES: int = int(AssetDefs.num(CFG, "percentile_min_samples", 100))
+static var PERCENTILE_INTERVAL_S: float = AssetDefs.num(CFG, "percentile_interval_s", 0.5)
+static var TRACE_INTERVAL_S: float = AssetDefs.num(CFG, "trace_interval_s", 0.4)
+static var DIAG_TRACKS_MAX: int = int(AssetDefs.num(CFG, "diag_tracks_max", 4))
+
+var _path := DEFAULT_MODEL
 var _animated := 0
 ## "player" = un AnimationPlayer por bicho. "directo" = se escribe el valor de la
 ## clave de forma desde _process, que es lo que el cliente real haria: ya mueve
 ## asi el gain de undulate y la intensidad del pulso.
-var _anim_mode := "player"
+var _anim_mode := DEFAULT_ANIM_MODE
 var _meshes: Array[MeshInstance3D] = []
 var _phase: PackedFloat32Array = PackedFloat32Array()
 ## Uno por bicho, o null. En modo "player" la fase del pulso se LEE de aqui:
@@ -29,12 +65,12 @@ var _players: Array[AnimationPlayer] = []
 ## `speed: 3.2` (periodo 1,96 s) y su ciclo de alas dura 2,17 s, asi que se
 ## separan del todo cada ~21 s. Que parezca sincronizado es el ojo encontrando
 ## patron en dos ritmos casi iguales.
-var _pulse := "sync"
+var _pulse := DEFAULT_PULSE
 var _materials: Array[BaseMaterial3D] = []
 ## Pares [ala_izq, ala_der] por bicho, o [] si el modelo no viene partido.
 var _wings: Array = []
 ## Cuanto se pliegan, en grados.
-var WINGS_DEG := 34.0
+var WINGS_DEG: float = AssetDefs.num(CFG, "wings_deg", 34.0)
 
 ## Segmentos de cola por bicho, de la union hacia la punta.
 var _tails: Array = []
@@ -55,36 +91,36 @@ var _tail_axis_v := 2
 ## Grados POR SEGMENTO. Se acumulan por la cadena: con 3 segmentos la punta llega
 ## al triple. Poco por segmento y varios segmentos se lee como algo que ondula;
 ## mucho en uno solo se lee como una bisagra.
-var TAIL_DEG := 9.0
+var TAIL_DEG: float = AssetDefs.num(CFG, "tail_deg", 9.0)
 ## Un ciclo cada 1,5 s: es el `speed: 4.2` de undulate en vexor.json (2*PI/4,2).
 ## NO va sincronizada con las alas, igual que hoy en el sprite: son dos partes del
 ## cuerpo con su propio ritmo, y eso es lo que hace que se lea como bicho.
-const TAIL_CYCLE := 1.50
+static var TAIL_CYCLE: float = AssetDefs.num(CFG, "tail_cycle", 1.50)
 ## Retraso de cada segmento respecto al anterior, en vueltas. Es lo que convierte
 ## tres rotaciones en una ONDA que viaja: sin esto la cola se mece entera de una
 ## pieza, como un limpiaparabrisas.
-const TAIL_PHASE := 0.22
+static var TAIL_PHASE: float = AssetDefs.num(CFG, "tail_phase", 0.22)
 var _trace := false
 var _next_trace := 0.0
 ## Grados por segundo que gira cada bicho. 0 los deja quietos, para mirar el
 ## aleteo y la cola sin que el giro los tape.
-var _spin := 100.0
+var _spin := DEFAULT_SPIN_DEG_S
 var _double_sided := true
 ## Triangulos por bicho, contados del modelo al montarlo.
 var _creature_tris := 0
 
 ## Los diales del Vexor, tal cual estan en data/npcs/vexor.json.
-const PULSE_MIN := 0.25
-const PULSE_MAX := 2.6
-const PULSE_SHARP := 2.4
-const PULSE_SPEED := 3.2      # solo en modo "libre": su reloj propio
-const WINGS_CYCLE := 2.17      # 26 fotogramas a 12 fps, el atlas actual
-const WORLD_LIGHT_DEG := 315.0
+static var PULSE_MIN: float = AssetDefs.num(CFG, "pulse_min", 0.25)
+static var PULSE_MAX: float = AssetDefs.num(CFG, "pulse_max", 2.6)
+static var PULSE_SHARP: float = AssetDefs.num(CFG, "pulse_sharp", 2.4)
+static var PULSE_SPEED: float = AssetDefs.num(CFG, "pulse_speed", 3.2)      # solo en modo "libre": su reloj propio
+static var WINGS_CYCLE: float = AssetDefs.num(CFG, "wings_cycle", 2.17)      # 26 fotogramas a 12 fps, el atlas actual
+static var WORLD_LIGHT_DEG: float = AssetDefs.num(CFG, "sun_yaw_deg", 315.0)
 
-var _n := 15
-var _elev := 70.0
+var _n := DEFAULT_COUNT
+var _elev := DEFAULT_ELEVATION_DEG
 var _shot := ""
-var _seconds := 6.0
+var _seconds := DEFAULT_SECONDS
 
 var _creatures: Array[Node3D] = []
 var _label: Label
@@ -104,13 +140,13 @@ var _p1 := 0.0
 var _next_recalc := 0.0
 
 ## Un tiron visible: por debajo de 30 fps en un solo fotograma.
-const HITCH_MS := 33.3
+static var HITCH_MS: float = AssetDefs.num(CFG, "hitch_ms", 33.3)
 ## Frontera para separar "esto se compilo tarde" de "esto pasa siempre". El
 ## driver de OpenGL compila shaders la primera vez que los usa y bloquea; si
 ## todos los tirones caen antes de esta marca, no son del juego.
-const EARLY_S := 10.0
+static var EARLY_S: float = AssetDefs.num(CFG, "early_s", 10.0)
 
-var _warmup := 2.0
+var _warmup := DEFAULT_WARMUP_S
 var _t_worst := 0.0
 var _hitches_early := 0
 var _hitches_late := 0
@@ -159,7 +195,7 @@ func _ready() -> void:
 
 	# rejilla lo mas cuadrada posible, separacion algo mayor que el bicho (1,9)
 	var side := int(ceil(sqrt(float(_n))))
-	var sep := 2.4
+	var sep := GRID_SPACING
 	for i in _n:
 		var m := scene.instantiate()
 		var row := i / side
@@ -175,7 +211,7 @@ func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.043, 0.051, 0.071)
+	e.background_color = BACKGROUND_COLOR
 	# La luz de fondo del MUNDO, no una del banco: tenia un 0.35 propio y el banco
 	# medias con una luz que el juego no usaba.
 	AssetDefs.world_ambient(e)
@@ -191,17 +227,17 @@ func _ready() -> void:
 	# La luz NO gira con los bichos: es lo unico que distingue un objeto de una
 	# calcomania, y es la misma regla que ya vive en AssetDefs.
 	var sun := DirectionalLight3D.new()
-	sun.light_energy = 2.6
-	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(WORLD_LIGHT_DEG), 0.0)
+	sun.light_energy = SUN_ENERGY
+	sun.rotation = Vector3(deg_to_rad(SUN_PITCH_DEG), deg_to_rad(WORLD_LIGHT_DEG), 0.0)
 	sun.shadow_enabled = false
 	add_child(sun)
 
 	var extent := float(side) * sep
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = extent * 1.15
+	cam.size = extent * FRAME_MARGIN
 	var elev_rad := deg_to_rad(_elev)
-	var d := extent * 3.0
+	var d := extent * CAMERA_DISTANCE_FACTOR
 	add_child(cam)
 	# look_at exige estar YA en el arbol; llamarlo antes de add_child solo
 	# imprime un error y deja la camara mirando a donde estaba.
@@ -217,9 +253,9 @@ func _ready() -> void:
 	var layer_node := CanvasLayer.new()
 	add_child(layer_node)
 	_label = Label.new()
-	_label.position = Vector2(16, 12)
-	_label.add_theme_font_size_override("font_size", 18)
-	_label.add_theme_color_override("font_color", Color(0.85, 0.90, 1.0))
+	_label.position = LABEL_POS
+	_label.add_theme_font_size_override("font_size", LABEL_FONT_SIZE)
+	_label.add_theme_color_override("font_color", LABEL_COLOR)
 	layer_node.add_child(_label)
 
 	var span_len := 0.0
@@ -247,7 +283,8 @@ func _process(delta: float) -> void:
 	# con --giro=0 los bichos se quedan quietos y solo se mueve lo que se anima.
 	if _spin > 0.0:
 		for i in _creatures.size():
-			_creatures[i].rotation.y += deg_to_rad(_spin) * delta * (0.6 + 0.4 * float(i % 3))
+			_creatures[i].rotation.y += deg_to_rad(_spin) * delta * (
+				SPIN_VARIATION_BASE + SPIN_VARIATION_STEP * float(i % SPIN_VARIATION_GROUPS))
 
 	# Un ciclo de alas cada 2,17 s, que es lo que dura el atlas actual del Vexor
 	# (26 fotogramas a 12 fps). Cada bicho con su fase.
@@ -293,7 +330,7 @@ func _process(delta: float) -> void:
 			_set_bone(sk, map_data, "ala_izq", _wing_axis_v, -a)
 			_set_bone(sk, map_data, "ala_der", _wing_axis_v, a)
 			var tc := _t / TAIL_CYCLE + _phase[i]
-			for k in 3:
+			for k in TAIL_BONES:
 				var ang := deg_to_rad(TAIL_DEG) * sin(TAU * (tc - k * TAIL_PHASE))
 				_set_bone(sk, map_data, "cola_%d" % (k + 1), _tail_axis_v, ang)
 
@@ -346,7 +383,7 @@ func _process(delta: float) -> void:
 	# Traza del primer bicho cada medio segundo: si el valor de la forma no se
 	# mueve, no es que "no se vea" — es que no esta pasando nada.
 	if _trace and _t > _next_trace and not _meshes.is_empty():
-		_next_trace = _t + 0.4
+		_next_trace = _t + TRACE_INTERVAL_S
 		var ap0: AnimationPlayer = _players[0] if not _players.is_empty() else null
 		var wing_deg := 999.0
 		var wing_height := 0.0
@@ -372,9 +409,9 @@ func _process(delta: float) -> void:
 			tail_x,
 			_materials[0].emission_energy_multiplier if not _materials.is_empty() else -1.0])
 
-	if _t > _next_recalc and _dts.size() > 100:
-		_next_recalc = _t + 0.5
-		_p1 = _low_percentile(1.0)
+	if _t > _next_recalc and _dts.size() > PERCENTILE_MIN_SAMPLES:
+		_next_recalc = _t + PERCENTILE_INTERVAL_S
+		_p1 = _low_percentile(WORST_PERCENTILE)
 
 	var medium := _fps_sum / maxf(1.0, float(_fps_samples))
 	_label.text = ("%d bichos vivos · %d tris · elev %.0f°\n%d fps  (media %.0f · 1%% peor %.0f · minimo %.0f en t=%.1fs)"
@@ -443,7 +480,10 @@ func _start_animation(node: Node, i: int) -> void:
 	if not skels.is_empty():
 		var sk: Skeleton3D = skels[0]
 		var map_data := {}
-		for entry_name in ["ala_izq", "ala_der", "cola_1", "cola_2", "cola_3"]:
+		var bone_names: Array[String] = ["ala_izq", "ala_der"]
+		for k in TAIL_BONES:
+			bone_names.append("cola_%d" % (k + 1))
+		for entry_name in bone_names:
 			var idx := sk.find_bone(entry_name)
 			if idx >= 0:
 				# Se guarda la rotacion de REPOSO. `set_bone_pose_rotation` fija la
@@ -468,7 +508,7 @@ func _start_animation(node: Node, i: int) -> void:
 	# La cola viene ENCADENADA en el GLB (cola_2 cuelga de cola_1), asi que basta
 	# rotar cada segmento un poco: la cadena compone las rotaciones sola.
 	var segments: Array = []
-	for k in range(1, 9):
+	for k in range(1, TAIL_SEGMENTS_MAX + 1):
 		var s := node.find_children("*cola_%d" % k, "Node3D", true, false)
 		if s.is_empty():
 			break
@@ -521,7 +561,7 @@ func _start_animation(node: Node, i: int) -> void:
 	if i == 0:
 		var anim := ap.get_animation(entry_name)
 		print("DIAG  anim='%s' largo=%.2fs pistas=%d" % [entry_name, anim.length, anim.get_track_count()])
-		for k in mini(4, anim.get_track_count()):
+		for k in mini(DIAG_TRACKS_MAX, anim.get_track_count()):
 			print("DIAG    pista %d  tipo=%d  ruta=%s  claves=%d"
 				% [k, anim.track_get_type(k), str(anim.track_get_path(k)), anim.track_get_key_count(k)])
 	ap.play(entry_name)
@@ -572,6 +612,6 @@ func _finish(medium: float) -> void:
 	if _shot != "":
 		get_viewport().get_texture().get_image().save_png(_shot)
 	print("RESULTADO n=%d elev=%.0f media=%.1f  1%%peor=%.1f  minimo=%.1f (t=%.1fs)  tirones=%d/%d pronto/tarde"
-		% [_n, _elev, medium, _low_percentile(1.0), _fps_min, _t_worst,
+		% [_n, _elev, medium, _low_percentile(WORST_PERCENTILE), _fps_min, _t_worst,
 		_hitches_early, _hitches_late])
 	get_tree().quit(0)

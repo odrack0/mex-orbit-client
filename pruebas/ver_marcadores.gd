@@ -3,8 +3,15 @@ extends SceneTree
 ## Lista los marcadores tobera_*/canon_* tal y como los ve GODOT tras importar el
 ## GLB, con su posicion ya convertida a pixeles de pantalla. El validador los lee
 ## del fichero; esto comprueba que ademas SOBREVIVEN al importador.
+
+## Diales de data/config/tests.json (`view_markers`).
+static var CFG: Dictionary = AssetDefs.config("tests").get("view_markers", {})
+static var MODEL: String = str(CFG.get("model", "res://assets/ships/phoenix.glb"))
+## Pixeles que ocupa en pantalla el lado mayor del modelo.
+static var TARGET_PX: float = AssetDefs.num(CFG, "target_px", 141.0)
+
 func _init() -> void:
-	var root := (load("res://assets/ships/phoenix.glb") as PackedScene).instantiate()
+	var root := (load(MODEL) as PackedScene).instantiate()
 	var box := AABB()
 	var first := true
 	for m in root.find_children("*", "MeshInstance3D", true, false):
@@ -12,7 +19,7 @@ func _init() -> void:
 		box = a if first else box.merge(a)
 		first = false
 	var ext: float = maxf(box.size.x, box.size.z)
-	var scale_factor := 141.0 / ext
+	var scale_factor := TARGET_PX / ext
 	print("extension=%.3f  escala=%.1f px/unidad" % [ext, scale_factor])
 	var n := 0
 	for x in root.find_children("*", "Node3D", true, false):

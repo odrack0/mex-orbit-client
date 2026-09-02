@@ -26,6 +26,12 @@ signal changed(keys: Array)
 
 const PATH := "user://quality.cfg"
 
+## Diales de la calidad: data/config/quality.json (nada calibrable vive en el
+## codigo). Los numeros del JSON llegan como float y los niveles son enteros,
+## de ahi las conversiones; las claves `_comentario` del JSON se descartan.
+static var CFG: Dictionary = AssetDefs.config("quality")
+static var _AQ: Dictionary = CFG.get("auto_quality", {})
+
 ## Que controla cada clave:
 ##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,65x ·
 ##                 1 = 0,85x · 2 = 1x, ampliado con FSR. El 2D (HUD, ventanas)
@@ -46,28 +52,65 @@ const PATH := "user://quality.cfg"
 ##  - explosion:   0 sin animacion de explosion · 1 con ella. Existe en los
 ##                 tres presets; solo la auto-calidad llega a apagarla.
 ##  - emissive:    0 emision fija (sin pulso ni lava) · 1 pulsando. Idem.
-var levels := {
-	"render": 2, "aa": 2, "luces": 2, "engine": 2,
-	"background": 2, "collectable": 1, "explosion": 1, "emissive": 1,
-}
+## (los niveles vivos son `levels`, mas abajo; arrancan en DEFAULT_PRESET)
 
 ## Los tres preajustes. BAJA es "todo lo de ALTA, mas barato" con UNA excepcion
 ## tomada del original: las llamas de los NPC — lo unico que escala con el
 ## numero de entidades. Todo lo demas es coste fijo y se ataca mejor con la
 ## resolucion y el antialias, que son invisibles al ojo y muy visibles al fps.
-const PRESETS := {
+static var PRESETS: Dictionary = _presets_from(CFG.get("presets", {
 	"baja":  {"render": 0, "aa": 0, "luces": 0, "engine": 0,
 			  "background": 0, "collectable": 0, "explosion": 1, "emissive": 1},
 	"media": {"render": 1, "aa": 1, "luces": 1, "engine": 1,
 			  "background": 1, "collectable": 1, "explosion": 1, "emissive": 1},
 	"alta":  {"render": 2, "aa": 2, "luces": 2, "engine": 2,
 			  "background": 2, "collectable": 1, "explosion": 1, "emissive": 1},
-}
+}))
 
-const LABELS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
+static var LABELS: Dictionary = _without_comments(CFG.get("labels",
+	{"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}))
 
-var preset := "alta"
+## Preajuste con el que arranca una cuenta sin ajustes guardados.
+static var DEFAULT_PRESET: String = str(CFG.get("default_preset", "alta"))
+
+## Los niveles vivos: arrancan en el preajuste por defecto.
+var levels: Dictionary = (PRESETS.get(DEFAULT_PRESET, {}) as Dictionary).duplicate()
+
+var preset: String = DEFAULT_PRESET
 var _count := 0
+
+
+## Un mapa clave -> nivel del JSON, con los niveles como int.
+static func _int_levels(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		if str(k).begins_with("_"):
+			continue
+		out[k] = int(d[k])
+	return out
+
+
+static func _without_comments(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		if not str(k).begins_with("_"):
+			out[k] = d[k]
+	return out
+
+
+static func _presets_from(d: Dictionary) -> Dictionary:
+	var out := {}
+	for k in d:
+		if not str(k).begins_with("_"):
+			out[k] = _int_levels(d[k])
+	return out
+
+
+static func _ladder_from(items: Array) -> Array:
+	var out := []
+	for step: Dictionary in items:
+		out.append(_int_levels(step))
+	return out
 
 ## ---- Auto-calidad por FPS (guideline 3D, §12.2 del original) ----
 ## Promedia el FPS en ventanas de 20 s: por debajo de 10 sube UN escalon de
@@ -76,24 +119,28 @@ var _count := 0
 ## no se persiste — el preset por cuenta no se toca, que es la leccion del
 ## autotest que dejaba residuo. Sin foco no se mide (una ventana de fondo con
 ## los fps capados no es una maquina lenta), y en autotest no corre.
-const AQ_WINDOW_SEC := 20.0
-const AQ_FPS_LOW := 10.0
+static var AQ_WINDOW_SEC: float = AssetDefs.num(_AQ, "window_sec", 20.0)
+static var AQ_FPS_LOW: float = AssetDefs.num(_AQ, "fps_low", 10.0)
+## Cada cuantos segundos se toma una muestra de FPS.
+static var AQ_SAMPLE_SEC: float = AssetDefs.num(_AQ, "sample_sec", 1.0)
+## Refresco que se asume si el DisplayServer no lo reporta.
+static var AQ_REFRESH_FALLBACK_HZ: float = AssetDefs.num(_AQ, "refresh_fallback_hz", 60.0)
 ## El original recuperaba "por encima de 60" — era un SWF sin VSync. Aqui el
 ## VSync (default de Godot) clava el tope al refresco del monitor, asi que la
 ## media NUNCA pasa de 60 y la escalera podia bajar pero jamas volver a subir
 ## (1-sep). Se recupera al 90 % del refresco real: holgura de verdad, no un
 ## numero que el VSync hace inalcanzable.
-const AQ_RAISE_FRACTION := 0.9
+static var AQ_RAISE_FRACTION: float = AssetDefs.num(_AQ, "raise_fraction", 0.9)
 
 
 func _raise_threshold() -> float:
 	var hz := DisplayServer.screen_get_refresh_rate()
-	return (hz if hz > 0.0 else 60.0) * AQ_RAISE_FRACTION
+	return (hz if hz > 0.0 else AQ_REFRESH_FALLBACK_HZ) * AQ_RAISE_FRACTION
 ## La escalera de recortes, del mas barato al mas doloroso. Cada peldanio es un
 ## mapa de TOPES por clave; lo que no aparece no se toca. Los dos primeros
 ## (antialias, resolucion) no se ven; el ultimo es el que el original tambien
 ## reservaba para el final: sin explosiones ni pulso.
-const AQ_LADDER := [
+static var AQ_LADDER: Array = _ladder_from(_AQ.get("ladder", [
 	{},
 	{"aa": 0},
 	{"aa": 0, "render": 1},
@@ -101,7 +148,7 @@ const AQ_LADDER := [
 	{"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 1},
 	{"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 0,
 	 "collectable": 0, "explosion": 0, "emissive": 0},
-]
+]))
 var auto_reduction := 0
 var _aq_accum := 0.0
 var _aq_sum := 0.0
@@ -123,12 +170,12 @@ func _process(delta: float) -> void:
 	if not get_window().has_focus():
 		return
 	_aq_accum += delta
-	if _aq_accum < 1.0:
+	if _aq_accum < AQ_SAMPLE_SEC:
 		return                      # una muestra por segundo basta
 	_aq_accum = 0.0
 	_aq_sum += Engine.get_frames_per_second()
 	_aq_samples += 1
-	if float(_aq_samples) < AQ_WINDOW_SEC:
+	if float(_aq_samples) * AQ_SAMPLE_SEC < AQ_WINDOW_SEC:
 		return
 	var medium := _aq_sum / float(_aq_samples)
 	_aq_sum = 0.0

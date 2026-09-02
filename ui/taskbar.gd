@@ -13,10 +13,31 @@
 class_name Taskbar
 extends PanelContainer
 
-const SIDE := 44
-const ICON := 21
-const MARGIN := 8
-const HEIGHT_L := 12.0              # esquinas en L, un pelin mas cortas que las de ventana
+static var CFG: Dictionary = AssetDefs.config("ui").get("taskbar", {})
+static var _CAP: Dictionary = CFG.get("cap", {})
+static var _DOT: Dictionary = CFG.get("dot", {})
+static var _SEPARATOR: Dictionary = CFG.get("separator", {})
+static var _BUTTON: Dictionary = CFG.get("button", {})
+
+static var SIDE: int = int(AssetDefs.num(CFG, "side", 44))
+static var ICON: int = int(AssetDefs.num(CFG, "icon", 21))
+static var MARGIN: int = NTheme.BAR_MARGIN
+static var HEIGHT_L: float = AssetDefs.num(CFG, "l_side", 12.0)              # esquinas en L, un pelin mas cortas que las de ventana
+static var THICKNESS_L: float = NWindow.THICKNESS_L
+static var SHADOW_ALPHA: float = AssetDefs.num(CFG, "shadow_alpha", 0.08)
+static var SHADOW_SIZE: int = int(AssetDefs.num(CFG, "shadow_size", 24))
+static var CAP_WIDTH: int = int(AssetDefs.num(_CAP, "width", 20))
+static var CAP_FONT_SIZE: int = int(AssetDefs.num(_CAP, "font_size", 7))
+static var CAP_LINE_SPACING: int = int(AssetDefs.num(_CAP, "line_spacing", 2))
+static var GLYPH_REST: Color = AssetDefs.color(CFG.get("glyph_rest"), Color("A9B6CC"))
+static var DOT_SIZE: int = int(AssetDefs.num(_DOT, "size", 4))
+static var DOT_BOTTOM: int = int(AssetDefs.num(_DOT, "bottom", 4))
+static var SEPARATOR_WIDTH: int = int(AssetDefs.num(_SEPARATOR, "width", 1))
+static var SEPARATOR_VERTICAL_INSET: int = int(AssetDefs.num(_SEPARATOR, "vertical_inset", 18))
+static var SEPARATOR_SLOT_WIDTH: int = int(AssetDefs.num(_SEPARATOR, "slot_width", 7))
+static var BUTTON_BORDER_TOP: int = int(AssetDefs.num(_BUTTON, "border_top", 2))
+static var BUTTON_OPEN_ALPHA: float = AssetDefs.num(_BUTTON, "open_alpha", 0.08)
+static var BUTTON_HOVER_ALPHA: float = AssetDefs.num(_BUTTON, "hover_alpha", 0.07)
 
 var _row: HBoxContainer
 var _buttons := {}
@@ -36,9 +57,9 @@ func _ready() -> void:
 	var box := StyleBoxFlat.new()
 	box.bg_color = NTheme.GLASS_2
 	box.border_color = NTheme.EDGE
-	box.set_border_width_all(1)
-	box.shadow_color = Color(NTheme.CYAN, 0.08)
-	box.shadow_size = 24
+	box.set_border_width_all(NTheme.BORDER_WIDTH)
+	box.shadow_color = Color(NTheme.CYAN, SHADOW_ALPHA)
+	box.shadow_size = SHADOW_SIZE
 	add_theme_stylebox_override("panel", box)
 
 	_row = HBoxContainer.new()
@@ -51,12 +72,12 @@ func _ready() -> void:
 	var cap := Label.new()
 	cap.text = "M\nE\nN\nÚ"
 	cap.add_theme_font_override("font", NTheme.michroma())
-	cap.add_theme_font_size_override("font_size", 7)
+	cap.add_theme_font_size_override("font_size", CAP_FONT_SIZE)
 	cap.add_theme_color_override("font_color", NTheme.CYAN)
-	cap.add_theme_constant_override("line_spacing", 2)
+	cap.add_theme_constant_override("line_spacing", CAP_LINE_SPACING)
 	cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cap.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	cap.custom_minimum_size = Vector2(20, SIDE)
+	cap.custom_minimum_size = Vector2(CAP_WIDTH, SIDE)
 	cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_row.add_child(cap)
 
@@ -81,7 +102,7 @@ func add_entry(key: String, icon: String, tooltip: String, on_press: Callable) -
 	glyph.custom_minimum_size = Vector2(ICON, ICON)
 	glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	glyph.modulate = Color("A9B6CC")          # el reposo del §5, mas claro que --muted
+	glyph.modulate = GLYPH_REST          # el reposo del §5, mas claro que --muted
 	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glyph.set_anchors_preset(Control.PRESET_FULL_RECT)
 	b.add_child(glyph)
@@ -94,10 +115,10 @@ func add_entry(key: String, icon: String, tooltip: String, on_press: Callable) -
 	# anclas Y offsets, los dos. Poniendo solo `position` sobre unas anclas
 	# centradas el punto se iba del boton y acababa pintado sobre la ventana Nave.
 	point.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	point.offset_left = -2
-	point.offset_right = 2
-	point.offset_top = -8
-	point.offset_bottom = -4
+	point.offset_left = -DOT_SIZE * 0.5
+	point.offset_right = DOT_SIZE * 0.5
+	point.offset_top = -(DOT_BOTTOM + DOT_SIZE)
+	point.offset_bottom = -DOT_BOTTOM
 	b.add_child(point)
 
 	b.mouse_entered.connect(func(): _paint_button(key, true))
@@ -112,12 +133,12 @@ func add_entry(key: String, icon: String, tooltip: String, on_press: Callable) -
 ## barra tiene que saber hacerlo antes de que hagan falta veinte.
 func separator() -> void:
 	var s := PanelContainer.new()
-	s.custom_minimum_size = Vector2(1, SIDE - 18)
+	s.custom_minimum_size = Vector2(SEPARATOR_WIDTH, SIDE - SEPARATOR_VERTICAL_INSET)
 	var box := StyleBoxFlat.new()
 	box.bg_color = NTheme.EDGE_SOFT
 	s.add_theme_stylebox_override("panel", box)
 	var wrapper := CenterContainer.new()
-	wrapper.custom_minimum_size = Vector2(7, SIDE)
+	wrapper.custom_minimum_size = Vector2(SEPARATOR_SLOT_WIDTH, SIDE)
 	wrapper.add_child(s)
 	_row.add_child(wrapper)
 
@@ -140,15 +161,15 @@ func _paint_button(key: String, hover: bool) -> void:
 	var d: Dictionary = _buttons[key]
 	var b: Button = d["boton"]
 	var box := StyleBoxFlat.new()
-	box.border_width_top = 2
+	box.border_width_top = BUTTON_BORDER_TOP
 	if d["abierta"]:
-		box.bg_color = Color(NTheme.WARN, 0.08)
+		box.bg_color = Color(NTheme.WARN, BUTTON_OPEN_ALPHA)
 		box.border_color = NTheme.WARN
 		d["glifo"].modulate = NTheme.WARN
 	else:
-		box.bg_color = Color(NTheme.CYAN, 0.07) if hover else Color(0, 0, 0, 0)
+		box.bg_color = Color(NTheme.CYAN, BUTTON_HOVER_ALPHA) if hover else Color(0, 0, 0, 0)
 		box.border_color = Color(0, 0, 0, 0)
-		d["glifo"].modulate = Color(1, 1, 1) if hover else Color("A9B6CC")
+		d["glifo"].modulate = Color(1, 1, 1) if hover else GLYPH_REST
 	b.add_theme_stylebox_override("normal", box)
 	b.add_theme_stylebox_override("hover", box)
 	b.add_theme_stylebox_override("pressed", box)
@@ -156,10 +177,10 @@ func _paint_button(key: String, hover: bool) -> void:
 
 func _paint() -> void:
 	var s := size
-	_deco.draw_rect(Rect2(0, 0, HEIGHT_L, 1.5), NTheme.CYAN)
-	_deco.draw_rect(Rect2(0, 0, 1.5, HEIGHT_L), NTheme.CYAN)
-	_deco.draw_rect(Rect2(s.x - HEIGHT_L, s.y - 1.5, HEIGHT_L, 1.5), NTheme.CYAN)
-	_deco.draw_rect(Rect2(s.x - 1.5, s.y - HEIGHT_L, 1.5, HEIGHT_L), NTheme.CYAN)
+	_deco.draw_rect(Rect2(0, 0, HEIGHT_L, THICKNESS_L), NTheme.CYAN)
+	_deco.draw_rect(Rect2(0, 0, THICKNESS_L, HEIGHT_L), NTheme.CYAN)
+	_deco.draw_rect(Rect2(s.x - HEIGHT_L, s.y - THICKNESS_L, HEIGHT_L, THICKNESS_L), NTheme.CYAN)
+	_deco.draw_rect(Rect2(s.x - THICKNESS_L, s.y - HEIGHT_L, THICKNESS_L, HEIGHT_L), NTheme.CYAN)
 
 
 func _notification(what: int) -> void:

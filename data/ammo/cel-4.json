@@ -1,9 +1,8 @@
 {
-  "_comentario": "Color heredado del original (UCB-100 = dorado #b69753).",
+  "_comment": "Color heredado del original (UCB-100 = dorado #b69753).",
   "code": "cel-4",
   "loot_id": "ammo_cel_4",
   "display_name": "CEL-4",
-
   "beam": {
     "texture": "res://assets/fx/beam.png",
     "color": "D8B45E",

@@ -13,9 +13,11 @@ extends NWindow
 
 signal preset_chosen(entry_name: String)
 
-const ICON := "res://assets/ui/icons/gear.svg"
-const WIDTH := 344                # el ancho del `#w-cfg` del prototipo
+static var CFG: Dictionary = AssetDefs.config("ui").get("settings", {})
+static var ICON: String = str(CFG.get("icon", "res://assets/ui/icons/gear.svg"))
+static var WIDTH: int = int(AssetDefs.num(CFG, "width", 344))                # el ancho del `#w-cfg` del prototipo
 const ORDER := ["baja", "media", "alta"]
+const BYTES_PER_MB := 1048576.0   # unidad, no dial: 1024 * 1024
 const DETAIL := {
 	"baja": "Render a 0,65× · sin antialias · solo el sol · llamas solo en tu nave",
 	"media": "Render a 0,85× · antialias 2× · luz de tu nave · polvo estelar",
@@ -44,9 +46,9 @@ func _ready() -> void:
 func _body() -> void:
 	content.add_child(_quality_row())
 
-	_detail = NTheme.label("", NTheme.exo2(), 11, NTheme.FAINT)
+	_detail = NTheme.label("", NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.FAINT)
 	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail.custom_minimum_size = Vector2(WIDTH - 20, 0)
+	_detail.custom_minimum_size = Vector2(WIDTH - NTheme.PANEL_PAD_LEFT - NTheme.PANEL_PAD_RIGHT, 0)
 	content.add_child(_detail)
 
 	var sep := HSeparator.new()
@@ -64,20 +66,20 @@ func _body() -> void:
 	_vram = _number_row("Memoria de textura")
 
 	content.add_child(NTheme.label("El cambio se aplica al instante",
-		NTheme.exo2(), 11, NTheme.MUTED))
+		NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.MUTED))
 	_refresh()
 
 
 ## §7: fila de `.r` — etiqueta fria a la izquierda, valor a la derecha.
 func _quality_row() -> Control:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
-	var k := NTheme.label("Calidad", NTheme.exo2(), 11, NTheme.MUTED)
+	row.add_theme_constant_override("separation", NTheme.ROW_GAP)
+	var k := NTheme.label("Calidad", NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(k)
 	var seg := HBoxContainer.new()
-	seg.add_theme_constant_override("separation", 3)
+	seg.add_theme_constant_override("separation", NTheme.SEGMENT_GAP)
 	for entry_name in ORDER:
 		var b := _segment(entry_name)
 		_segments[entry_name] = b
@@ -88,12 +90,12 @@ func _quality_row() -> Control:
 
 func _number_row(tag: String) -> Label:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 7)
-	var k := NTheme.label(tag, NTheme.exo2(), 11, NTheme.MUTED)
+	row.add_theme_constant_override("separation", NTheme.ROW_GAP)
+	var k := NTheme.label(tag, NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(k)
 	# la firma del sistema: etiqueta fria + numero ambar en JetBrains Mono
-	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
+	var v := NTheme.label("—", NTheme.mono(), NTheme.ROW_VALUE_FONT_SIZE, NTheme.WARN)
 	row.add_child(v)
 	content.add_child(row)
 	return v
@@ -129,7 +131,7 @@ func _process(_delta: float) -> void:
 		return
 	_fps.text = str(int(Engine.get_frames_per_second()))
 	var bytes := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)
-	_vram.text = "%s MB" % _with_comma(bytes / 1048576.0)
+	_vram.text = "%s MB" % _with_comma(bytes / BYTES_PER_MB)
 
 
 ## Decimal con COMA, como se escribe en espaniol. El separador de miles con punto

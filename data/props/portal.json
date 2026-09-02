@@ -1,8 +1,12 @@
 {
-  "_comentario": "El portal entre sectores. Su POSICION no vive aqui: es dato de BD (map_portal) y llega en EnterMap. Esto son solo sus particularidades de arte.",
+  "_comment": "El portal entre sectores. Su POSICION no vive aqui: es dato de BD (map_portal) y llega en EnterMap. Esto son solo sus particularidades de arte.",
   "code": "portal",
   "world_size": 380,
   "click_radius": 190,
+  "_jump_range": "A que distancia se puede SALTAR (unidades de mundo). Tiene que casar con `JumpRange` del server: el cliente propone y el server dispone. El radio de click es aparte y mas chico a proposito.",
+  "jump_range": 600.0,
+  "_body_height": "Altura del cuerpo sobre el plano de vuelo (unidades de mundo): el margen para que el aro no corte el plano.",
+  "body_height": 1.0,
   "spin": {
     "speed": -0.5
   },
@@ -10,38 +14,53 @@
     "min_intensity": 0.45,
     "max_intensity": 1.6,
     "speed": 0.9,
-    "sharpness": 1.4
+    "sharpness": 1.4,
+    "phase_per_id": 1.7
   },
   "label": {
     "color": "A78BFA",
     "size": 12,
-    "offset_y": 26
+    "offset_y": 26,
+    "offset": [-90, 40],
+    "width": 180,
+    "outline_size": 4,
+    "outline_alpha": 0.85
   },
+  "_label": "La etiqueta del sector en la capa HUD, proyectada: `offset` en pixeles de pantalla desde el centro del aro (x = -width/2 la centra), `width` su ancho minimo, y el contorno negro (`outline_size` px, `outline_alpha`).",
   "minimap": {
     "color": "A78BFA",
     "radius": 3.0
   },
-  "_por_que_dura_eso": "2,1 s no es un numero estetico: es el hueco donde cabe la latencia. La animacion corre mientras el server resuelve el salto de sector, asi que el viaje de ida y vuelta se paga en pantalla en vez de en una espera.",
-  "_color_pendiente": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas.",
-  "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
-  "modelo": "res://assets/world/portal.glb",
-  "_orientacion": "De PIE y DE CARA A LA CAMARA (normalizado con TUMBAR=0): la normal del aro apunta a la camara del rig (tilt base 45 + pan del mapa), fija — no es billboard, al hacer zoom no se voltea. Centrado en el plano de vuelo: la nave se queda dentro del aro. `pan` es un giro extra sobre esa cara (0 = de frente). `flotar` es el `floating rotation 3` del original.",
-  "orientacion": {
+  "_why_it_lasts": "2,1 s no es un numero estetico: es el hueco donde cabe la latencia. La animacion corre mientras el server resuelve el salto de sector, asi que el viaje de ida y vuelta se paga en pantalla en vez de en una espera.",
+  "_color_pending": "SABIDO Y ACEPTADO: lo emisivo del video es 83% azul-cyan, matiz 188, a 2 grados del cyan del sistema (00E5FF) que en la direccion N identifica al JUGADOR. El violeta A78BFA es el de los portales, y ahi siguen la etiqueta y el punto del minimapa de este mismo JSON. Se deja asi a proposito; si algun dia se corrige, es rotar el matiz ~67 grados en el atlas.",
+  "_model": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
+  "model": "res://assets/world/portal.glb",
+  "_orientation": "De PIE y DE CARA A LA CAMARA (normalizado con TUMBAR=0): la normal del aro apunta a la camara del rig (tilt base 45 + pan del mapa), fija — no es billboard, al hacer zoom no se voltea. Centrado en el plano de vuelo: la nave se queda dentro del aro. `pan` es un giro extra sobre esa cara (0 = de frente). `floating` es el `floating rotation 3` del original: `degrees` de balanceo, `cycle` en segundos, y `yaw_ratio` la frecuencia del segundo eje relativa al primero (el vaiven no es un circulo).",
+  "orientation": {
     "pan": 0.0
   },
-  "flotar": {
-    "grados": 3.0,
-    "ciclo": 6.0
+  "floating": {
+    "degrees": 3.0,
+    "cycle": 6.0,
+    "yaw_ratio": 0.8
   },
-  "_pulse": "El `<glow duration=5>` del original: seno con fase propia sobre la emision del material. speed en rad/s (0,9 ~ 7 s), sharpness marca el destello.",
-  "_encendido": "Los 2,1 s que cubren la latencia del salto. Las luces del aro suben hasta `glow` PARPADEANDO a `parpadeo_hz` (bajan a `parpadeo_min` en cada apagado) y una luz del pool destella a `destello`. El CENTRO (el vortice, pieza `centro` del GLB) no esta en reposo; con `vortice: true` aparece creciendo con la rampa y girando a `giro_dps` — desde el 2-sep va en false (no gusto en vivo). Abierto = luces fijas.",
-  "encendido": {
-    "segundos": 2.1,
+  "_pulse": "El `<glow duration=5>` del original: seno con fase propia sobre la emision del material. speed en rad/s (0,9 ~ 7 s), sharpness marca el destello. `phase_per_id` desfasa cada portal por su id para que dos aros no pulsen a la vez.",
+  "_ignition": "Los 2,1 s que cubren la latencia del salto. Las luces del aro suben hasta `glow` PARPADEANDO a `blink_hz` (bajan a `blink_min` en cada apagado; `blink_edge_low/high` son los umbrales del smoothstep que convierte el seno en encendido/apagado) y una luz del pool destella a `flash` (a `flash_height` x world_size sobre el plano, alcance `flash_radius` x world_size, se funde en `flash_fade_sec`). El CENTRO (el vortice, pieza `centro` del GLB) no esta en reposo; con `vortex: true` aparece creciendo con la rampa desde `vortex_min_scale` y girando a `spin_dps` — desde el 2-sep va en false (no gusto en vivo). Abierto = luces fijas.",
+  "ignition": {
+    "seconds": 2.1,
     "glow": 4.0,
-    "giro_dps": 240.0,
-    "destello": 6.0,
-    "parpadeo_hz": 6.0,
-    "parpadeo_min": 0.15,
-    "vortice": false
-  }
+    "spin_dps": 240.0,
+    "flash": 6.0,
+    "flash_height": 0.5,
+    "flash_radius": 1.5,
+    "flash_fade_sec": 0.6,
+    "blink_hz": 6.0,
+    "blink_min": 0.15,
+    "blink_edge_low": 0.35,
+    "blink_edge_high": 0.65,
+    "vortex": false,
+    "vortex_min_scale": 0.02
+  },
+  "_inactive_glow": "Factor de emision de un portal apagado (`is_working` false): apenas alumbra.",
+  "inactive_glow": 0.25
 }

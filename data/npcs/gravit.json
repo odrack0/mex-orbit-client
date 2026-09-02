@@ -1,9 +1,9 @@
 {
-  "_comentario": "Gravit: la forma MENOR (sufijo -it). Pequenio pero macizo: hierro meteorico pulido, no roca porosa. Su nucleo hundido late lento y profundo, como algo muy denso; y gira despacio para su tamanio, porque pesa.",
+  "_comment": "Gravit: la forma MENOR (sufijo -it). Pequenio pero macizo: hierro meteorico pulido, no roca porosa. Su nucleo hundido late lento y profundo, como algo muy denso; y gira despacio para su tamanio, porque pesa.",
   "code": "gravit",
   "screen_size": 124,
   "click_radius": 44,
-  "_giro": "steps 0 = giro continuo. 70 grados/s: es el bicho mas pequenio del mapa y aun asi gira mas lento que un Vex. Eso ES el personaje.",
+  "_spin": "steps 0 = giro continuo. 70 grados/s: es el bicho mas pequenio del mapa y aun asi gira mas lento que un Vex. Eso ES el personaje.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 70
@@ -14,6 +14,6 @@
     "speed": 1.4,
     "sharpness": 3.0
   },
-  "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
-  "modelo": "res://assets/npcs/gravit.glb"
+  "_model": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
+  "model": "res://assets/npcs/gravit.glb"
 }

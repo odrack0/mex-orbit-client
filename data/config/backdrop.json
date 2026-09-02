@@ -1,0 +1,92 @@
+{
+  "_comment": "Diales del fondo 3D (game/fondo3d.gd, Backdrop3D) y los DEFAULTS de los campos del JSON de cada mapa (game/map_bg_config.gd, MapBgConfig; data/maps/*.json). Cotas del display3D del original (G§10); y negativo = hondo.",
+  "layers": {
+    "layer_base": -3500.0,
+    "layer_step": 550.0,
+    "_layer_base": "Capas de nebulosa: cota de la primera y cuanto sube cada una (y = layer_base + capa * layer_step) si el JSON del mapa no trae `y`.",
+    "jitter_min": -500.0,
+    "jitter_max": -200.0,
+    "_jitter_min": "Jitter vertical POR TILE dentro de su capa (G§10.2): el paralaje entre tiles lo produce la camara.",
+    "backdrop_y": -4200.0,
+    "_backdrop_y": "Cota del telon (el arte `main` del mapa), la capa mas profunda.",
+    "backdrop_height_factor": 1.8,
+    "_backdrop_height_factor": "Alto del telon = alto del mapa x este factor (el ancho sigue el aspecto de la textura).",
+    "depth_per_p_factor": 250.0,
+    "_depth_per_p_factor": "Profundidad de planetas y sol = p_factor del mapa x este valor (el p_factor del 2D reinterpretado como cota).",
+    "position_scale": 10.0,
+    "_position_scale": "Las posiciones de planetas y sol van en el espacio del fondo (2048x1280); se multiplican por esto para pasar a unidades de mundo."
+  },
+  "tiles": {
+    "tile_factor": 1.5,
+    "_tile_factor": "Lado del tile en mundo = ancho_textura x scale x este factor si el JSON no trae `side` (el original usaba 5 sobre tiles de ~256; nuestro arte es de 1024).",
+    "tile_gaps": 0.25,
+    "_tile_gaps": "Fraccion de celdas VACIAS del mosaico sin mascara (rompe la repeticion).",
+    "margin": 1.5,
+    "_margin": "Cuanto cubre el mosaico mas alla del mapa (x1.5) si el JSON no trae `margin`.",
+    "alpha_jitter_min": 0.7,
+    "_alpha_jitter_min": "Cada tile sortea su alfa entre esta fraccion y 1.0 del alfa de la capa."
+  },
+  "props": {
+    "mesh_roughness": 0.8,
+    "_mesh_roughness": "Rugosidad del material de las mallas de fondo (lunas, estaciones mineras), iluminadas por el sol del mundo.",
+    "plane_side": 1000.0,
+    "_plane_side": "Lado por defecto de un prop `plane` sin `scale`.",
+    "y": -2000.0,
+    "_y": "Cota por defecto de un prop sin `y`."
+  },
+  "dust": {
+    "_comment": "El polvo estelar (G§10.4): particulas sueltas al mundo en un volumen alrededor del foco. TENUES a proposito: deben leerse solo en movimiento.",
+    "count": 1500,
+    "box": [4200.0, 300.0, 4200.0],
+    "_box": "Volumen de emision (x, y, z) centrado en el foco, en unidades de mundo.",
+    "y": -160.0,
+    "_y": "Cota del centro del volumen.",
+    "life": 25.0,
+    "_life": "Vida de cada mota en segundos (tambien el preprocess: el volumen arranca lleno).",
+    "spread": 180.0,
+    "_spread": "Apertura de la direccion inicial en grados (180 = cualquier direccion).",
+    "speed_min": 2.0,
+    "speed_max": 6.0,
+    "scale_min": 0.5,
+    "scale_max": 1.0,
+    "color_dark": [0.28, 0.28, 0.28],
+    "color_light": [0.52, 0.52, 0.52],
+    "tint_darken": 0.4,
+    "_color_dark": "Rampa de color inicial: grises de color_dark a color_light y, en la fraccion `starfield_tint_ratio` del mapa, el tinte del mapa oscurecido `tint_darken`.",
+    "mote_size": 2.4,
+    "_mote_size": "Lado del quad de cada mota en unidades de mundo.",
+    "mote_tex_px": 16,
+    "_mote_tex_px": "Lado en pixeles de la textura radial (blanco -> transparente) de la mota."
+  },
+  "flares": {
+    "sun_texture": "res://assets/world/layers/sun.png",
+    "ghost_texture": "res://assets/world/layers/flare-ghost.png",
+    "ghost_screen_margin_px": 100.0,
+    "_ghost_screen_margin_px": "Los fantasmas del sol se muestran mientras el sol proyecte dentro del viewport ampliado por este margen en pixeles.",
+    "ghosts": [
+      {"axis_fraction": 0.35, "scale": 0.30, "color": [0.5, 0.9, 1.0, 0.35]},
+      {"axis_fraction": 0.65, "scale": 0.18, "color": [1.0, 0.85, 0.5, 0.30]},
+      {"axis_fraction": 1.15, "scale": 0.42, "color": [0.7, 0.6, 1.0, 0.25]},
+      {"axis_fraction": 1.55, "scale": 0.24, "color": [0.5, 1.0, 0.9, 0.22]}
+    ],
+    "_ghosts": "Cadena de lentes del sol propio, proyectada al HUD: fraccion del eje sol->centro, escala del sprite y tinte [r, g, b, a] (en float para conservar los valores exactos).",
+    "do_lens_pattern": "res://assets/do-ref/flare/lens%d.png",
+    "do_lens_count": 11,
+    "do_spread": 3.0,
+    "_do_lens_count": "El lensFlare del display3D original (typeID 6): do_lens_count lentes reales, lente i en sol_px + i * (-(sol_px - centro) * do_spread / N): la cadena cruza el centro y se extiende do_spread veces al lado opuesto."
+  },
+  "map_defaults": {
+    "_comment": "Valores por defecto de los campos del JSON de cada mapa (data/maps/*.json) cuando no los trae.",
+    "planet_p_factor": 5.0,
+    "sun_p_factor": 10.0,
+    "sun_scale": 0.9,
+    "sun_spin_deg_per_sec": -9.0,
+    "_sun_spin_deg_per_sec": "Giro del quad aditivo del sol, grados por segundo (negativo = antihorario).",
+    "starfield_tint": "66F2FF",
+    "starfield_tint_ratio": 0.35,
+    "_starfield_tint": "Tinte del cielo procedural y del polvo, y fraccion de motas tenidas con el.",
+    "tile_p_factor": 6.0,
+    "tile_grid": 2,
+    "_tile_grid": "Rejilla grid x grid del atlas de variantes de nube de un tile."
+  }
+}

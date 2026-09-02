@@ -1,0 +1,44 @@
+{
+  "_comment": "Calidad grafica por subsistema (game/quality.gd, autoload Quality) y las palancas de GPU que aplica la escena 3D (game/mundo3d.gd, `render`). Claves de nivel: render (escala del render 3D), aa (MSAA), luces (dinamicas del mundo 3D), engine (llamas), background (capas del fondo), collectable (props animados), explosion, emissive (pulso).",
+  "default_preset": "alta",
+  "_default_preset": "Preajuste con el que arranca una cuenta sin ajustes guardados.",
+  "presets": {
+    "_comment": "BAJA es 'todo lo de ALTA, mas barato' con una excepcion del original: las llamas de los NPC (engine), lo unico que escala con el numero de entidades.",
+    "baja": {"render": 0, "aa": 0, "luces": 0, "engine": 0, "background": 0, "collectable": 0, "explosion": 1, "emissive": 1},
+    "media": {"render": 1, "aa": 1, "luces": 1, "engine": 1, "background": 1, "collectable": 1, "explosion": 1, "emissive": 1},
+    "alta": {"render": 2, "aa": 2, "luces": 2, "engine": 2, "background": 2, "collectable": 1, "explosion": 1, "emissive": 1}
+  },
+  "labels": {
+    "baja": "BAJA",
+    "media": "MEDIA",
+    "alta": "ALTA"
+  },
+  "auto_quality": {
+    "_comment": "Auto-calidad por FPS (guideline 3D §12.2 del original): promedia el FPS en ventanas y sube/baja UN peldanio de la escalera. El recorte es transitorio (tope sobre el preset, no se persiste).",
+    "window_sec": 20.0,
+    "_window_sec": "Segundos de la ventana de promedio antes de decidir.",
+    "sample_sec": 1.0,
+    "_sample_sec": "Cada cuantos segundos se toma una muestra de FPS.",
+    "fps_low": 10.0,
+    "_fps_low": "Media por debajo de la cual se sube un escalon de recorte.",
+    "raise_fraction": 0.9,
+    "_raise_fraction": "Se recupera un escalon cuando la media supera esta fraccion del refresco real del monitor (el VSync hace inalcanzable el 'mas de 60' del original).",
+    "refresh_fallback_hz": 60.0,
+    "_refresh_fallback_hz": "Refresco que se asume si el DisplayServer no lo reporta.",
+    "ladder": [
+      {},
+      {"aa": 0},
+      {"aa": 0, "render": 1},
+      {"aa": 0, "render": 1, "background": 1, "engine": 1},
+      {"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 1},
+      {"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 0, "collectable": 0, "explosion": 0, "emissive": 0}
+    ],
+    "_ladder": "Escalera de recortes del mas barato al mas doloroso: cada peldanio es un mapa de TOPES por clave; lo que no aparece no se toca."
+  },
+  "render": {
+    "scales": [0.65, 0.85, 1.0],
+    "_scales": "Escala del render 3D (Viewport.scaling_3d_scale) por nivel de `render` 0/1/2; por debajo de 1 se amplia con FSR. Calibrado en vivo el 1-sep: media 0.85 (de 0.75) y baja 0.65 (de 0.5).",
+    "msaa_samples": [0, 2, 4],
+    "_msaa_samples": "Muestras de MSAA 3D por nivel de `aa` 0/1/2 (0 = sin antialias). Solo 0, 2, 4 y 8 tienen enum en Godot."
+  }
+}

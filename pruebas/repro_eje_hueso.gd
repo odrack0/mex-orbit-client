@@ -7,9 +7,22 @@ extends Node2D
 ##
 ##   godot --path . res://pruebas/repro_eje_hueso.tscn -- --hueso=cuerno_izq --grados=30
 
-var _bone := "cuerno_izq"
-var _path := "res://assets/npcs/vexor.glb"
-var _degrees := 30.0
+## Diales de data/config/tests.json (`repro_bone_axis` + `common`).
+static var CFG: Dictionary = AssetDefs.config("tests").get("repro_bone_axis", {})
+static var CFG_COMMON: Dictionary = AssetDefs.config("tests").get("common", {})
+static var FRAME_MARGIN: float = AssetDefs.num(CFG_COMMON, "frame_margin", 1.15)
+static var CAMERA_HEIGHT: float = AssetDefs.num(CFG_COMMON, "camera_height", 8.0)
+static var OUTPUT_DIR: String = str(CFG_COMMON.get("output_dir", "C:/Tools"))
+static var DEFAULT_BONE: String = str(CFG.get("default_bone", "cuerno_izq"))
+static var DEFAULT_MODEL: String = str(CFG.get("default_model", "res://assets/npcs/vexor.glb"))
+static var DEFAULT_DEGREES: float = AssetDefs.num(CFG, "default_degrees", 30.0)
+static var RENDER_SIZE: int = int(AssetDefs.num(CFG, "render_size", 512))
+static var EXTENT_MIN: float = AssetDefs.num(CFG, "extent_min", 0.1)
+static var SETTLE_FRAMES: int = int(AssetDefs.num(CFG, "settle_frames", 3))
+
+var _bone := DEFAULT_BONE
+var _path := DEFAULT_MODEL
+var _degrees := DEFAULT_DEGREES
 var _vp: SubViewport
 var _sk: Skeleton3D
 var _axis := -1
@@ -36,7 +49,7 @@ func _ready() -> void:
 			_both = true
 
 	_vp = SubViewport.new()
-	_vp.size = Vector2i(512, 512)
+	_vp.size = Vector2i(RENDER_SIZE, RENDER_SIZE)
 	_vp.transparent_bg = true
 	_vp.own_world_3d = true
 	_vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -89,9 +102,9 @@ func _ready() -> void:
 	_vp.add_child(AssetDefs.world_sun())
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = maxf(maxf(box.size.x, box.size.z), 0.1) * 1.15
+	cam.size = maxf(maxf(box.size.x, box.size.z), EXTENT_MIN) * FRAME_MARGIN
 	_vp.add_child(cam)
-	cam.look_at_from_position(Vector3(0.0, 8.0, 0.0), Vector3.ZERO, Vector3.FORWARD)
+	cam.look_at_from_position(Vector3(0.0, CAMERA_HEIGHT, 0.0), Vector3.ZERO, Vector3.FORWARD)
 	cam.current = true
 
 	var names: Array[String] = []
@@ -104,13 +117,13 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	_waits += 1
-	if _waits < 3:
+	if _waits < SETTLE_FRAMES:
 		return
 	_waits = 0
 	# El REPOSO tambien se guarda: tres poses sin la de partida no se pueden
 	# comparar, que fue el primer intento.
 	_vp.get_texture().get_image().save_png(
-		"C:/Tools/eje_%s_%s_%s.png" % [_path.get_file().get_basename(), _bone, "reposo" if _axis < 0 else ("g%d" % int(_degrees) if _only >= 0 else str(_axis))])
+		"%s/eje_%s_%s_%s.png" % [OUTPUT_DIR, _path.get_file().get_basename(), _bone, "reposo" if _axis < 0 else ("g%d" % int(_degrees) if _only >= 0 else str(_axis))])
 	print("  %s guardado" % ("reposo" if _axis < 0 else "eje %d" % _axis))
 	_axis += 1
 	if _axis > 2:

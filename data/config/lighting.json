@@ -1,0 +1,39 @@
+{
+  "_comment": "La luz del MUNDO y el material 3D (game/asset_defs.gd). UNA sola luz para todo lo que se ilumine: dos objetos con su propia luz se leen como dos recortes pegados. Es la luz del display3D del original (dictamen 31-ago-2026): defaults del XML <light>.",
+  "world_light": {
+    "deg": 315.0,
+    "_deg": "De donde viene la luz en grados de pantalla para el relieve 2D (0 = derecha, 90 = abajo): 315 = arriba y a la izquierda, la convencion del arte 2D.",
+    "color": "ffffff",
+    "energy": 1.0,
+    "specular": 0.7,
+    "_specular": "diffuse 1 / specular 0.7 del <light> original.",
+    "tilt": 100.0,
+    "pan": 35.0,
+    "_tilt": "Direccion por la formula esferica del original: offset = (sin t sin p, -cos t, -sin t cos p) con t = tilt y p = pan, apuntando al origen y con la z espejada a Godot.",
+    "ambient_color": "ffa5ae",
+    "ambient": 0.2,
+    "_ambient": "El AMBIENTE del display3D (0xFFA5AE a 0.2): el relleno rosado tenue del original. Mas alto lava los colores de los props."
+  },
+  "hero_light": {
+    "color": "2e7dff",
+    "energy": 0.6,
+    "_energy": "El punto azul pegado a tu nave, portado del legacy (0x2E7DFF, diffuse 0.6); lo monta entity_node solo con `luces` >= 1."
+  },
+  "material": {
+    "roughness": 0.35,
+    "_roughness": "gloss 50 del BasicSpecularMethod del legacy: brillo cerrado, no mate. Las mallas de Meshy vienen casi mate y por eso se ven planas.",
+    "rim": 0.3,
+    "rim_tint": 0.5,
+    "_rim": "El FresnelSpecularMethod del legacy (fresnelPower 5): realza el borde y separa la silueta del negro del espacio."
+  },
+  "glow": {
+    "intensity": 1.0,
+    "bloom": 0.25,
+    "threshold": 0.9,
+    "_comment": "Defaults del glow del viewport propio de un asset (stage_3d) cuando su JSON no trae los suyos; se calibraron con las vetas finas de un bicho, un reactor grande necesita los suyos."
+  },
+  "measure_camera": {
+    "distance": 8.0,
+    "_distance": "Distancia de la camara ORTOGRAFICA de medicion/encuadre (stage_3d y view_extent) al origen, en unidades del mundo del asset."
+  }
+}

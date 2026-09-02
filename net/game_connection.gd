@@ -28,6 +28,16 @@ signal error_reply(msg)
 signal session_replaced
 signal disconnected
 
+## PROTOCOLO, no diales: es contrato con el server y no vive en data/config
+## (ver net.json). Cambiarlos aqui sin cambiar el server rompe el handshake.
+## Version del contrato que declaran Hello y Resume.
+const PROTOCOL_VERSION := 1
+## Codigo de cierre privado (rango 4000-4999 de la RFC 6455) con el que se
+## simula una caida de red en el autotest de reconexion.
+const CLOSE_CODE_SIMULATED_DROP := 4000
+## Bytes maximos del varint que lleva el id de mensaje al frente de cada frame.
+const MSG_ID_MAX_BYTES := 4
+
 var _ws := WebSocketPeer.new()
 var _open := false
 var _pending_ticket := ""
@@ -79,7 +89,7 @@ func jump_to(url: String) -> void:
 
 ## Corta el socket como si se cayera la red (autotest de reconexion).
 func simulate_drop() -> void:
-	_ws.close(4000, "prueba de reconexion")
+	_ws.close(CLOSE_CODE_SIMULATED_DROP, "prueba de reconexion")
 
 
 func _process(_delta: float) -> void:
@@ -90,12 +100,12 @@ func _process(_delta: float) -> void:
 				_open = true
 				if _resuming:
 					var resume := MexProtocol.Resume.new()
-					resume.protocol_version = 1
+					resume.protocol_version = PROTOCOL_VERSION
 					resume.reconnect_token = reconnect_token
 					_ws.put_packet(resume.encode())
 				else:
 					var hello := MexProtocol.Hello.new()
-					hello.protocol_version = 1
+					hello.protocol_version = PROTOCOL_VERSION
 					hello.game_ticket = _pending_ticket
 					_ws.put_packet(hello.encode())
 			while _ws.get_available_packet_count() > 0:
@@ -190,7 +200,7 @@ func _dispatch(frame: PackedByteArray) -> void:
 static func _msg_id(frame: PackedByteArray) -> int:
 	var id := 0
 	var shift := 0
-	for i in mini(frame.size(), 4):
+	for i in mini(frame.size(), MSG_ID_MAX_BYTES):
 		var b := frame[i]
 		id |= (b & 0x7F) << shift
 		if (b & 0x80) == 0:

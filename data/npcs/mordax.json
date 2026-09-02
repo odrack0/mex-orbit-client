@@ -1,9 +1,9 @@
 {
-  "_comentario": "Mordax: el que muerde. Es una boca vista desde arriba. Late rapido y con valles cortos (sharpness baja): esta hambriento, no en reposo. Gira rapido pero menos que el Ferox: muerde de cerca, no persigue de lejos.",
+  "_comment": "Mordax: el que muerde. Es una boca vista desde arriba. Late rapido y con valles cortos (sharpness baja): esta hambriento, no en reposo. Gira rapido pero menos que el Ferox: muerde de cerca, no persigue de lejos.",
   "code": "mordax",
   "screen_size": 186,
   "click_radius": 62,
-  "_giro": "steps 0 = giro continuo. 200 grados/s, acorde a sus 340 de velocidad.",
+  "_spin": "steps 0 = giro continuo. 200 grados/s, acorde a sus 340 de velocidad.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 200
@@ -14,6 +14,6 @@
     "speed": 3.6,
     "sharpness": 1.8
   },
-  "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
-  "modelo": "res://assets/npcs/mordax.glb"
+  "_model": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
+  "model": "res://assets/npcs/mordax.glb"
 }

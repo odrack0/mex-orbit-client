@@ -1,0 +1,148 @@
+{
+  "_comment": "Diales de game/world.gd: escena de juego, entrada, HUD, radiacion, cajas, combate y explosiones. Los del autotest/bestiario viven en autotest.json. Valores tal cual estaban en el codigo el 2-sep-2026.",
+  "click_radius": 34.0,
+  "_click_radius": "Radio minimo de click sobre entidades y cajas, en PIXELES de pantalla; se escala por zoom a unidades de mundo.",
+  "double_click_ms": 500,
+  "_double_click_ms": "Dos clicks sobre la misma entidad dentro de esto = fijarla Y atacar.",
+  "attack_facing_sec": 3.0,
+  "_attack_facing_sec": "Cuanto sigue un tirador (NPC) encarando a su blanco tras el ultimo disparo.",
+  "goal_reached_dist": 1.0,
+  "_goal_reached_dist": "A menos de esto de su destino (unidades) una nave cuenta como llegada/quieta: autopiloto, recogida en vuelo y presa del autotest.",
+  "hold_move": {
+    "resend_sec": 0.25,
+    "_resend_sec": "Cadencia del reenvio del destino con el boton sostenido.",
+    "min_delta": 60.0,
+    "_min_delta": "El destino bajo el cursor debe moverse al menos esto (unidades) para reenviar."
+  },
+  "autopilot": {
+    "arrive_dist": 120.0,
+    "_arrive_dist": "A esta distancia el autopiloto del minimapa declara llegada."
+  },
+  "collect": {
+    "arrive_dist": 200.0,
+    "_arrive_dist": "Llegar a esto de la caja = mandar CollectBox (el server valida 250)."
+  },
+  "radiation": {
+    "reach": 50000.0,
+    "_reach": "Tope estructural del vuelo fuera del mapa, por los cuatro lados (negativo por el lado del 0); mismo numero que Dials.RadiationReach del server."
+  },
+  "map": {
+    "default_bounds": [20800, 12800],
+    "_default_bounds": "Limites del mapa antes de que llegue el EnterMap."
+  },
+  "reconnect": {
+    "max_retries": 8,
+    "retry_step_sec": 1.0,
+    "retry_max_sec": 5.0,
+    "_retry": "Espera creciente step*intento con tope max, dentro de la ventana de gracia del server (60 s)."
+  },
+  "hud": {
+    "layers": {
+      "_comment": "Indices de CanvasLayer: el 3D debajo de todo, HUD proyectado, aviso de radiacion, ventanas N, killscreen y ajustes+sysbar por encima de todo.",
+      "game": 5,
+      "radiation_warning": 8,
+      "windows": 11,
+      "respawn": 20,
+      "settings": 21
+    },
+    "ship_window_x": 12,
+    "ship_window_top_margin": 8,
+    "ship_window_top_gap": 10,
+    "_ship_window": "Posicion por defecto de la ventana Nave: x fija; y = margen + Taskbar.SIDE + aire, debajo de la taskbar.",
+    "state_font_size": 12,
+    "state_side_inset": 430,
+    "state_offset_top": -34,
+    "state_offset_bottom": -14,
+    "_state": "Linea de estado abajo al CENTRO: inset por ambos lados (las esquinas son del chat y del minimapa) y offsets desde el borde inferior, en pixeles."
+  },
+  "damage_numbers": {
+    "_comment": "Numero de combate que sube sobre la entidad (colores de la tabla hitpointColors del original).",
+    "dealt_color": "FF0000",
+    "taken_color": "DB63E2",
+    "font_size": 24,
+    "_font_size": "Registrado en el §9 del sistema de diseno; vive en el HUD proyectado (pixeles).",
+    "outline_alpha": 0.95,
+    "outline_size": 6,
+    "min_width": 120,
+    "offset": [-60, -90],
+    "_offset": "Desplazamiento en pixeles respecto a la entidad proyectada.",
+    "z_index": 20,
+    "rise_px": 42,
+    "duration_sec": 1.0,
+    "fade_delay_sec": 0.35
+  },
+  "station": {
+    "ring_height": 1.0,
+    "_ring_height": "Altura (y) del toro de la zona segura sobre el plano.",
+    "emission": 1.0,
+    "_emission": "Emision base del material si data/props/station.json no trae `emission`.",
+    "pulse": {
+      "_comment": "Latido de la emision si el JSON de la estacion no trae `pulse`.",
+      "min_intensity": 0.55,
+      "max_intensity": 1.8,
+      "speed": 1.1,
+      "sharpness": 1.6
+    },
+    "margin": 1.15,
+    "elevation_deg": 30.0,
+    "_margin_elevation": "Margen del encuadre y elevacion de la camara de la estacion (90 = cenital); herencia del quad, hoy sin uso en la escena unica."
+  },
+  "box": {
+    "height": 1.0,
+    "_height": "Altura (y) del cuerpo 3D de la caja sobre el plano."
+  },
+  "explosion": {
+    "_comment": "Explosion multi-capa del original (guidelines 3D §9.4): flipbook + flash + chispas + destello de luz.",
+    "sheet_frames": 8,
+    "sheet_frame_px": 128,
+    "_sheet": "Layout de assets/fx/explosion-sheet.png: N fotogramas de lado px en fila.",
+    "fps": 16.0,
+    "pixel_size": 1.4,
+    "height": 20.0,
+    "_height": "Altura (y) del flipbook y de las chispas sobre el plano.",
+    "flash": {
+      "color_in": [1.0, 0.95, 0.8, 1.0],
+      "color_out": [1.0, 0.5, 0.1, 0.0],
+      "_color": "Degradado radial centro->borde, en [r, g, b, a] flotantes (0.95 no cabe en un byte de hex).",
+      "texture_px": 256,
+      "quad_size": 256.0,
+      "_quad_size": "Lado del quad aditivo en unidades de mundo; la escala final = radio * diameter_factor / quad_size.",
+      "height": 25.0,
+      "start_scale": 0.01,
+      "diameter_factor": 6.0,
+      "_diameter_factor": "Diametro final ~6x el radio de click (flash de 250 para naves de ~80 en el original).",
+      "grow_sec": 0.25,
+      "fade_sec": 0.2,
+      "fade_delay_sec": 0.05
+    },
+    "light": {
+      "_comment": "Destello del pool de luces del mundo; preset del original: 0xDEE4C8, fallOff 400, encendida ~0.1 s.",
+      "color": "dee4c8",
+      "energy": 2.0,
+      "range": 400.0,
+      "hold_sec": 0.1,
+      "fade_sec": 0.25,
+      "height": 30.0
+    },
+    "sparks": {
+      "spread_deg": 180.0,
+      "flatness": 1.0,
+      "_flatness": "1 = la rafaga vive en el plano, como el mundo.",
+      "velocity_min": 100.0,
+      "velocity_max": 200.0,
+      "scale_min": 0.02,
+      "scale_max": 0.05,
+      "lifetime_randomness": 0.8,
+      "ramp_start": [1.0, 1.0, 0.9, 1.0],
+      "ramp_mid": [1.0, 0.7, 0.3, 0.8],
+      "ramp_mid_pos": 0.4,
+      "ramp_end": [1.0, 0.3, 0.1, 0.0],
+      "_ramp": "Color de cada chispa a lo largo de su vida, en [r, g, b, a] flotantes; ramp_mid_pos es la posicion (0-1) del punto medio.",
+      "texture_px": 32,
+      "mesh_size": 32.0,
+      "_mesh_size": "Lado del quad de cada chispa en unidades de mundo (antes de scale_min/max).",
+      "amount": 24,
+      "lifetime_sec": 0.8
+    }
+  }
+}

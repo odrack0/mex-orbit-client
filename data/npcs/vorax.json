@@ -1,9 +1,9 @@
 {
-  "_comentario": "Vorax: el devorador. Carne lustrosa y semitraslucida con las visceras encendidas, asi que su capa emisiva cubre TODO el cuerpo en vez de un nucleo. Late como una digestion: lento en el valle y con un pico marcado.",
+  "_comment": "Vorax: el devorador. Carne lustrosa y semitraslucida con las visceras encendidas, asi que su capa emisiva cubre TODO el cuerpo en vez de un nucleo. Late como una digestion: lento en el valle y con un pico marcado.",
   "code": "vorax",
   "screen_size": 205,
   "click_radius": 66,
-  "_giro": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
+  "_spin": "steps 0 = giro continuo. 210 grados/s: es rapido (380 de velocidad) porque tiene que poder escaparse cuando huye.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 210
@@ -14,12 +14,12 @@
     "speed": 2.0,
     "sharpness": 2.6
   },
-  "modelo": "res://assets/npcs/vorax.glb",
-  "_modelo": "Malla 3D con esqueleto para calidad ALTA, en un SubViewport por entidad. Esqueleto RADIAL: raiz + ocho brazos, sin alas ni cola. Los angulos NO se reparten a 360/8 — se miden de la malla, que sale asimetrica del generador: 36, 84, 102, 122, 146, 188, 286 y 342 grados.",
-  "brazos": {
-    "grados": 16.0,
-    "eje": 2,
-    "ciclo": 2.4
+  "model": "res://assets/npcs/vorax.glb",
+  "_model": "Malla 3D con esqueleto para calidad ALTA, en un SubViewport por entidad. Esqueleto RADIAL: raiz + ocho brazos, sin alas ni cola. Los angulos NO se reparten a 360/8 — se miden de la malla, que sale asimetrica del generador: 36, 84, 102, 122, 146, 188, 286 y 342 grados.",
+  "arms": {
+    "degrees": 16.0,
+    "axis": 2,
+    "cycle": 2.4
   },
-  "_brazos": "Barrido de los tentaculos. EJE 2, medido con repro_eje_hueso: es el unico que gira el brazo DENTRO del plano del disco, o sea el que barre la silueta; el 0 y el 1 lo inclinan hacia la camara y desde arriba casi no se ven (1,02 de diferencia contra 0,79 y 0,83). AMPLITUD acotada por los vecinos, no por lo que se lea: los brazos mas juntos estan a 18-20 grados uno de otro, asi que un barrido grande los cruza. A 205 px la silueta cambia un 8% con 18 grados y un 10,6% con 45 — rendimientos decrecientes justo donde empieza el riesgo de cruce. El desfase por defecto es 1/n: la onda da una vuelta entera al anillo en vez de mover los ocho a la vez, que se leeria como que respira y no como que se mueve."
+  "_arms": "Barrido de los tentaculos. EJE 2, medido con repro_eje_hueso: es el unico que gira el brazo DENTRO del plano del disco, o sea el que barre la silueta; el 0 y el 1 lo inclinan hacia la camara y desde arriba casi no se ven (1,02 de diferencia contra 0,79 y 0,83). AMPLITUD acotada por los vecinos, no por lo que se lea: los brazos mas juntos estan a 18-20 grados uno de otro, asi que un barrido grande los cruza. A 205 px la silueta cambia un 8% con 18 grados y un 10,6% con 45 — rendimientos decrecientes justo donde empieza el riesgo de cruce. El desfase por defecto es 1/n: la onda da una vuelta entera al anillo en vez de mover los ocho a la vez, que se leeria como que respira y no como que se mueve."
 }

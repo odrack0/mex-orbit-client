@@ -19,49 +19,111 @@
 class_name Backdrop3D
 extends Node3D
 
+## Diales del fondo: data/config/backdrop.json (nada calibrable vive en el codigo).
+static var CFG: Dictionary = AssetDefs.config("backdrop")
+static var _LAYERS: Dictionary = CFG.get("layers", {})
+static var _TILES: Dictionary = CFG.get("tiles", {})
+static var _PROPS: Dictionary = CFG.get("props", {})
+static var _DUST: Dictionary = CFG.get("dust", {})
+static var _FLARES: Dictionary = CFG.get("flares", {})
+
 ## Cotas del original: capas de nebulosa desde -3500 subiendo 550 por capa,
 ## jitter por tile entre -500 y -200 (G§10.2).
-const LAYER_BASE := -3500.0
-const LAYER_STEP := 550.0
-const JITTER_MIN := -500.0
-const JITTER_MAX := -200.0
-const BACKDROP_Y := -4200.0
+static var LAYER_BASE: float = AssetDefs.num(_LAYERS, "layer_base", -3500.0)
+static var LAYER_STEP: float = AssetDefs.num(_LAYERS, "layer_step", 550.0)
+static var JITTER_MIN: float = AssetDefs.num(_LAYERS, "jitter_min", -500.0)
+static var JITTER_MAX: float = AssetDefs.num(_LAYERS, "jitter_max", -200.0)
+static var BACKDROP_Y: float = AssetDefs.num(_LAYERS, "backdrop_y", -4200.0)
+## Alto del telon = alto del mapa x este factor (el ancho sigue el aspecto).
+static var BACKDROP_HEIGHT_FACTOR: float = AssetDefs.num(_LAYERS, "backdrop_height_factor", 1.8)
+## Profundidad de planetas y sol = p_factor x esto; sus posiciones vienen en el
+## espacio del fondo (2048x1280) y se pasan a mundo con POSITION_SCALE.
+static var DEPTH_PER_P_FACTOR: float = AssetDefs.num(_LAYERS, "depth_per_p_factor", 250.0)
+static var POSITION_SCALE: float = AssetDefs.num(_LAYERS, "position_scale", 10.0)
 ## Tamanio del tile en mundo = ancho_textura * scale * este factor (el original
 ## usaba 5 sobre tiles de ~256; nuestro arte es de 1024).
-const TILE_FACTOR := 1.5
+static var TILE_FACTOR: float = AssetDefs.num(_TILES, "tile_factor", 1.5)
 ## Fraccion de celdas VACIAS del mosaico (rompe la repeticion, como la mascara
 ## de agujeros del original).
-const TILE_GAPS := 0.25
+static var TILE_GAPS: float = AssetDefs.num(_TILES, "tile_gaps", 0.25)
 ## Cuanto cubre el mosaico mas alla del mapa.
-const MARGIN := 1.5
+static var MARGIN: float = AssetDefs.num(_TILES, "margin", 1.5)
+## Cada tile sortea su alfa entre esta fraccion y 1.0 del alfa de la capa.
+static var TILE_ALPHA_JITTER_MIN: float = AssetDefs.num(_TILES, "alpha_jitter_min", 0.7)
+
+## Props de fondo: rugosidad de las mallas, lado por defecto de un plano y
+## cota por defecto.
+static var PROP_MESH_ROUGHNESS: float = AssetDefs.num(_PROPS, "mesh_roughness", 0.8)
+static var PROP_PLANE_SIDE: float = AssetDefs.num(_PROPS, "plane_side", 1000.0)
+static var PROP_Y: float = AssetDefs.num(_PROPS, "y", -2000.0)
 
 ## El polvo estelar (G§10.4): volumen alrededor del foco, anclado al mundo.
-const DUST_COUNT := 1500
-const DUST_BOX := Vector3(4200.0, 300.0, 4200.0)
-const DUST_Y := -160.0
-const DUST_LIFE := 25.0
+static var DUST_COUNT: int = int(AssetDefs.num(_DUST, "count", 1500.0))
+static var DUST_BOX: Vector3 = AssetDefs.vec3(_DUST.get("box"), Vector3(4200.0, 300.0, 4200.0))
+static var DUST_Y: float = AssetDefs.num(_DUST, "y", -160.0)
+static var DUST_LIFE: float = AssetDefs.num(_DUST, "life", 25.0)
+static var DUST_SPREAD: float = AssetDefs.num(_DUST, "spread", 180.0)
+static var DUST_SPEED_MIN: float = AssetDefs.num(_DUST, "speed_min", 2.0)
+static var DUST_SPEED_MAX: float = AssetDefs.num(_DUST, "speed_max", 6.0)
+static var DUST_SCALE_MIN: float = AssetDefs.num(_DUST, "scale_min", 0.5)
+static var DUST_SCALE_MAX: float = AssetDefs.num(_DUST, "scale_max", 1.0)
+static var DUST_COLOR_DARK: Color = _rgba(_DUST.get("color_dark"), Color(0.28, 0.28, 0.28))
+static var DUST_COLOR_LIGHT: Color = _rgba(_DUST.get("color_light"), Color(0.52, 0.52, 0.52))
+static var DUST_TINT_DARKEN: float = AssetDefs.num(_DUST, "tint_darken", 0.4)
+static var DUST_MOTE_SIZE: float = AssetDefs.num(_DUST, "mote_size", 2.4)
+static var DUST_MOTE_TEX_PX: int = int(AssetDefs.num(_DUST, "mote_tex_px", 16.0))
+
+## Los flares: textura del sol y de sus fantasmas, margen de pantalla en el que
+## siguen visibles, y el lensFlare del original (patron de las lentes, cuantas
+## y cuanto se extiende la cadena mas alla del centro).
+static var SUN_TEXTURE: String = str(_FLARES.get("sun_texture", "res://assets/world/layers/sun.png"))
+static var GHOST_TEXTURE: String = str(_FLARES.get("ghost_texture", "res://assets/world/layers/flare-ghost.png"))
+static var GHOST_SCREEN_MARGIN_PX: float = AssetDefs.num(_FLARES, "ghost_screen_margin_px", 100.0)
+static var DO_LENS_PATTERN: String = str(_FLARES.get("do_lens_pattern", "res://assets/do-ref/flare/lens%d.png"))
+static var DO_LENS_COUNT: int = int(AssetDefs.num(_FLARES, "do_lens_count", 11.0))
+static var DO_FLARE_SPREAD: float = AssetDefs.num(_FLARES, "do_spread", 3.0)
 
 var _bounds := Vector2.ONE
 var _dust: GPUParticles3D
 var _sun: MeshInstance3D
-var _sun_spin := -9.0
+var _sun_spin: float = MapBgConfig.SUN_SPIN
 var _sun_pos := Vector2.ZERO
 var _ghosts: Array[Sprite2D] = []
 
 ## fantasmas de la cadena de lentes: fraccion del eje sol->centro, escala y tinte
-const GHOSTS := [
-	[0.35, 0.30, Color(0.5, 0.9, 1.0, 0.35)],
-	[0.65, 0.18, Color(1.0, 0.85, 0.5, 0.30)],
-	[1.15, 0.42, Color(0.7, 0.6, 1.0, 0.25)],
-	[1.55, 0.24, Color(0.5, 1.0, 0.9, 0.22)],
-]
+## ({axis_fraction, scale, color}, del JSON)
+static var GHOSTS: Array = _ghosts_from(_FLARES.get("ghosts", [
+	{"axis_fraction": 0.35, "scale": 0.30, "color": [0.5, 0.9, 1.0, 0.35]},
+	{"axis_fraction": 0.65, "scale": 0.18, "color": [1.0, 0.85, 0.5, 0.30]},
+	{"axis_fraction": 1.15, "scale": 0.42, "color": [0.7, 0.6, 1.0, 0.25]},
+	{"axis_fraction": 1.55, "scale": 0.24, "color": [0.5, 1.0, 0.9, 0.22]},
+]))
+
+
+## Un color desde un JSON `[r, g, b, a]` en float (los hex pierden precision).
+static func _rgba(v: Variant, fallback: Color) -> Color:
+	if typeof(v) == TYPE_ARRAY and (v as Array).size() >= 3:
+		var a: Array = v
+		return Color(float(a[0]), float(a[1]), float(a[2]), float(a[3]) if a.size() >= 4 else 1.0)
+	return fallback
+
+
+static func _ghosts_from(items: Array) -> Array:
+	var out := []
+	for g: Dictionary in items:
+		out.append({
+			"axis_fraction": AssetDefs.num(g, "axis_fraction", 0.0),
+			"scale": AssetDefs.num(g, "scale", 1.0),
+			"color": _rgba(g.get("color"), Color.WHITE),
+		})
+	return out
 
 
 ## Monta el fondo del mapa. `config` es el de MapBgConfig.para().
 func build(config: Dictionary, bounds: Vector2, rng_seed: int) -> void:
 	_bounds = bounds
 	var level := Quality.level("background")
-	var tint: Color = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
+	var tint: Color = config.get("starfield_tint", MapBgConfig.STARFIELD_TINT)
 	Stage3D.instance.set_sky(tint)
 	if level < 1:
 		return                    # baja: solo el cielo
@@ -71,7 +133,7 @@ func build(config: Dictionary, bounds: Vector2, rng_seed: int) -> void:
 		var tex: Texture2D = config.main
 		var backdrop_plane := MeshInstance3D.new()
 		var q := QuadMesh.new()
-		var hgt := bounds.y * 1.8
+		var hgt := bounds.y * BACKDROP_HEIGHT_FACTOR
 		q.size = Vector2(hgt * float(tex.get_width()) / float(tex.get_height()), hgt)
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -87,25 +149,25 @@ func build(config: Dictionary, bounds: Vector2, rng_seed: int) -> void:
 	for p: Dictionary in config.get("planets", []):
 		if p.tex == null:
 			continue
-		var depth: float = float(p.p_factor) * 250.0
-		var pos: Vector2 = (p.pos as Vector2) * 10.0
+		var depth: float = float(p.p_factor) * DEPTH_PER_P_FACTOR
+		var pos: Vector2 = (p.pos as Vector2) * POSITION_SCALE
 		# a mas hondo, mas grande, para que EN PANTALLA mida como su arte pedia
-		var apparent := (1740.0 + depth) / 1740.0
+		var apparent := (Stage3D.DIST + depth) / Stage3D.DIST
 		var s := Stage3D.flat_sprite(p.tex,
 			float((p.tex as Texture2D).get_height()) * float(p.get("scale", 1.0)) * apparent)
 		s.position = Vector3(pos.x, -depth, pos.y)
 		add_child(s)
 	if config.has("sun"):
-		var sun_tex: Texture2D = load("res://assets/world/layers/sun.png")
-		var sun_depth: float = float(config.sun.get("p_factor", 10.0)) * 250.0
-		var sun_pos: Vector2 = (config.sun.pos as Vector2) * 10.0
+		var sun_tex: Texture2D = load(SUN_TEXTURE)
+		var sun_depth: float = float(config.sun.get("p_factor", MapBgConfig.SUN_P_FACTOR)) * DEPTH_PER_P_FACTOR
+		var sun_pos: Vector2 = (config.sun.pos as Vector2) * POSITION_SCALE
 		_sun_pos = sun_pos
-		var apparent_sun := (1740.0 + sun_depth) / 1740.0
+		var apparent_sun := (Stage3D.DIST + sun_depth) / Stage3D.DIST
 		_sun = Stage3D.additive_quad(sun_tex,
-			float(sun_tex.get_width()) * float(config.sun.get("scale", 0.9)) * apparent_sun, false)
+			float(sun_tex.get_width()) * float(config.sun.get("scale", MapBgConfig.SUN_SCALE)) * apparent_sun, false)
 		_sun.position = Vector3(sun_pos.x, -sun_depth, sun_pos.y)
 		add_child(_sun)
-		_sun_spin = float(config.sun.get("spin", -9.0))
+		_sun_spin = float(config.sun.get("spin", MapBgConfig.SUN_SPIN))
 		_mount_flares()
 
 	# PROPS de fondo (F3+): las mallas y planos que habitan el mapa — lunas,
@@ -120,7 +182,7 @@ func build(config: Dictionary, bounds: Vector2, rng_seed: int) -> void:
 			_mount_prop(prop)
 
 	# el polvo estelar que vende el vuelo
-	_mount_dust(tint, float(config.get("starfield_tint_ratio", 0.35)))
+	_mount_dust(tint, float(config.get("starfield_tint_ratio", MapBgConfig.STARFIELD_TINT_RATIO)))
 
 	if level < 2:
 		return                    # media: sin mosaicos de nebulosa
@@ -149,8 +211,8 @@ func _mount_tilemap(t: Dictionary, y_base: float, rng: RandomNumberGenerator) ->
 	# ATLAS DE VARIANTES (el arma del original contra la repeticion): si el JSON
 	# declara `celdas`, la textura es una rejilla `grid`x`grid` de nubes y cada
 	# tile del mosaico sortea la suya — como la seleccion de tiles del original.
-	var cells := int(t.get("celdas", 1))
-	var grid := int(t.get("grid", 1 if cells <= 1 else 2))
+	var cells := int(t.get("cells", 1))
+	var grid := int(t.get("grid", 1 if cells <= 1 else MapBgConfig.TILE_GRID))
 	var side_px := float(tex.get_width()) / float(grid)
 	# `lado` explicito = tamano del tile en unidades de mundo (el tilemap del
 	# original: tileWidth * tileScale); si no, se deriva del arte
@@ -185,7 +247,7 @@ func _mount_tilemap(t: Dictionary, y_base: float, rng: RandomNumberGenerator) ->
 				y_base + rng.randf_range(JITTER_MIN, JITTER_MAX),
 				origin.y + (float(cy) + 0.5) * side)
 			s.rotation.y = float(rng.randi_range(0, 3)) * PI * 0.5
-			s.modulate.a = alpha * rng.randf_range(0.7, 1.0)
+			s.modulate.a = alpha * rng.randf_range(TILE_ALPHA_JITTER_MIN, 1.0)
 			add_child(s)
 
 
@@ -216,15 +278,15 @@ func _mount_prop(p: Dictionary) -> void:
 		mat.albedo_texture = tex
 		mat.albedo_color = mod
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mat.roughness = 0.8
+		mat.roughness = PROP_MESH_ROUGHNESS
 		mi.material_override = mat
 		node = mi
-	elif p.has("plano"):
-		var side := float(p.get("escala", 1000.0))
-		if bool(p.get("aditivo", false)):
+	elif p.has("plane"):
+		var side := float(p.get("scale", PROP_PLANE_SIDE))
+		if bool(p.get("additive", false)):
 			var mi := Stage3D.additive_quad(tex, side, false)
 			(mi.material_override as StandardMaterial3D).albedo_color = mod
-			(mi.material_override as StandardMaterial3D).render_priority = int(p.get("prioridad", 0))
+			(mi.material_override as StandardMaterial3D).render_priority = int(p.get("priority", 0))
 			mi.rotation.x = 0.0          # el JSON manda la orientacion completa
 			node = mi
 		else:
@@ -239,15 +301,15 @@ func _mount_prop(p: Dictionary) -> void:
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 			# `prioridad`: orden explicito entre transparentes casi co-planares
 			# (el techo de nebulosa va DETRAS del planeta: R 50010 vs 50000)
-			mat.render_priority = int(p.get("prioridad", 0))
+			mat.render_priority = int(p.get("priority", 0))
 			q.material = mat
 			mi.mesh = q
 			node = mi
 	else:
 		return
-	node.position = Vector3(float(p.get("x", 0)), float(p.get("y", -2000)), float(p.get("z", 0)))
+	node.position = Vector3(float(p.get("x", 0)), float(p.get("y", PROP_Y)), float(p.get("z", 0)))
 	if p.has("mesh"):
-		node.scale = Vector3.ONE * float(p.get("escala", 1.0))
+		node.scale = Vector3.ONE * float(p.get("scale", 1.0))
 	node.rotation_degrees = Vector3(float(p.get("rot_x", 0)), float(p.get("rot_y", 0)),
 		float(p.get("rot_z", 0)))
 	add_child(node)
@@ -271,26 +333,26 @@ func _mount_dust(tint: Color, tint_ratio: float) -> void:
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	pm.emission_box_extents = DUST_BOX * 0.5
 	pm.direction = Vector3(1, 0, 0)
-	pm.spread = 180.0
-	pm.initial_velocity_min = 2.0
-	pm.initial_velocity_max = 6.0
+	pm.spread = DUST_SPREAD
+	pm.initial_velocity_min = DUST_SPEED_MIN
+	pm.initial_velocity_max = DUST_SPEED_MAX
 	pm.gravity = Vector3.ZERO
-	pm.scale_min = 0.5
-	pm.scale_max = 1.0
+	pm.scale_min = DUST_SCALE_MIN
+	pm.scale_max = DUST_SCALE_MAX
 	# la variedad de color del original: grises con una fraccion tenida del mapa.
 	# TENUES a proposito: a casi blanco las motas parecian "estrellas pegadas al
 	# mapa" en vez de polvo — deben leerse solo en movimiento, no quietas.
 	var g := Gradient.new()
-	g.set_color(0, Color(0.28, 0.28, 0.28))
-	g.add_point(1.0 - tint_ratio, Color(0.52, 0.52, 0.52))
-	g.set_color(1, tint.darkened(0.4))
+	g.set_color(0, DUST_COLOR_DARK)
+	g.add_point(1.0 - tint_ratio, DUST_COLOR_LIGHT)
+	g.set_color(1, tint.darkened(DUST_TINT_DARKEN))
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_initial_ramp = gt
 	_dust.process_material = pm
 
 	var q := QuadMesh.new()
-	q.size = Vector2(2.4, 2.4)
+	q.size = Vector2(DUST_MOTE_SIZE, DUST_MOTE_SIZE)
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -313,8 +375,8 @@ static func _mote_tex() -> GradientTexture2D:
 		g.set_color(1, Color(1, 1, 1, 0))
 		_mote_tex_cache = GradientTexture2D.new()
 		_mote_tex_cache.gradient = g
-		_mote_tex_cache.width = 16
-		_mote_tex_cache.height = 16
+		_mote_tex_cache.width = DUST_MOTE_TEX_PX
+		_mote_tex_cache.height = DUST_MOTE_TEX_PX
 		_mote_tex_cache.fill = GradientTexture2D.FILL_RADIAL
 		_mote_tex_cache.fill_from = Vector2(0.5, 0.5)
 		_mote_tex_cache.fill_to = Vector2(0.5, 0.0)
@@ -325,14 +387,14 @@ static func _mote_tex() -> GradientTexture2D:
 ## sol->centro extendida al lado opuesto (la formula x3 del original). Sin
 ## oclusion todavia — F4, con el raycast.
 func _mount_flares() -> void:
-	var tex: Texture2D = load("res://assets/world/layers/flare-ghost.png")
+	var tex: Texture2D = load(GHOST_TEXTURE)
 	if tex == null or EntityNode.hud_layer == null:
 		return
-	for g: Array in GHOSTS:
+	for g: Dictionary in GHOSTS:
 		var ghost := Sprite2D.new()
 		ghost.texture = tex
-		ghost.scale = Vector2.ONE * g[1]
-		ghost.modulate = g[2]
+		ghost.scale = Vector2.ONE * float(g.scale)
+		ghost.modulate = g.color
 		var m := CanvasItemMaterial.new()
 		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		ghost.material = m
@@ -353,8 +415,8 @@ func _mount_flare_do(pos: Vector3) -> void:
 	if EntityNode.hud_layer == null:
 		return
 	_flare_do_pos = pos
-	for i in 11:
-		var path := "res://assets/do-ref/flare/lens%d.png" % i
+	for i in DO_LENS_COUNT:
+		var path := DO_LENS_PATTERN % i
 		if not ResourceLoader.exists(path):
 			continue
 		var lens := Sprite2D.new()
@@ -401,12 +463,12 @@ func update(focus: Vector2, delta: float) -> void:
 	if not _ghosts.is_empty():
 		var px := Stage3D.instance.to_screen(_sun_pos, _sun.position.y)
 		var viewport := get_viewport().get_visible_rect().size
-		var inside: bool = px.x > -100.0 and px.y > -100.0 \
-			and px.x < viewport.x + 100.0 and px.y < viewport.y + 100.0
+		var inside: bool = px.x > -GHOST_SCREEN_MARGIN_PX and px.y > -GHOST_SCREEN_MARGIN_PX \
+			and px.x < viewport.x + GHOST_SCREEN_MARGIN_PX and px.y < viewport.y + GHOST_SCREEN_MARGIN_PX
 		var axis := viewport * 0.5 - px
 		for i in _ghosts.size():
 			_ghosts[i].visible = inside
-			_ghosts[i].position = px + axis * (GHOSTS[i][0] as float)
+			_ghosts[i].position = px + axis * float(GHOSTS[i].axis_fraction)
 	if not _flare_do.is_empty():
 		var cam := Stage3D.instance.cam_node
 		var vp := get_viewport().get_visible_rect().size
@@ -416,7 +478,7 @@ func update(focus: Vector2, delta: float) -> void:
 				_flare_do_pos.y)
 		var sun_visible: bool = (not after) and sun_px.x >= 0.0 and sun_px.y >= 0.0 \
 			and sun_px.x <= vp.x and sun_px.y <= vp.y
-		var step := -(sun_px - vp * 0.5) * 3.0 / float(_flare_do.size())
+		var step := -(sun_px - vp * 0.5) * DO_FLARE_SPREAD / float(_flare_do.size())
 		for i in _flare_do.size():
 			_flare_do[i].visible = sun_visible
 			_flare_do[i].position = sun_px + step * float(i)

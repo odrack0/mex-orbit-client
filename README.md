@@ -162,6 +162,40 @@ como en la cápsula Phoenix, que no tiene un solo píxel encendido.
 
 Constantes calibrables de sensación y comportamiento — moverlas es cambiar un número. **Regla del repo: todo dial nuevo se documenta aquí en el mismo commit que lo crea.**
 
+### Todo dial vive en `data/config/` (2-sep-2026)
+
+**Ningún número calibrable vive ya en un `.gd`.** El 2-sep-2026 el cliente entero pasó a leer sus
+diales de JSON: cada script declara `static var CFG: Dictionary = AssetDefs.config("<módulo>")` y sus
+antiguas `const` son ahora `static var` con el **mismo nombre** (`Stage3D.TILT`, `NTheme.CYAN`,
+`Taskbar.SIDE`… siguen existiendo), leídas con `AssetDefs.num(CFG, "clave", <fallback>)`, `vec2`,
+`vec3` y `color`. El fallback del código es el valor del día en que nació el dial y solo manda si el
+JSON no trae la clave; si falta el archivo entero, `AssetDefs.config` avisa por consola. Los números
+que se quedan en el código son identidades matemáticas (0, 1, la mitad, el doble, TAU, 360°, el
+smoothstep, ms↔s, %), índices, sentinelas (`999`, `-1`), epsilons de guarda, códigos HTTP/WebSocket y
+los fallbacks de lectura. El significado de cada clave está junto a ella, en claves hermanas
+`"_clave": "…"` del propio JSON (la convención de comentarios en JSON del repo); las tablas de abajo
+siguen valiendo como historia y como valor calibrado, pero **la fuente de verdad es el JSON**.
+
+| Archivo | Sub-objetos | Qué calibra |
+|---|---|---|
+| `camera.json` | raíz, `zoom`, `effect_lights`, `skybox` | `Stage3D`: FOV 30, near/far, `dist` 1740 (también la usa el fondo para escalar por profundidad), `tilt` 135, rango/paso/tween del zoom y su acoplamiento con el tilt, pool de luces de efecto, malla/texturas/shader/escala del skybox |
+| `entity.json` | `turn`, `bank`, `hover`, `hero_light`, `idle_turn`, `motion`, `flame`, `hud`, `marker`, `impacts`, `rig`, `defaults` | `EntityNode`: ease y zona muerta del giro, alabeo normal y de combate, flotación idle, luz del héroe, giro perezoso de NPC parado, llegada/catch-up/corrección/snap del movimiento, todo el thruster (empuje, partículas, rampa de color, boca de referencia), nombre y barras del HUD con su histéresis de snap, marcador de selección, hojas de impacto de casco y escudo, huesos de cola, y los **fallbacks por especie** (click, tamaño, pulso, alas, cola, brazos, lava, trail) |
+| `world.json` | raíz, `hold_move`, `autopilot`, `collect`, `radiation`, `map`, `reconnect`, `hud`, `damage_numbers`, `station`, `box`, `explosion` | `world.gd`: radio de click 34 px, doble click, encarado tras disparo, reenvío con click sostenido, llegadas, alcance de radiación 50 000 (= `Dials.RadiationReach` del server), límites por defecto, reintentos de reconexión, capas y posiciones del HUD, números de daño flotantes, latido y anillo de la estación, altura de la caja, y la explosión entera (flipbook, flash, luz, chispas) |
+| `autotest.json` | `bestiary`, `prey`, `timeouts`, `flight`, `patrol`, `hunt`, `phases`, `jump`, `portrait`, `relief` | El autotest headless y el bestiario: especies, techos de reloj, itinerario de patrulla, distancias de caza, esperas entre fases, comprobaciones del salto, instantes y recorte de los retratos, umbral de «quieto», prueba del relieve |
+| `backdrop.json` | `layers`, `tiles`, `props`, `dust`, `flares`, `map_defaults` | `Backdrop3D` y `MapBgConfig`: cotas de capas y telón, jitter, tiles (lado, huecos, margen, alfa), props de malla/plano, polvo estelar (cantidad, caja, velocidad, rampa de grises), sol y sus fantasmas de lente, y los valores por defecto de los campos de cada `data/maps/*.json` |
+| `lighting.json` | `world_light`, `hero_light`, `material`, `glow`, `measure_camera` | `AssetDefs`: el sol y el ambiente del mundo (una sola luz para todo), luz azul del héroe, look «no plano» de los materiales (roughness/rim), glow por defecto, cámara ortográfica de medición |
+| `quality.json` | `default_preset`, `presets`, `labels`, `auto_quality`, `render` | `Quality` y el render de `Stage3D`: los tres presets, escalera de auto-calidad (ventana, muestreo, fps, fracción de recuperación), escalas de render 0,65/0,85/1 y muestras MSAA 0/2/4 |
+| `beam.json` | raíz, `defaults`, `flash` | `Beam3D`: vida, rampa y fundido del haz, ciclo del scroll, altura, grosor mínimo, texturas por defecto y el destello de boca |
+| `props/portal.json` | (ampliado) `jump_range`, `body_height`, `label`, `ignition.*`, `inactive_glow` | Lo que `PortalNode` aún tenía suelto: rango de salto 600, etiqueta, destello, umbrales del parpadeo, escala mínima del vórtice, brillo de un portal apagado |
+| `net.json` | `session`, `game_connection` | `Session`: API por defecto en escritorio y ruta en web, archivo de credenciales de dev. La conexión no tiene diales propios hoy (el protocolo va como constantes con nombre) |
+| `ui.json` | `theme`, `window`, `chat`, `minimap`, `ship`, `station`, `settings`, `sysbar`, `taskbar`, `login`, `respawn`, `radiation_warning` | Todo el sistema N: paleta (con `{"rgb","alpha"}` para los cristales), fuentes y tamaños, paddings/gaps/márgenes compartidos, chrome de ventana (cabecera, L, banda, grip, botones), y cada ventana con sus anchos, alturas, radios, alphas, pulsos y guiones. `NWindow` lee `WINDOW_CFG` (un `static var CFG` en la base y otro en las subclases es «member already exists in parent class») |
+| `tests.json` | `common`, `bench_3d`, `repro_bone_axis`, `repro_orientation`, `repro_viewport`, `view_anchors`, `view_markers` | Los bancos de `pruebas/`: encuadre 1.15 y cámara cenital compartidos, y por banco sus defaults de línea de comandos, tamaños de render, colores de marcadores, umbrales de silueta, cadencias de traza y percentiles |
+
+Dos decisiones de esa mudanza: los colores con decimales que no caben en 8 bits (polvo, fantasmas,
+degradados de la explosión) van como arrays `[r, g, b, a]` y no como hex; y las claves del JSON de
+datos se renombraron a inglés a la vez (`orientacion`→`orientation`, `encendido`→`ignition`,
+`alas`→`wings`, `modelo`→`model`, `malla`→`mesh`, `lado`→`side`…), con sus claves-comentario.
+
 | Dial | Dónde | Valor | Qué hace |
 |---|---|---|---|
 | `TURN_TIME` | `game/entity_node.gd` | **0.2 s** | Giro de nave: ease Quad-out continuo por el camino corto — el del cliente 3D original. La cuantización de 32 pasos murió con el mundo de sprites (F1) |

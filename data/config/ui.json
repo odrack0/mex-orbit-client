@@ -1,0 +1,302 @@
+{
+  "_comment": "Diales y medidas de TODA la interfaz (ui/*.gd), un sub-objeto por modulo. Los tokens de color siguen el §2 de mex-orbit-docs/05-arte/03-sistema-diseno-ui.md: un color es hex RRGGBB o, si lleva alpha, {rgb, alpha}. Los alphas sueltos (0..1) se aplican sobre el token que nombra la clave.",
+  "theme": {
+    "_palette": "§2 del sistema N. glass y glass_2 son rgba(13,17,29,...), edge es el cian al 35 %, edge_soft es rgba(120,140,180,.22).",
+    "palette": {
+      "bg": "07070F",
+      "glass": { "rgb": "0D111D", "alpha": 0.74 },
+      "glass_2": { "rgb": "0D111D", "alpha": 0.55 },
+      "edge": { "rgb": "00E5FF", "alpha": 0.35 },
+      "edge_soft": { "rgb": "788CB4", "alpha": 0.22 },
+      "cyan": "00E5FF",
+      "violet": "A78BFA",
+      "warn": "FFC85C",
+      "hostile": "FF3D6E",
+      "hp": "3DF58C",
+      "shield": "4DA6FF",
+      "txt": "E8F0FF",
+      "muted": "8A97B8",
+      "faint": "5A6784"
+    },
+    "fonts": {
+      "michroma": "res://assets/fonts/Michroma-Regular.ttf",
+      "exo2": "res://assets/fonts/Exo2.ttf",
+      "mono": "res://assets/fonts/JetBrainsMono.ttf"
+    },
+    "_font_sizes": "Los cuerpos que se repiten con el mismo papel: body = Exo 2 de cuerpo (chat, formularios); row_label/row_value = la pareja del §3 (etiqueta fria Exo 2 + numero ambar en JetBrains Mono).",
+    "font_sizes": {
+      "body": 12,
+      "row_label": 11,
+      "row_value": 10
+    },
+    "_border_width": "Borde de 1 px de todo cristal, boton y campo (§4).",
+    "border_width": 1,
+    "_hairline": "Grosor de las lineas finas dibujadas a mano (rejilla del minimapa, grip, marcos).",
+    "hairline": 1.0,
+    "_screen_margin": "Margen de las ventanas respecto al borde del viewport cuando se colocan solas (chat, minimapa, estacion).",
+    "screen_margin": 12,
+    "_bar_margin": "Separacion de la taskbar y la sysbar respecto a la esquina de la pantalla (prototipo: 8 px).",
+    "bar_margin": 8,
+    "_panel_padding": "El `.fb` del prototipo: padding 8px 10px 10px. Lo usan el cuerpo de NWindow y el cristal suelto (login, killscreen).",
+    "panel_padding": {
+      "left": 10,
+      "right": 10,
+      "top": 8,
+      "bottom": 10
+    },
+    "_gaps": "row = hueco horizontal entre etiqueta y valor; stack = hueco vertical entre filas del cuerpo de una ventana.",
+    "gaps": {
+      "row": 7,
+      "stack": 6
+    },
+    "_hover_alpha": "El relleno cian al pasar el raton sobre un boton de cristal (segmentos, pestanias, botones de cabecera y de killscreen).",
+    "hover_alpha": 0.16,
+    "_disabled_alpha": "§6: bloqueado = 45 % de opacidad.",
+    "disabled_alpha": 0.45,
+    "_segment": "El selector segmentado del §7 (y el `.ltab` del chat): Michroma 7 px, 22 de alto, 10 px de padding lateral; el elegido va sobre cian al 12 %, el resto al 4 %.",
+    "segment": {
+      "height": 22,
+      "font_size": 7,
+      "padding_x": 10,
+      "gap": 3,
+      "active_alpha": 0.12,
+      "idle_alpha": 0.04
+    }
+  },
+  "window": {
+    "_comment": "Chrome del §4, medida por medida del `.fp` del prototipo.",
+    "header_height": 26,
+    "_l_corner": "Esquinas en L: lado y grosor.",
+    "l_side": 13.0,
+    "l_thickness": 1.5,
+    "_band": "Franja cian a la izquierda de la cabecera y su glow (anchura y alpha).",
+    "band": 3.0,
+    "band_glow_width": 3.0,
+    "band_glow_alpha": 0.18,
+    "state_path": "user://ui_state.cfg",
+    "_shadow": "0 0 26px rgba(0,229,255,.06): el halo cian que separa la ventana del espacio.",
+    "shadow_alpha": 0.06,
+    "shadow_size": 26,
+    "header": {
+      "padding_left": 10,
+      "padding_right": 6,
+      "separation": 8,
+      "chip_size": 14,
+      "title_font_size": 9,
+      "_title_tracking": "Espaciado de glifo en px del titulo (.16em de Michroma 9 px ~ 1 px).",
+      "title_tracking": 1
+    },
+    "_gradient": "Degradado de la cabecera: cian .12 -> violeta .05 en el 55 % del ancho -> transparente.",
+    "gradient": {
+      "cyan_alpha": 0.12,
+      "violet_alpha": 0.05,
+      "split": 0.55
+    },
+    "_header_button": "El `.zbtn` (pasos de zoom del minimapa): 15 px, mono 10, cian al 6 % en reposo.",
+    "header_button": {
+      "size": 15,
+      "font_size": 10,
+      "rest_alpha": 0.06
+    },
+    "_chrome_button": "El boton `–` de la cabecera: 17 px, mono 10.",
+    "chrome_button": {
+      "size": 17,
+      "font_size": 10
+    },
+    "_grip": "Rayas a 135 grados en la esquina inferior derecha: cuantas, a que distancia empieza la primera, cuanto se separan, alpha sobre --edge y a cuantos px del borde.",
+    "grip": {
+      "lines": 3,
+      "start": 3.0,
+      "step": 3.5,
+      "alpha": 0.55,
+      "inset": 1
+    }
+  },
+  "chat": {
+    "icon": "res://assets/ui/icons/chat.svg",
+    "max_lines": 120,
+    "width": 400,
+    "content_separation": 5,
+    "log_height": 110,
+    "input_max_length": 256,
+    "input_padding_x": 8,
+    "input_padding_y": 5,
+    "_tab": "Las pestanias de canal (`.ltab`): Michroma 8 px, 20 de alto. Los alphas y el padding salen de theme.segment.",
+    "tab_font_size": 8,
+    "tab_height": 20
+  },
+  "minimap": {
+    "icon": "res://assets/ui/icons/map.svg",
+    "_widths": "Anchos de los pasos de zoom (§8); el alto sale del ratio del mapa.",
+    "widths": [180, 238, 300, 380, 460],
+    "default_zoom_index": 2,
+    "_fit_tolerance": "Px de diferencia entre el canvas y el mapa dibujado a partir de los que el autotest lo da por deformado.",
+    "fit_tolerance": 2.0,
+    "canvas_bg": { "rgb": "05080E", "alpha": 0.9 },
+    "grid_columns": 5,
+    "grid_rows": 4,
+    "station_radius": 4.0,
+    "_portal": "Rombo del portal: radio del JSON del portal (fallback) + radius_extra; anillo alrededor.",
+    "portal": {
+      "radius_fallback": 3.0,
+      "radius_extra": 1.0,
+      "ring_radius": 6.0,
+      "ring_alpha": 0.45,
+      "ring_points": 20
+    },
+    "box_radius_fallback": 2.0,
+    "entity_radius": 2.0,
+    "_npc": "Anillo pulsante del hostil: alpha = pulse_base + pulse_amplitude * sin(t * pulse_speed + id).",
+    "npc": {
+      "ring_radius": 4.5,
+      "pulse_base": 0.3,
+      "pulse_amplitude": 0.25,
+      "pulse_speed": 2.4,
+      "ring_points": 20
+    },
+    "_hero": "El heroe: punto cian y anillo que respira (radio +- breath_amplitude a breath_speed rad/s).",
+    "hero": {
+      "radius": 3.0,
+      "ring_radius": 5.5,
+      "ring_alpha": 0.5,
+      "breath_amplitude": 1.2,
+      "breath_speed": 3.0,
+      "ring_points": 24
+    },
+    "_autopilot": "Linea punteada hasta el destino (paso, largo del trazo, velocidad de desplazamiento en px/s, grosor, alpha) y la X del destino (semilado y grosor).",
+    "autopilot": {
+      "line_alpha": 0.9,
+      "dash_step": 8.0,
+      "dash_length": 4.0,
+      "dash_speed": 14.0,
+      "dash_width": 1.5,
+      "cross_half": 4.0,
+      "cross_width": 1.4
+    },
+    "_framing": "El encuadre de la camara: solo el 12,5 % de cada lado desde cada esquina, en texto al 45 %.",
+    "framing": {
+      "alpha": 0.45,
+      "fraction": 0.125
+    }
+  },
+  "ship": {
+    "icon": "res://assets/ui/icons/ship.svg",
+    "width": 232,
+    "_bar": "La barra segmentada del §7: 96x11, rayas verticales de 4 px con 2 de hueco sobre negro al 50 %, 1 px de borde por dentro.",
+    "bar": {
+      "width": 96.0,
+      "height": 11.0,
+      "dash": 4.0,
+      "gap": 2.0,
+      "bg_alpha": 0.5,
+      "inset": 1.0
+    }
+  },
+  "station": {
+    "icon": "res://assets/ui/icons/hangar.svg",
+    "width": 268,
+    "list_separation": 3,
+    "row_separation": 6,
+    "_entry_font_size": "La linea de cada material del almacen (JetBrains Mono).",
+    "entry_font_size": 11,
+    "_button": "Botones de accion (descargar / vender): Michroma 7, 26 de alto; el de vender mide 96x22.",
+    "button": {
+      "font_size": 7,
+      "height": 26,
+      "sell_size": [96, 22]
+    }
+  },
+  "settings": {
+    "icon": "res://assets/ui/icons/gear.svg",
+    "_width": "El ancho del `#w-cfg` del prototipo.",
+    "width": 344
+  },
+  "sysbar": {
+    "_comment": "§1.9: botones de 36x36 con hueco de 5 e icono de 16; el margen sale de theme.bar_margin.",
+    "side": 36,
+    "gap": 5,
+    "icon": 16,
+    "_open_border_alpha": "Ambar al 55 % en el borde cuando su ventana esta abierta.",
+    "open_border_alpha": 0.55,
+    "glow_alpha": 0.22,
+    "glow_size": 10
+  },
+  "taskbar": {
+    "_comment": "§5: botones de 44x44, icono de 21, cap vertical de 20; el margen sale de theme.bar_margin.",
+    "side": 44,
+    "icon": 21,
+    "_l_side": "Esquinas en L un pelin mas cortas que las de ventana; el grosor es el de window.l_thickness.",
+    "l_side": 12.0,
+    "shadow_alpha": 0.08,
+    "shadow_size": 24,
+    "cap": {
+      "width": 20,
+      "font_size": 7,
+      "line_spacing": 2
+    },
+    "_glyph_rest": "El reposo del §5, mas claro que --muted.",
+    "glyph_rest": "A9B6CC",
+    "_dot": "El punto de 'abierta' del §5: 4 px ambar, a 4 px del borde inferior.",
+    "dot": {
+      "size": 4,
+      "bottom": 4
+    },
+    "_separator": "Linea de 1 px entre grupos, recortada vertical_inset px respecto al alto del boton, dentro de un hueco de slot_width.",
+    "separator": {
+      "width": 1,
+      "vertical_inset": 18,
+      "slot_width": 7
+    },
+    "_button": "Borde superior de 2 px (ambar si abierta); relleno ambar al 8 % abierta, cian al 7 % en hover.",
+    "button": {
+      "border_top": 2,
+      "open_alpha": 0.08,
+      "hover_alpha": 0.07
+    }
+  },
+  "login": {
+    "_rules": "Reglas del server (/v1/auth/register) repetidas aqui como cortesia; el server sigue validando.",
+    "min_username": 3,
+    "max_username": 32,
+    "min_password": 8,
+    "column_separation": 22,
+    "logo_font_size": 30,
+    "subtitle_font_size": 8,
+    "api_font_size": 9,
+    "card_width": 400,
+    "card_separation": 10,
+    "button_font_size": 10,
+    "button_height": 38,
+    "status_font_size": 11,
+    "status_height": 34,
+    "field_height": 32
+  },
+  "respawn": {
+    "_veil_alpha": "Velo hostil sobre todo el mundo mientras la nave esta destruida.",
+    "veil_alpha": 0.1,
+    "panel_width": 340,
+    "separation": 10,
+    "title_font_size": 13,
+    "cause_width": 300,
+    "button_height": 34,
+    "button_font_size": 9
+  },
+  "radiation_warning": {
+    "_comment": "El toast del §9 en hostil: centro-superior a panel_top px, fundido de fade s, y late con periodo pulse_period sin bajar de pulse_min.",
+    "panel_top": 88.0,
+    "fade": 0.25,
+    "pulse_period": 1.2,
+    "pulse_min": 0.55,
+    "vignette_alpha": 0.18,
+    "_vignette_inner": "Desde que fraccion del radio empieza a teniirse el borde (0 = centro, 1 = borde).",
+    "vignette_inner": 0.45,
+    "vignette_texture_size": 256,
+    "panel_bg": { "rgb": "070A12", "alpha": 0.85 },
+    "_border_alpha": "El `--edge` del toast, en hostil.",
+    "border_alpha": 0.35,
+    "padding_x": 18,
+    "padding_y": 9,
+    "caption_font_size": 10,
+    "caption_tracking": 1
+  }
+}

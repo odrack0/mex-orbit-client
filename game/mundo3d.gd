@@ -12,26 +12,31 @@
 class_name Stage3D
 extends Node3D
 
+## Diales del rig: data/config/camera.json (nada calibrable vive en el codigo).
+static var CFG: Dictionary = AssetDefs.config("camera")
 ## Camara del original (G§3): perspectiva FOV vertical 30, near 10, far 80000,
 ## distancia base 1740/zoom, tilt 135 (= 45 de elevacion), pan 0.
-const FOV := 30.0
-const NEAR := 10.0
-const FAR := 80000.0
-const DIST := 1740.0
-const TILT := 135.0
+static var FOV: float = AssetDefs.num(CFG, "fov", 30.0)
+static var NEAR: float = AssetDefs.num(CFG, "near", 10.0)
+static var FAR: float = AssetDefs.num(CFG, "far", 80000.0)
+static var DIST: float = AssetDefs.num(CFG, "dist", 1740.0)
+static var TILT: float = AssetDefs.num(CFG, "tilt", 135.0)
 ## Pan del original (G§3): 0 en mapas planos, 25 en mapas CON fondo 3D — el
 ## display3D del 1-1 esta compuesto para verse con la camara girada 25 grados.
 ## Lo fija el mapa via MapBgConfig/world.
 var pan_deg := 0.0
 ## Zoom continuo [1,3], rueda x1.2 / x0.8, tween 0.3 s Quad ease-out.
-const ZOOM_MIN := 1.0
-const ZOOM_MAX := 3.0
-const ZOOM_STEP := 1.2
-const ZOOM_TWEEN_SEC := 0.3
+static var _ZOOM: Dictionary = CFG.get("zoom", {})
+static var ZOOM_MIN: float = AssetDefs.num(_ZOOM, "min", 1.0)
+static var ZOOM_MAX: float = AssetDefs.num(_ZOOM, "max", 3.0)
+static var ZOOM_STEP: float = AssetDefs.num(_ZOOM, "step", 1.2)
+static var ZOOM_TWEEN_SEC: float = AssetDefs.num(_ZOOM, "tween_sec", 0.3)
 ## Acoplamiento tilt-zoom (G§3): al acercar, la camara baja hasta 20 grados
 ## hacia el horizonte — el "picado bajo" que cambia la perspectiva de los
 ## aliens al hacer zoom. tiltEfectivo = TILT - clamp((zoom-1)/2 * 20, 0, 20).
-const TILT_ZOOM_REDUCTION := 20.0
+static var TILT_ZOOM_REDUCTION: float = AssetDefs.num(_ZOOM, "tilt_reduction", 20.0)
+## Tamanio del pool de luces de efectos (G§7.2), ver `_lights`.
+static var EFFECT_LIGHT_POOL: int = int(AssetDefs.num(CFG.get("effect_lights", {}), "pool", 3.0))
 
 ## La instancia viva (una por mundo): las entidades montan sus cuerpos aqui.
 static var instance: Stage3D
@@ -74,7 +79,7 @@ func _ready() -> void:
 	cam_node.far = FAR
 	add_child(cam_node)
 	cam_node.current = true
-	for i in 3:
+	for i in EFFECT_LIGHT_POOL:
 		var light_def := OmniLight3D.new()
 		light_def.light_energy = 0.0
 		light_def.omni_range = 1.0
@@ -93,14 +98,32 @@ func _ready() -> void:
 ## en caliente y el siguiente frame ya sale asi.
 ## Calibrado en vivo el 1-sep, con FSR ya puesto: MEDIA 0,85 (de 0,75) y BAJA
 ## 0,65 (de 0,5) — la diferencia de coste es chica y la de nitidez se nota.
-const RENDER_SCALES := [0.65, 0.85, 1.0]
-const MSAA := [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]
+## Viven en data/config/quality.json (`render`): la escala por nivel y las
+## muestras de MSAA (0/2/4/8), que aqui se convierten al enum de Godot.
+static var _RENDER: Dictionary = AssetDefs.config("quality").get("render", {})
+static var RENDER_SCALES: Array = _RENDER.get("scales", [0.65, 0.85, 1.0])
+static var MSAA_SAMPLES: Array = _RENDER.get("msaa_samples", [0, 2, 4])
+static var MSAA: Array = _msaa_from_samples(MSAA_SAMPLES)
+
+
+static func _msaa_from_samples(samples: Array) -> Array:
+	var out := []
+	for s in samples:
+		match int(s):
+			2: out.append(Viewport.MSAA_2X)
+			4: out.append(Viewport.MSAA_4X)
+			8: out.append(Viewport.MSAA_8X)
+			_: out.append(Viewport.MSAA_DISABLED)
+	return out
+
 
 func apply_render_quality() -> void:
 	var vp := get_viewport()
 	if vp == null:
 		return
-	var scale_factor: float = RENDER_SCALES[clampi(Quality.level("render"), 0, 2)]
+	var render_i := clampi(Quality.level("render"), 0, RENDER_SCALES.size() - 1)
+	var aa_i := clampi(Quality.level("aa"), 0, MSAA.size() - 1)
+	var scale_factor: float = RENDER_SCALES[render_i]
 	# FSR y no bilineal (1-sep, reportado en vivo): el bilineal amplia cada
 	# pixel del render chico tal cual, y sobre una silueta contra el negro
 	# del espacio eso son escalones de 2 px — "la nave se ve pixelada". FSR
@@ -110,12 +133,13 @@ func apply_render_quality() -> void:
 	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR if scale_factor < 1.0 \
 		else Viewport.SCALING_3D_MODE_BILINEAR
 	vp.scaling_3d_scale = scale_factor
-	vp.msaa_3d = MSAA[clampi(Quality.level("aa"), 0, 2)]
+	vp.msaa_3d = MSAA[aa_i]
 	# se deja dicho, como la auto-calidad: es lo unico que permite saber desde
 	# un log si el ajuste llego al viewport o se quedo en el diccionario
+	var aa_samples := int(MSAA_SAMPLES[aa_i])
 	print("Calidad: render %.2fx (viewport %.2fx) · MSAA %s" % [
-		RENDER_SCALES[clampi(Quality.level("render"), 0, 2)], vp.scaling_3d_scale,
-		["off", "2x", "4x"][clampi(Quality.level("aa"), 0, 2)]])
+		scale_factor, vp.scaling_3d_scale,
+		"off" if aa_samples == 0 else "%dx" % aa_samples])
 
 
 ## Un destello del pool: sube de golpe y se funde solo. Cuantas luces hay
@@ -203,6 +227,16 @@ func zoom_direct(v: float) -> void:
 
 var _skybox: MeshInstance3D
 
+## El skybox y sus assets: camera.json `skybox`.
+static var _SKY: Dictionary = CFG.get("skybox", {})
+static var SKYBOX_MESH: String = str(_SKY.get("mesh", "res://assets/do-ref/skybox.obj"))
+static var SKYBOX_STARS: String = str(_SKY.get("stars", "res://assets/do-ref/skybox-stars.png"))
+static var SKYBOX_MASK: String = str(_SKY.get("mask", "res://assets/do-ref/skybox-mask.png"))
+static var SKYBOX_SHADER: String = str(_SKY.get("shader", "res://game/shaders/skybox_do.gdshader"))
+static var SKY_FALLBACK_SHADER: String = str(_SKY.get("fallback_shader", "res://game/shaders/cielo.gdshader"))
+static var SKYBOX_SCALE: float = AssetDefs.num(_SKY, "scale", 160000.0)
+static var SKYBOX_RENDER_PRIORITY: int = int(AssetDefs.num(_SKY, "render_priority", -10.0))
+
 
 ## El CIELO: el DOSkybox del original — su malla skybox_geometry escalada
 ## x10000 siguiendo a la camara, con el pase exacto decompilado (dos mascaras
@@ -211,11 +245,8 @@ var _skybox: MeshInstance3D
 ## techo, tiles) se pinta encima. Si faltan los assets, cae al cielo
 ## procedural viejo (cielo.gdshader) tenido con el tinte del mapa.
 func set_sky(tint: Color) -> void:
-	const SKYBOX_MESH := "res://assets/do-ref/skybox.obj"
-	const STARS := "res://assets/do-ref/skybox-stars.png"
-	const MASK := "res://assets/do-ref/skybox-mask.png"
-	if ResourceLoader.exists(SKYBOX_MESH) and ResourceLoader.exists(STARS) \
-			and ResourceLoader.exists(MASK):
+	if ResourceLoader.exists(SKYBOX_MESH) and ResourceLoader.exists(SKYBOX_STARS) \
+			and ResourceLoader.exists(SKYBOX_MASK):
 		_skybox = MeshInstance3D.new()
 		_skybox.mesh = load(SKYBOX_MESH)
 		# El original escala x10000 (radio ~4300) porque su skybox es un
@@ -224,17 +255,17 @@ func set_sky(tint: Color) -> void:
 		# ENVOLVER todo lo opaco (los props llegan a ~17000 del foco y el
 		# planeta a ~50000): radio nativo 0.43 x 160000 = ~69000, bajo el far
 		# de 80000. Con 10000 tapaba con estrellas cualquier malla mas lejana.
-		_skybox.scale = Vector3.ONE * 160000.0
+		_skybox.scale = Vector3.ONE * SKYBOX_SCALE
 		var mat := ShaderMaterial.new()
-		mat.shader = load("res://game/shaders/skybox_do.gdshader")
-		mat.set_shader_parameter("estrellas", load(STARS))
-		mat.set_shader_parameter("mascara", load(MASK))
-		mat.render_priority = -10
+		mat.shader = load(SKYBOX_SHADER)
+		mat.set_shader_parameter("estrellas", load(SKYBOX_STARS))
+		mat.set_shader_parameter("mascara", load(SKYBOX_MASK))
+		mat.render_priority = SKYBOX_RENDER_PRIORITY
 		_skybox.material_override = mat
 		add_child(_skybox)
 		return
 	var mat := ShaderMaterial.new()
-	mat.shader = load("res://game/shaders/cielo.gdshader")
+	mat.shader = load(SKY_FALLBACK_SHADER)
 	mat.set_shader_parameter("tinte", Vector3(tint.r, tint.g, tint.b))
 	var sky := Sky.new()
 	sky.sky_material = mat
@@ -266,12 +297,13 @@ func to_world(px: Vector2, alt := 0.0) -> Vector2:
 ## Unidades de juego que mide UN pixel en el centro de la pantalla (para radios
 ## de click constantes en pantalla, como el original).
 func units_per_pixel() -> float:
+	const PROBE_PX := 10.0            # base de medida, no un dial: el cociente no depende de ella
 	var center := get_viewport().get_visible_rect().size * 0.5
 	var a := to_world(center)
-	var b := to_world(center + Vector2(10, 0))
+	var b := to_world(center + Vector2(PROBE_PX, 0.0))
 	if a == Vector2.INF or b == Vector2.INF:
 		return 1.0
-	return maxf(a.distance_to(b) / 10.0, 0.001)
+	return maxf(a.distance_to(b) / PROBE_PX, 0.001)
 
 
 ## Las 4 esquinas del viewport llevadas al plano del juego — el TRAPECIO del

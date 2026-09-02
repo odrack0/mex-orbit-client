@@ -15,16 +15,33 @@
 class_name RadiationWarning
 extends Control
 
-const PANEL_TOP := 88.0            # el toast del prototipo vive a 88 px
-const FADE := 0.25              # la transicion del toast (.25 s)
-const PULSE_PERIOD := 1.2         # s por latido
-const PULSE_MIN := 0.55            # el rotulo nunca baja de esto mientras hay peligro
-const VIGNETTE_ALPHA := 0.18          # hostil al 18 % en el borde, 0 al centro
+static var CFG: Dictionary = AssetDefs.config("ui").get("radiation_warning", {})
+static var PANEL_TOP: float = AssetDefs.num(CFG, "panel_top", 88.0)            # el toast del prototipo vive a 88 px
+static var FADE: float = AssetDefs.num(CFG, "fade", 0.25)              # la transicion del toast (.25 s)
+static var PULSE_PERIOD: float = AssetDefs.num(CFG, "pulse_period", 1.2)         # s por latido
+static var PULSE_MIN: float = AssetDefs.num(CFG, "pulse_min", 0.55)            # el rotulo nunca baja de esto mientras hay peligro
+static var VIGNETTE_ALPHA: float = AssetDefs.num(CFG, "vignette_alpha", 0.18)          # hostil al 18 % en el borde, 0 al centro
+static var VIGNETTE_INNER: float = AssetDefs.num(CFG, "vignette_inner", 0.45)   # desde que fraccion del radio se tinie
+static var VIGNETTE_TEXTURE_SIZE: int = int(AssetDefs.num(CFG, "vignette_texture_size", 256))
+static var PANEL_BG: Color = _rgba(CFG.get("panel_bg"), Color(7.0 / 255, 10.0 / 255, 18.0 / 255, 0.85))
+static var BORDER_ALPHA: float = AssetDefs.num(CFG, "border_alpha", 0.35)
+static var PADDING_X: int = int(AssetDefs.num(CFG, "padding_x", 18))
+static var PADDING_Y: int = int(AssetDefs.num(CFG, "padding_y", 9))
+static var CAPTION_FONT_SIZE: int = int(AssetDefs.num(CFG, "caption_font_size", 10))
+static var CAPTION_TRACKING: int = int(AssetDefs.num(CFG, "caption_tracking", 1))
 
 var _panel: PanelContainer
 var _vignette: TextureRect
 var _phase := 0.0
 var _alpha := 0.0                   # 0 = oculto, 1 = plena presencia
+
+
+## Un color con alpha del JSON: {"rgb": "RRGGBB", "alpha": a}.
+static func _rgba(v: Variant, fallback: Color) -> Color:
+	if typeof(v) != TYPE_DICTIONARY:
+		return fallback
+	var d: Dictionary = v
+	return Color(AssetDefs.color(d.get("rgb"), fallback), AssetDefs.num(d, "alpha", fallback.a))
 
 
 static func create() -> RadiationWarning:
@@ -39,14 +56,14 @@ static func create() -> RadiationWarning:
 	var grad := Gradient.new()
 	grad.set_color(0, Color(NTheme.HOSTILE, 0.0))
 	grad.set_color(1, Color(NTheme.HOSTILE, 1.0))
-	grad.set_offset(0, 0.45)
+	grad.set_offset(0, VIGNETTE_INNER)
 	var tex := GradientTexture2D.new()
 	tex.gradient = grad
 	tex.fill = GradientTexture2D.FILL_RADIAL
 	tex.fill_from = Vector2(0.5, 0.5)
 	tex.fill_to = Vector2(0.5, 1.0)
-	tex.width = 256
-	tex.height = 256
+	tex.width = VIGNETTE_TEXTURE_SIZE
+	tex.height = VIGNETTE_TEXTURE_SIZE
 	w._vignette = TextureRect.new()
 	w._vignette.texture = tex
 	w._vignette.stretch_mode = TextureRect.STRETCH_SCALE
@@ -57,17 +74,18 @@ static func create() -> RadiationWarning:
 	# el rotulo: el toast, en hostil
 	w._panel = PanelContainer.new()
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color(7.0 / 255, 10.0 / 255, 18.0 / 255, 0.85)
-	box.border_color = Color(NTheme.HOSTILE, 0.35)    # el `--edge` del toast, en hostil
-	box.set_border_width_all(1)
-	box.content_margin_left = 18
-	box.content_margin_right = 18
-	box.content_margin_top = 9
-	box.content_margin_bottom = 9
+	box.bg_color = PANEL_BG
+	box.border_color = Color(NTheme.HOSTILE, BORDER_ALPHA)    # el `--edge` del toast, en hostil
+	box.set_border_width_all(NTheme.BORDER_WIDTH)
+	box.content_margin_left = PADDING_X
+	box.content_margin_right = PADDING_X
+	box.content_margin_top = PADDING_Y
+	box.content_margin_bottom = PADDING_Y
 	w._panel.add_theme_stylebox_override("panel", box)
 	w._panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Michroma 10 px con .14em de tracking (~1,4 px a ese cuerpo), mayusculas
-	var caption := NTheme.label("ZONA RADIACTIVA", NTheme.michroma_track(1), 10, NTheme.HOSTILE)
+	var caption := NTheme.label("ZONA RADIACTIVA", NTheme.michroma_track(CAPTION_TRACKING),
+		CAPTION_FONT_SIZE, NTheme.HOSTILE)
 	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	w._panel.add_child(caption)
 	w._panel.set_anchors_preset(Control.PRESET_CENTER_TOP)

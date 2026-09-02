@@ -1,31 +1,31 @@
 {
-  "_comentario": "Particularidades del alien. Los bichos no tienen toberas: se propulsan biologicamente, asi que engines va vacio y su vida visual la da la capa emisiva.",
+  "_comment": "Particularidades del alien. Los bichos no tienen toberas: se propulsan biologicamente, asi que engines va vacio y su vida visual la da la capa emisiva.",
   "code": "vex",
-  "_modelo": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Sin cuernos_grados: se midio y a 141 px el gesto no se distingue del reposo.",
-  "modelo": "res://assets/npcs/vex.glb",
-  "_cuernos_grados": "Rango de las pinzas de la proa, en grados. Eje 2, no el 1: en este bicho el 1 apenas los mueve (0,5 px a 35 grados). Y solo hacia el negativo, porque en reposo estan casi juntos y en el positivo las puntas se CRUZAN.",
-  "cuernos_grados": [
+  "_model": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Sin cuernos_grados: se midio y a 141 px el gesto no se distingue del reposo.",
+  "model": "res://assets/npcs/vex.glb",
+  "_horns_deg": "Rango de las pinzas de la proa, en grados. Eje 2, no el 1: en este bicho el 1 apenas los mueve (0,5 px a 35 grados). Y solo hacia el negativo, porque en reposo estan casi juntos y en el positivo las puntas se CRUZAN.",
+  "horns_deg": [
     -20.0,
     0.0
   ],
-  "cuernos_eje": 2,
-  "_alas": "Aleteo. HEREDADO del Vexor y SIN MEDIR en este bicho: sus alas son mas estrechas y barridas, asi que estos grados son un punto de partida, no un valor calibrado. Se mide con repro_eje_hueso.tscn.",
-  "alas": {
-    "grados": 34.0,
-    "ciclo": 2.17,
-    "eje": 1
+  "horns_axis": 2,
+  "_wings": "Aleteo. HEREDADO del Vexor y SIN MEDIR en este bicho: sus alas son mas estrechas y barridas, asi que estos grados son un punto de partida, no un valor calibrado. Se mide con repro_eje_hueso.tscn.",
+  "wings": {
+    "degrees": 34.0,
+    "cycle": 2.17,
+    "axis": 1
   },
-  "_cola": "Cola. HEREDADA del Vexor y SIN MEDIR: la del Vex es mas larga y fina y su cola_3 apenas tiene 81 vertices con peso.",
-  "cola": {
-    "grados": 9.0,
-    "ciclo": 1.5,
-    "desfase": 0.22,
-    "eje": 2
+  "_tail": "Cola. HEREDADA del Vexor y SIN MEDIR: la del Vex es mas larga y fina y su cola_3 apenas tiene 81 vertices con peso.",
+  "tail": {
+    "degrees": 9.0,
+    "cycle": 1.5,
+    "phase_offset": 0.22,
+    "axis": 2
   },
   "screen_size": 141,
   "click_radius": 46,
-  "_pulso": "intensidad del blend aditivo: por encima de 1 sobreexpone (el nucleo se pone blanco). sharpness marca el destello: 1 = seno suave, 3+ = latido con valles largos",
-  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. la plaga: pequenio y nervioso, el mas agil de su familia",
+  "_pulse_note": "intensidad del blend aditivo: por encima de 1 sobreexpone (el nucleo se pone blanco). sharpness marca el destello: 1 = seno suave, 3+ = latido con valles largos",
+  "_spin": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. la plaga: pequenio y nervioso, el mas agil de su familia",
   "turn": {
     "steps": 0,
     "deg_per_sec": 150

@@ -1,9 +1,9 @@
 {
-  "_comentario": "Gravon: la forma MAYOR del Gravit (sufijo -on) y la tercera pareja base->mayor del mapa. Mismo hierro pulido, tres nucleos en vez de uno y el anillo exterior fracturado. Gira aun mas lento que el Gravit: es lo mas pesado que hay tras el Skarnox.",
+  "_comment": "Gravon: la forma MAYOR del Gravit (sufijo -on) y la tercera pareja base->mayor del mapa. Mismo hierro pulido, tres nucleos en vez de uno y el anillo exterior fracturado. Gira aun mas lento que el Gravit: es lo mas pesado que hay tras el Skarnox.",
   "code": "gravon",
   "screen_size": 214,
   "click_radius": 72,
-  "_giro": "steps 0 = giro continuo. 45 grados/s: cuatro segundos de media vuelta. La masa se cuenta con el giro, como en las otras parejas.",
+  "_spin": "steps 0 = giro continuo. 45 grados/s: cuatro segundos de media vuelta. La masa se cuenta con el giro, como en las otras parejas.",
   "turn": {
     "steps": 0,
     "deg_per_sec": 45
@@ -14,6 +14,6 @@
     "speed": 1.1,
     "sharpness": 3.2
   },
-  "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
-  "modelo": "res://assets/npcs/gravon.glb"
+  "_model": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
+  "model": "res://assets/npcs/gravon.glb"
 }

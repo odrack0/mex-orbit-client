@@ -1,30 +1,30 @@
 {
-  "_comentario": "Vexor: la forma mayor del Vex (misma especie, sufijo -or). El parentesco se cuenta con masa, no con color: el acento sigue siendo rojo hostil. Dos nucleos en vez de uno, asi que su latido es mas rapido que el del Vex.",
+  "_comment": "Vexor: la forma mayor del Vex (misma especie, sufijo -or). El parentesco se cuenta con masa, no con color: el acento sigue siendo rojo hostil. Dos nucleos en vez de uno, asi que su latido es mas rapido que el del Vex.",
   "code": "vexor",
-  "_modelo": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre: asi el 3D entra por debajo y la posicion, el z-index, el radio de click y los FX siguen siendo los de 2D. Sale de riguear-modelo.py sobre el remesh de Meshy.",
-  "modelo": "res://assets/npcs/vexor.glb",
-  "_cuernos_grados": "Rango de las pinzas de la proa, en grados, recorrido con el reloj del aleteo. Eje 1: gira dentro del plano, que es abrir de verdad. Comprobado que a -14 y a +14 no se cruzan.",
-  "cuernos_grados": [
+  "_model": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). La lleva un SubViewport por entidad y su textura alimenta al Sprite2D de siempre: asi el 3D entra por debajo y la posicion, el z-index, el radio de click y los FX siguen siendo los de 2D. Sale de riguear-modelo.py sobre el remesh de Meshy.",
+  "model": "res://assets/npcs/vexor.glb",
+  "_horns_deg": "Rango de las pinzas de la proa, en grados, recorrido con el reloj del aleteo. Eje 1: gira dentro del plano, que es abrir de verdad. Comprobado que a -14 y a +14 no se cruzan.",
+  "horns_deg": [
     -14.0,
     14.0
   ],
-  "cuernos_eje": 1,
-  "_alas": "Aleteo. MEDIDO en este bicho: 34 grados sobre el eje 1 y un ciclo de 2,17 s (26 fotogramas a 12 fps, el ritmo de su atlas 2D).",
-  "alas": {
-    "grados": 34.0,
-    "ciclo": 2.17,
-    "eje": 1
+  "horns_axis": 1,
+  "_wings": "Aleteo. MEDIDO en este bicho: 34 grados sobre el eje 1 y un ciclo de 2,17 s (26 fotogramas a 12 fps, el ritmo de su atlas 2D).",
+  "wings": {
+    "degrees": 34.0,
+    "cycle": 2.17,
+    "axis": 1
   },
-  "_cola": "Cola. MEDIDO: 9 grados sobre el eje 2, ciclo propio de 1,5 s y 0,22 de desfase por segmento para que la onda la recorra.",
-  "cola": {
-    "grados": 9.0,
-    "ciclo": 1.5,
-    "desfase": 0.22,
-    "eje": 2
+  "_tail": "Cola. MEDIDO: 9 grados sobre el eje 2, ciclo propio de 1,5 s y 0,22 de desfase por segmento para que la onda la recorra.",
+  "tail": {
+    "degrees": 9.0,
+    "cycle": 1.5,
+    "phase_offset": 0.22,
+    "axis": 2
   },
   "screen_size": 178,
   "click_radius": 58,
-  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. mismo bicho crecido: la masa se nota en el giro",
+  "_spin": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. mismo bicho crecido: la masa se nota en el giro",
   "turn": {
     "steps": 0,
     "deg_per_sec": 100

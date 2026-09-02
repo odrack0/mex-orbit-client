@@ -5,13 +5,21 @@
 # cursor quieto tambien avanza), con reenvio por umbral de distancia.
 extends Node2D
 
-const CLICK_RADIUS := 34.0        # radio de click sobre entidades, en PIXELES de pantalla
-const HOLD_RESEND_SEC := 0.25     # cadencia del reenvio con el boton sostenido
-const HOLD_MIN_DELTA := 60.0      # el destino debe moverse al menos esto para reenviar
+## Los DIALES de este archivo viven en data/config/world.json (juego/vista) y en
+## data/config/autotest.json (autotest/bestiario): aqui solo se leen, una vez, en
+## `static var` con el mismo nombre que tenia cada constante. Nada calibrable
+## queda escrito en el codigo (ver el README).
+static var CFG: Dictionary = AssetDefs.config("world")
+static var AT_CFG: Dictionary = AssetDefs.config("autotest")
+
+static var CLICK_RADIUS: float = AssetDefs.num(CFG, "click_radius", 34.0)        # radio de click sobre entidades, en PIXELES de pantalla
+static var HOLD_CFG: Dictionary = CFG.get("hold_move", {})
+static var HOLD_RESEND_SEC: float = AssetDefs.num(HOLD_CFG, "resend_sec", 0.25)     # cadencia del reenvio con el boton sostenido
+static var HOLD_MIN_DELTA: float = AssetDefs.num(HOLD_CFG, "min_delta", 60.0)      # el destino debe moverse al menos esto para reenviar
 ## Cuanto sigue un tirador encarando a su blanco tras el ultimo disparo. Los NPC
 ## disparan cada segundo, asi que tres aguanta un par de fallos y suelta rapido
 ## cuando la pelea se acaba de verdad.
-const ATTACK_FACING_SEC := 3.0
+static var ATTACK_FACING_SEC: float = AssetDefs.num(CFG, "attack_facing_sec", 3.0)
 
 # FASE 1 del plan-cliente-3d: la camara y su zoom viven en Mundo3D con las
 # constantes del original (FOV 30, elevacion 45, d = 1740/zoom, zoom [1,3] con
@@ -20,7 +28,7 @@ const ATTACK_FACING_SEC := 3.0
 
 ## Doble click (<500 ms) sobre una entidad = fijarla Y atacar, el gesto canonico
 ## del original. El primer click solo selecciona, como siempre.
-const DOUBLE_CLICK_MS := 500
+static var DOUBLE_CLICK_MS: int = int(AssetDefs.num(CFG, "double_click_ms", 500))
 
 var _conn: GameConnection
 var _entities := {}          # entity_id -> EntityNode
@@ -32,12 +40,15 @@ var _in_radiation := false                # edge-trigger para el Registro
 var _focus := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
 var _backdrop3d: Backdrop3D         # el fondo completo del original (F3)
 var _seq := 0
-var _bounds := Vector2(20800, 12800)
+static var MAP_CFG: Dictionary = CFG.get("map", {})
+static var DEFAULT_BOUNDS: Vector2 = AssetDefs.vec2(MAP_CFG.get("default_bounds"), Vector2(20800, 12800))
+var _bounds: Vector2 = DEFAULT_BOUNDS
 # zona radiactiva: la radiacion NO es una pared, es un reloj — la nave sigue
 # volando mas alla del limite hasta explotar. Esto es el tope estructural del
 # server (Dials.RadiationReach, mismo numero), por los cuatro lados y negativo
 # por el lado del 0; esta puesto donde nadie llega con vida.
-const RADIATION_REACH := 50000.0
+static var RADIATION_CFG: Dictionary = CFG.get("radiation", {})
+static var RADIATION_REACH: float = AssetDefs.num(RADIATION_CFG, "reach", 50000.0)
 
 # vuelo sostenido (herencia del prototipo)
 var _hold_move := false
@@ -51,8 +62,12 @@ var _last_sent_target := Vector2.INF
 var _selected := 0        # entity_id con seleccion local
 
 # combate y loot (E2/I5)
-const COLLECT_ARRIVE := 200.0     # llegar a esto de la caja = recolectar (server valida 250)
-const AUTOPILOT_ARRIVE := 120.0   # a esta distancia el autopiloto declara llegada
+static var COLLECT_CFG: Dictionary = CFG.get("collect", {})
+static var AUTOPILOT_CFG: Dictionary = CFG.get("autopilot", {})
+static var COLLECT_ARRIVE: float = AssetDefs.num(COLLECT_CFG, "arrive_dist", 200.0)     # llegar a esto de la caja = recolectar (server valida 250)
+static var AUTOPILOT_ARRIVE: float = AssetDefs.num(AUTOPILOT_CFG, "arrive_dist", 120.0)   # a esta distancia el autopiloto declara llegada
+## A menos de esto de su destino, una nave cuenta como llegada (o quieta).
+static var GOAL_REACHED_DIST: float = AssetDefs.num(CFG, "goal_reached_dist", 1.0)
 
 # autopiloto del minimapa (herencia del prototipo): destino sostenido que se
 # reemite si el heroe queda detenido sin llegar; el vuelo manual lo cancela
@@ -72,11 +87,11 @@ var _at_base := false
 var _station: Node3D                            # el cuerpo de la base en la escena
 var _station_model: Node
 var _station_mats: Array[BaseMaterial3D] = []
-var _station_emission := 1.0
-var _station_pulse_min := 0.55
-var _station_pulse_max := 1.8
-var _station_pulse_speed := 1.1
-var _station_pulse_sharpness := 1.6
+var _station_emission: float = STATION_EMISSION
+var _station_pulse_min: float = STATION_PULSE_MIN
+var _station_pulse_max: float = STATION_PULSE_MAX
+var _station_pulse_speed: float = STATION_PULSE_SPEED
+var _station_pulse_sharpness: float = STATION_PULSE_SHARPNESS
 var _laser_on := false
 var _boxes := {}                  # box_id -> Node2D (posicion; su cuerpo vive en Mundo3D)
 var _portals := {}               # portal_id -> PortalNode
@@ -143,12 +158,12 @@ func _ready() -> void:
 	_explosion_frames = SpriteFrames.new()
 	_explosion_frames.add_animation("boom")
 	_explosion_frames.set_animation_loop("boom", false)
-	_explosion_frames.set_animation_speed("boom", 16.0)
+	_explosion_frames.set_animation_speed("boom", EXPLOSION_FPS)
 	var sheet: Texture2D = load("res://assets/fx/explosion-sheet.png")
-	for i in 8:
+	for i in EXPLOSION_SHEET_FRAMES:
 		var frame := AtlasTexture.new()
 		frame.atlas = sheet
-		frame.region = Rect2(i * 128, 0, 128, 128)
+		frame.region = Rect2(i * EXPLOSION_FRAME_PX, 0, EXPLOSION_FRAME_PX, EXPLOSION_FRAME_PX)
 		_explosion_frames.add_frame("boom", frame)
 
 	# LA ESCENA UNICA (F1): el mundo 3D con la camara del original. Se entra en
@@ -158,7 +173,7 @@ func _ready() -> void:
 	# la capa del HUD del mundo: barras, nombres y numeros PROYECTADOS, entre el
 	# 3D (debajo de todo) y las ventanas N (capas 11+)
 	var game_layer := CanvasLayer.new()
-	game_layer.layer = 5
+	game_layer.layer = LAYER_GAME_HUD
 	add_child(game_layer)
 	_game_layer = Node2D.new()
 	game_layer.add_child(_game_layer)
@@ -184,6 +199,24 @@ func _build_backdrop(map_code: String) -> void:
 	_backdrop3d.build(config, _bounds, map_code.hash())
 
 
+## Diales del HUD (data/config/world.json, "hud"): capas, ventana Nave y linea
+## de estado.
+static var HUD_CFG: Dictionary = CFG.get("hud", {})
+static var LAYERS_CFG: Dictionary = HUD_CFG.get("layers", {})
+static var LAYER_GAME_HUD: int = int(AssetDefs.num(LAYERS_CFG, "game", 5))
+static var LAYER_RADIATION_WARNING: int = int(AssetDefs.num(LAYERS_CFG, "radiation_warning", 8))
+static var LAYER_WINDOWS: int = int(AssetDefs.num(LAYERS_CFG, "windows", 11))
+static var LAYER_RESPAWN: int = int(AssetDefs.num(LAYERS_CFG, "respawn", 20))
+static var LAYER_SETTINGS: int = int(AssetDefs.num(LAYERS_CFG, "settings", 21))
+static var SHIP_WINDOW_X: float = AssetDefs.num(HUD_CFG, "ship_window_x", 12)
+static var SHIP_WINDOW_TOP_MARGIN: float = AssetDefs.num(HUD_CFG, "ship_window_top_margin", 8)
+static var SHIP_WINDOW_TOP_GAP: float = AssetDefs.num(HUD_CFG, "ship_window_top_gap", 10)
+static var STATE_FONT_SIZE: int = int(AssetDefs.num(HUD_CFG, "state_font_size", 12))
+static var STATE_SIDE_INSET: float = AssetDefs.num(HUD_CFG, "state_side_inset", 430)
+static var STATE_OFFSET_TOP: float = AssetDefs.num(HUD_CFG, "state_offset_top", -34)
+static var STATE_OFFSET_BOTTOM: float = AssetDefs.num(HUD_CFG, "state_offset_bottom", -14)
+
+
 func _build_hud() -> void:
 	var layer_node := CanvasLayer.new()
 	add_child(layer_node)
@@ -195,23 +228,23 @@ func _build_hud() -> void:
 	layer_node.add_child(_ship)
 	# debajo de la taskbar (8 de margen + 44 de boton + 8 de aire), no encima
 	if not _ship.load_position():
-		_ship.position = Vector2(12, 8 + Taskbar.SIDE + 10)
+		_ship.position = Vector2(SHIP_WINDOW_X, SHIP_WINDOW_TOP_MARGIN + Taskbar.SIDE + SHIP_WINDOW_TOP_GAP)
 
 	# la linea de estado vive abajo al CENTRO: las esquinas son del chat y del
 	# minimapa, y antes se pisaban entre si
-	_hud_state = NTheme.label("", NTheme.exo2(), 12, NTheme.MUTED)
+	_hud_state = NTheme.label("", NTheme.exo2(), STATE_FONT_SIZE, NTheme.MUTED)
 	_hud_state.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hud_state.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_hud_state.offset_left = 430
-	_hud_state.offset_right = -430
-	_hud_state.offset_top = -34
-	_hud_state.offset_bottom = -14
+	_hud_state.offset_left = STATE_SIDE_INSET
+	_hud_state.offset_right = -STATE_SIDE_INSET
+	_hud_state.offset_top = STATE_OFFSET_TOP
+	_hud_state.offset_bottom = STATE_OFFSET_BOTTOM
 	layer_node.add_child(_hud_state)
 
 	# el aviso de la zona radiactiva: encima del HUD proyectado (capa 5) y
 	# debajo de las ventanas N (11+), como el toast del prototipo (z 40)
 	var warning_layer := CanvasLayer.new()
-	warning_layer.layer = 8
+	warning_layer.layer = LAYER_RADIATION_WARNING
 	add_child(warning_layer)
 	_radiation_warning = RadiationWarning.create()
 	warning_layer.add_child(_radiation_warning)
@@ -231,7 +264,10 @@ func _on_welcome(w) -> void:
 
 
 # ---- reconexión (ventana de gracia del server: 60 s) ----
-const MAX_RETRIES := 8
+static var RECONNECT_CFG: Dictionary = CFG.get("reconnect", {})
+static var MAX_RETRIES: int = int(AssetDefs.num(RECONNECT_CFG, "max_retries", 8))
+static var RETRY_STEP_SEC: float = AssetDefs.num(RECONNECT_CFG, "retry_step_sec", 1.0)
+static var RETRY_MAX_SEC: float = AssetDefs.num(RECONNECT_CFG, "retry_max_sec", 5.0)
 var _retries := 0
 var _session_replaced := false
 
@@ -247,7 +283,7 @@ func _on_disconnected() -> void:
 	if _chat != null:
 		_chat.add_system("Enlace perdido, reconectando…", NTheme.WARN)
 	# reintento con espera creciente, dentro de la ventana de gracia
-	await get_tree().create_timer(minf(1.0 * _retries, 5.0)).timeout
+	await get_tree().create_timer(minf(RETRY_STEP_SEC * _retries, RETRY_MAX_SEC)).timeout
 	_conn.reconnect()
 
 
@@ -359,7 +395,7 @@ func _build_minimap(map_code: String) -> void:
 	if _minimap != null:
 		return
 	var layer_node := CanvasLayer.new()
-	layer_node.layer = 11
+	layer_node.layer = LAYER_WINDOWS
 	add_child(layer_node)
 	_minimap = MinimapWindow.new()
 	layer_node.add_child(_minimap)
@@ -402,7 +438,7 @@ func _build_station() -> void:
 		float(ring_piece.get("alpha", 0.22)))
 	torus.material = ring_mat
 	ring.mesh = torus
-	ring.position.y = 1.0
+	ring.position.y = STATION_RING_HEIGHT
 	_station.add_child(ring)
 
 	# La MALLA directamente en el mundo (ya sin viewport intermedio — la torre
@@ -416,7 +452,7 @@ func _build_base() -> void:
 	if _base != null:
 		return
 	var layer_node := CanvasLayer.new()
-	layer_node.layer = 11
+	layer_node.layer = LAYER_WINDOWS
 	add_child(layer_node)
 	_base = StationWindow.create()
 	layer_node.add_child(_base)
@@ -438,7 +474,7 @@ func _build_chat() -> void:
 	if _chat != null:
 		return
 	var layer_node := CanvasLayer.new()
-	layer_node.layer = 11
+	layer_node.layer = LAYER_WINDOWS
 	add_child(layer_node)
 	_chat = ChatWindow.create()
 	layer_node.add_child(_chat)
@@ -455,7 +491,7 @@ func _build_settings() -> void:
 	if _settings != null:
 		return
 	var layer_node := CanvasLayer.new()
-	layer_node.layer = 21               # por encima del killscreen
+	layer_node.layer = LAYER_SETTINGS   # por encima del killscreen
 	add_child(layer_node)
 
 	_settings = SettingsWindow.create()
@@ -535,7 +571,7 @@ func _build_respawn() -> void:
 	if _respawn != null:
 		return
 	var layer_node := CanvasLayer.new()
-	layer_node.layer = 20            # por encima de todo: mientras estas muerto, manda
+	layer_node.layer = LAYER_RESPAWN # por encima de todo: mientras estas muerto, manda
 	add_child(layer_node)
 	_respawn = RespawnPanel.new()
 	layer_node.add_child(_respawn)
@@ -616,7 +652,7 @@ func _process_autopilot() -> void:
 		_state("Autopiloto: destino alcanzado", NTheme.MUTED)
 		_autopilot = Vector2.INF
 		return
-	if _hero.position.distance_to(_hero.goal) < 1.0:
+	if _hero.position.distance_to(_hero.goal) < GOAL_REACHED_DIST:
 		_fly_to(_autopilot)
 
 
@@ -697,8 +733,18 @@ func _on_target_info(ti) -> void:
 
 
 ## Colores de daño del original (su tabla hitpointColors).
-const HIT_DEALT := Color("FF0000")      # el daño que haces
-const HIT_TAKEN := Color("DB63E2")    # el daño que te hacen
+static var DMG_CFG: Dictionary = CFG.get("damage_numbers", {})
+static var HIT_DEALT: Color = AssetDefs.color(DMG_CFG.get("dealt_color"), Color("FF0000"))      # el daño que haces
+static var HIT_TAKEN: Color = AssetDefs.color(DMG_CFG.get("taken_color"), Color("DB63E2"))    # el daño que te hacen
+static var DMG_FONT_SIZE: int = int(AssetDefs.num(DMG_CFG, "font_size", 24))
+static var DMG_OUTLINE_ALPHA: float = AssetDefs.num(DMG_CFG, "outline_alpha", 0.95)
+static var DMG_OUTLINE_SIZE: int = int(AssetDefs.num(DMG_CFG, "outline_size", 6))
+static var DMG_MIN_WIDTH: float = AssetDefs.num(DMG_CFG, "min_width", 120)
+static var DMG_OFFSET: Vector2 = AssetDefs.vec2(DMG_CFG.get("offset"), Vector2(-60, -90))
+static var DMG_Z_INDEX: int = int(AssetDefs.num(DMG_CFG, "z_index", 20))
+static var DMG_RISE_PX: float = AssetDefs.num(DMG_CFG, "rise_px", 42)
+static var DMG_DURATION_SEC: float = AssetDefs.num(DMG_CFG, "duration_sec", 1.0)
+static var DMG_FADE_DELAY_SEC: float = AssetDefs.num(DMG_CFG, "fade_delay_sec", 0.35)
 
 
 func _on_attack(ev) -> void:
@@ -757,27 +803,27 @@ func _floating_number(over: EntityNode, txt: String, color: Color) -> void:
 	if alive != null and is_instance_valid(alive) and txt.is_valid_int():
 		alive.set_meta("suma", int(alive.get_meta("suma", 0)) + int(txt))
 		alive.text = str(alive.get_meta("suma"))
-		alive.position = _stage.to_screen(over.position) + Vector2(-60, -90)
+		alive.position = _stage.to_screen(over.position) + DMG_OFFSET
 		return
 
 	# 24: registrado en el §9 del sistema de diseño. Desde F1 el numero vive en
 	# el HUD proyectado (pixeles de pantalla), asi que ya no lo encoge el zoom.
-	var label := NTheme.label(txt, NTheme.mono(), 24, color)
-	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
-	label.add_theme_constant_override("outline_size", 6)
-	label.custom_minimum_size = Vector2(120, 0)
+	var label := NTheme.label(txt, NTheme.mono(), DMG_FONT_SIZE, color)
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, DMG_OUTLINE_ALPHA))
+	label.add_theme_constant_override("outline_size", DMG_OUTLINE_SIZE)
+	label.custom_minimum_size = Vector2(DMG_MIN_WIDTH, 0)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# el numero vive en el HUD proyectado (pixeles): el zoom ya no lo encoge
-	label.position = _stage.to_screen(over.position) + Vector2(-60, -90)
-	label.z_index = 20
+	label.position = _stage.to_screen(over.position) + DMG_OFFSET
+	label.z_index = DMG_Z_INDEX
 	if txt.is_valid_int():
 		label.set_meta("suma", int(txt))
 	_game_layer.add_child(label)
 	_numbers[key] = label
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(label, "position:y", label.position.y - 42, 1.0)
-	tw.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.35)
+	tw.tween_property(label, "position:y", label.position.y - DMG_RISE_PX, DMG_DURATION_SEC)
+	tw.tween_property(label, "modulate:a", 0.0, DMG_DURATION_SEC).set_delay(DMG_FADE_DELAY_SEC)
 	tw.chain().tween_callback(func():
 		_numbers.erase(key)
 		label.queue_free())
@@ -838,16 +884,66 @@ var _tex_flash: GradientTexture2D
 var _pm_sparks: ParticleProcessMaterial
 var _spark_tex: GradientTexture2D
 
+## Diales de la explosion (data/config/world.json, "explosion").
+static var EXPLOSION_CFG: Dictionary = CFG.get("explosion", {})
+static var EXPLOSION_SHEET_FRAMES: int = int(AssetDefs.num(EXPLOSION_CFG, "sheet_frames", 8))
+static var EXPLOSION_FRAME_PX: int = int(AssetDefs.num(EXPLOSION_CFG, "sheet_frame_px", 128))
+static var EXPLOSION_FPS: float = AssetDefs.num(EXPLOSION_CFG, "fps", 16.0)
+static var EXPLOSION_PIXEL_SIZE: float = AssetDefs.num(EXPLOSION_CFG, "pixel_size", 1.4)
+static var EXPLOSION_HEIGHT: float = AssetDefs.num(EXPLOSION_CFG, "height", 20.0)
+static var FLASH_CFG: Dictionary = EXPLOSION_CFG.get("flash", {})
+static var FLASH_COLOR_IN: Color = _rgba(FLASH_CFG.get("color_in"), Color(1.0, 0.95, 0.8, 1.0))
+static var FLASH_COLOR_OUT: Color = _rgba(FLASH_CFG.get("color_out"), Color(1.0, 0.5, 0.1, 0.0))
+static var FLASH_TEXTURE_PX: int = int(AssetDefs.num(FLASH_CFG, "texture_px", 256))
+static var FLASH_QUAD_SIZE: float = AssetDefs.num(FLASH_CFG, "quad_size", 256.0)
+static var FLASH_HEIGHT: float = AssetDefs.num(FLASH_CFG, "height", 25.0)
+static var FLASH_START_SCALE: float = AssetDefs.num(FLASH_CFG, "start_scale", 0.01)
+static var FLASH_DIAMETER_FACTOR: float = AssetDefs.num(FLASH_CFG, "diameter_factor", 6.0)
+static var FLASH_GROW_SEC: float = AssetDefs.num(FLASH_CFG, "grow_sec", 0.25)
+static var FLASH_FADE_SEC: float = AssetDefs.num(FLASH_CFG, "fade_sec", 0.2)
+static var FLASH_FADE_DELAY_SEC: float = AssetDefs.num(FLASH_CFG, "fade_delay_sec", 0.05)
+static var EXPLOSION_LIGHT_CFG: Dictionary = EXPLOSION_CFG.get("light", {})
+static var EXPLOSION_LIGHT_COLOR: Color = AssetDefs.color(EXPLOSION_LIGHT_CFG.get("color"), Color("dee4c8"))
+static var EXPLOSION_LIGHT_ENERGY: float = AssetDefs.num(EXPLOSION_LIGHT_CFG, "energy", 2.0)
+static var EXPLOSION_LIGHT_RANGE: float = AssetDefs.num(EXPLOSION_LIGHT_CFG, "range", 400.0)
+static var EXPLOSION_LIGHT_HOLD_SEC: float = AssetDefs.num(EXPLOSION_LIGHT_CFG, "hold_sec", 0.1)
+static var EXPLOSION_LIGHT_FADE_SEC: float = AssetDefs.num(EXPLOSION_LIGHT_CFG, "fade_sec", 0.25)
+static var EXPLOSION_LIGHT_HEIGHT: float = AssetDefs.num(EXPLOSION_LIGHT_CFG, "height", 30.0)
+static var SPARKS_CFG: Dictionary = EXPLOSION_CFG.get("sparks", {})
+static var SPARKS_SPREAD_DEG: float = AssetDefs.num(SPARKS_CFG, "spread_deg", 180.0)
+static var SPARKS_FLATNESS: float = AssetDefs.num(SPARKS_CFG, "flatness", 1.0)
+static var SPARKS_VELOCITY_MIN: float = AssetDefs.num(SPARKS_CFG, "velocity_min", 100.0)
+static var SPARKS_VELOCITY_MAX: float = AssetDefs.num(SPARKS_CFG, "velocity_max", 200.0)
+static var SPARKS_SCALE_MIN: float = AssetDefs.num(SPARKS_CFG, "scale_min", 0.02)
+static var SPARKS_SCALE_MAX: float = AssetDefs.num(SPARKS_CFG, "scale_max", 0.05)
+static var SPARKS_LIFETIME_RANDOMNESS: float = AssetDefs.num(SPARKS_CFG, "lifetime_randomness", 0.8)
+static var SPARKS_RAMP_START: Color = _rgba(SPARKS_CFG.get("ramp_start"), Color(1.0, 1.0, 0.9, 1.0))
+static var SPARKS_RAMP_MID: Color = _rgba(SPARKS_CFG.get("ramp_mid"), Color(1.0, 0.7, 0.3, 0.8))
+static var SPARKS_RAMP_MID_POS: float = AssetDefs.num(SPARKS_CFG, "ramp_mid_pos", 0.4)
+static var SPARKS_RAMP_END: Color = _rgba(SPARKS_CFG.get("ramp_end"), Color(1.0, 0.3, 0.1, 0.0))
+static var SPARKS_TEXTURE_PX: int = int(AssetDefs.num(SPARKS_CFG, "texture_px", 32))
+static var SPARKS_MESH_SIZE: float = AssetDefs.num(SPARKS_CFG, "mesh_size", 32.0)
+static var SPARKS_AMOUNT: int = int(AssetDefs.num(SPARKS_CFG, "amount", 24))
+static var SPARKS_LIFETIME_SEC: float = AssetDefs.num(SPARKS_CFG, "lifetime_sec", 0.8)
 
-func _explode(pos: Vector2, radius := 42.0) -> void:
+
+## Color con alfa desde un JSON `[r, g, b, a]` en flotantes: los degradados de
+## la explosion no caben en hex (0.95 no es un byte).
+static func _rgba(v: Variant, fallback: Color) -> Color:
+	if typeof(v) == TYPE_ARRAY and (v as Array).size() >= 4:
+		return Color(float(v[0]), float(v[1]), float(v[2]), float(v[3]))
+	return fallback
+
+
+func _explode(pos: Vector2, radius: float) -> void:
 	if Quality.level("explosion") < 1:
 		return                    # el evento sigue ocurriendo; solo no se dibuja
 	var anim := AnimatedSprite3D.new()
 	anim.sprite_frames = _explosion_frames
 	anim.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	anim.shaded = false
-	anim.pixel_size = 1.4
-	anim.position = Vector3(pos.x, 20.0, pos.y)
+	anim.pixel_size = EXPLOSION_PIXEL_SIZE
+	anim.position = Vector3(pos.x, EXPLOSION_HEIGHT, pos.y)
 	_stage.add_child(anim)
 	anim.play("boom")
 	anim.animation_finished.connect(anim.queue_free)
@@ -856,27 +952,27 @@ func _explode(pos: Vector2, radius := 42.0) -> void:
 	# Es la capa que "vende" el estallido; textura procedural, cero assets.
 	if _tex_flash == null:
 		var g := Gradient.new()
-		g.set_color(0, Color(1.0, 0.95, 0.8, 1.0))
-		g.set_color(1, Color(1.0, 0.5, 0.1, 0.0))
+		g.set_color(0, FLASH_COLOR_IN)
+		g.set_color(1, FLASH_COLOR_OUT)
 		_tex_flash = GradientTexture2D.new()
 		_tex_flash.gradient = g
-		_tex_flash.width = 256
-		_tex_flash.height = 256
+		_tex_flash.width = FLASH_TEXTURE_PX
+		_tex_flash.height = FLASH_TEXTURE_PX
 		_tex_flash.fill = GradientTexture2D.FILL_RADIAL
 		_tex_flash.fill_from = Vector2(0.5, 0.5)
 		_tex_flash.fill_to = Vector2(0.5, 0.0)
-	var flash := Stage3D.additive_quad(_tex_flash, 256.0)
-	flash.position = Vector3(pos.x, 25.0, pos.y)
-	flash.scale = Vector3.ONE * 0.01
+	var flash := Stage3D.additive_quad(_tex_flash, FLASH_QUAD_SIZE)
+	flash.position = Vector3(pos.x, FLASH_HEIGHT, pos.y)
+	flash.scale = Vector3.ONE * FLASH_START_SCALE
 	_stage.add_child(flash)
 	# el diametro final ~6x el radio de click (la proporcion del original:
 	# flash de 250 para naves de ~80 de radio)
-	var flash_scale := radius * 6.0 / 256.0
+	var flash_scale := radius * FLASH_DIAMETER_FACTOR / FLASH_QUAD_SIZE
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(flash, "scale", Vector3.ONE * flash_scale, 0.25) \
+	tw.tween_property(flash, "scale", Vector3.ONE * flash_scale, FLASH_GROW_SEC) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tw.tween_property(flash, "transparency", 1.0, 0.2).set_delay(0.05)
+	tw.tween_property(flash, "transparency", 1.0, FLASH_FADE_SEC).set_delay(FLASH_FADE_DELAY_SEC)
 	tw.chain().tween_callback(flash.queue_free)
 
 	# CHISPAS: rafaga radial de un disparo en el plano del juego, velocidades y
@@ -884,18 +980,18 @@ func _explode(pos: Vector2, radius := 42.0) -> void:
 	if _pm_sparks == null:
 		_pm_sparks = ParticleProcessMaterial.new()
 		_pm_sparks.direction = Vector3(1, 0, 0)
-		_pm_sparks.spread = 180.0
-		_pm_sparks.flatness = 1.0        # la rafaga vive en el plano, como el mundo
-		_pm_sparks.initial_velocity_min = 100.0
-		_pm_sparks.initial_velocity_max = 200.0
+		_pm_sparks.spread = SPARKS_SPREAD_DEG
+		_pm_sparks.flatness = SPARKS_FLATNESS        # la rafaga vive en el plano, como el mundo
+		_pm_sparks.initial_velocity_min = SPARKS_VELOCITY_MIN
+		_pm_sparks.initial_velocity_max = SPARKS_VELOCITY_MAX
 		_pm_sparks.gravity = Vector3.ZERO
-		_pm_sparks.scale_min = 0.02
-		_pm_sparks.scale_max = 0.05
-		_pm_sparks.lifetime_randomness = 0.8
+		_pm_sparks.scale_min = SPARKS_SCALE_MIN
+		_pm_sparks.scale_max = SPARKS_SCALE_MAX
+		_pm_sparks.lifetime_randomness = SPARKS_LIFETIME_RANDOMNESS
 		var ramp := Gradient.new()
-		ramp.set_color(0, Color(1.0, 1.0, 0.9, 1.0))
-		ramp.add_point(0.4, Color(1.0, 0.7, 0.3, 0.8))
-		ramp.set_color(1, Color(1.0, 0.3, 0.1, 0.0))
+		ramp.set_color(0, SPARKS_RAMP_START)
+		ramp.add_point(SPARKS_RAMP_MID_POS, SPARKS_RAMP_MID)
+		ramp.set_color(1, SPARKS_RAMP_END)
 		var rt := GradientTexture1D.new()
 		rt.gradient = ramp
 		_pm_sparks.color_ramp = rt
@@ -904,23 +1000,24 @@ func _explode(pos: Vector2, radius := 42.0) -> void:
 		gc.set_color(1, Color(1, 1, 1, 0))
 		_spark_tex = GradientTexture2D.new()
 		_spark_tex.gradient = gc
-		_spark_tex.width = 32
-		_spark_tex.height = 32
+		_spark_tex.width = SPARKS_TEXTURE_PX
+		_spark_tex.height = SPARKS_TEXTURE_PX
 		_spark_tex.fill = GradientTexture2D.FILL_RADIAL
 		_spark_tex.fill_from = Vector2(0.5, 0.5)
 		_spark_tex.fill_to = Vector2(0.5, 0.0)
 	# el destello de la explosion (pool de luces del mundo; preset del original:
 	# 0xDEE4C8, fallOff 400, encendida ~0.1 s)
-	_stage.effect_light(Vector3(pos.x, 30.0, pos.y), Color("dee4c8"), 2.0, 400.0, 0.1, 0.25)
+	_stage.effect_light(Vector3(pos.x, EXPLOSION_LIGHT_HEIGHT, pos.y), EXPLOSION_LIGHT_COLOR,
+		EXPLOSION_LIGHT_ENERGY, EXPLOSION_LIGHT_RANGE, EXPLOSION_LIGHT_HOLD_SEC, EXPLOSION_LIGHT_FADE_SEC)
 
 	var sparks := GPUParticles3D.new()
-	sparks.amount = 24
+	sparks.amount = SPARKS_AMOUNT
 	sparks.one_shot = true
 	sparks.explosiveness = 1.0
-	sparks.lifetime = 0.8
+	sparks.lifetime = SPARKS_LIFETIME_SEC
 	sparks.process_material = _pm_sparks
 	sparks.draw_pass_1 = _spark_mesh()
-	sparks.position = Vector3(pos.x, 20.0, pos.y)
+	sparks.position = Vector3(pos.x, EXPLOSION_HEIGHT, pos.y)
 	sparks.emitting = true
 	_stage.add_child(sparks)
 	sparks.finished.connect(sparks.queue_free)
@@ -932,7 +1029,7 @@ var _spark_mesh_cache: QuadMesh
 func _spark_mesh() -> QuadMesh:
 	if _spark_mesh_cache == null:
 		_spark_mesh_cache = QuadMesh.new()
-		_spark_mesh_cache.size = Vector2(32, 32)
+		_spark_mesh_cache.size = Vector2(SPARKS_MESH_SIZE, SPARKS_MESH_SIZE)
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -948,6 +1045,10 @@ func _on_box_spawn(msg) -> void:
 	_create_box(msg.box_id, Vector2(msg.x, msg.y))
 
 
+static var BOX_CFG: Dictionary = CFG.get("box", {})
+static var BOX_HEIGHT: float = AssetDefs.num(BOX_CFG, "height", 1.0)
+
+
 func _create_box(box_id: int, pos: Vector2) -> void:
 	if _boxes.has(box_id):
 		return
@@ -960,14 +1061,14 @@ func _create_box(box_id: int, pos: Vector2) -> void:
 	box.position = pos
 	add_child(box)
 	var body_box := Node3D.new()
-	body_box.position = Vector3(pos.x, 1.0, pos.y)
+	body_box.position = Vector3(pos.x, BOX_HEIGHT, pos.y)
 	_stage.add_child(body_box)
 	box.tree_exited.connect(func(): if is_instance_valid(body_box): body_box.queue_free())
 
 	# la malla, escalada a `world_size` por su huella, como la estacion. Sin
 	# `modelo` la caja queda INVISIBLE (decision del 1-sep: el PNG murio con la
 	# calidad por niveles): el nodo logico —recoger, minimapa, click— sigue vivo
-	var path := str(d.get("modelo", ""))
+	var path := str(d.get("model", ""))
 	if path != "" and ResourceLoader.exists(path):
 		var scene: PackedScene = load(path)
 		if scene != null:
@@ -1402,7 +1503,7 @@ func _process(delta: float) -> void:
 func _process_pending_collect() -> void:
 	if _pending_box == 0 or _hero == null:
 		return
-	if _hero.position.distance_to(_hero.goal) > 1.0:
+	if _hero.position.distance_to(_hero.goal) > GOAL_REACHED_DIST:
 		return   # sigue volando
 	if _hero.position.distance_to(_pending_box_pos) <= COLLECT_ARRIVE:
 		_req_id += 1
@@ -1437,7 +1538,8 @@ var _at_jump_portal: PortalNode = null
 var _at_jump_rejected := false     # el autotest suelta la camara para retratar el mapa
 var _at_camera_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
-const AT_BESTIARY := ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"]
+static var AT_BESTIARY: Array = _strings(AT_CFG.get("bestiary"),
+	["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"])
 var _at_creature := 0
 var _at_relief := -1                      # paso de la prueba del relieve
 var _at_hull_at := PackedFloat32Array()
@@ -1457,6 +1559,54 @@ var _at_shot_box := false
 
 var _at_deaths := 0
 
+## Diales del autotest (data/config/autotest.json): tiempos de fase, distancias
+## de caza y umbrales. Los textos de FALLO citan algunos a mano.
+static var AT_TIMEOUTS_CFG: Dictionary = AT_CFG.get("timeouts", {})
+static var AT_LOOP_TIMEOUT_SEC: float = AssetDefs.num(AT_TIMEOUTS_CFG, "loop_sec", 190.0)
+static var AT_BESTIARY_TIMEOUT_SEC: float = AssetDefs.num(AT_TIMEOUTS_CFG, "bestiary_sec", 60.0)
+static var AT_JUMP_TIMEOUT_SEC: float = AssetDefs.num(AT_TIMEOUTS_CFG, "jump_sec", 150.0)
+static var AT_FLIGHT_CFG: Dictionary = AT_CFG.get("flight", {})
+static var AT_REROUTE_SEC: float = AssetDefs.num(AT_FLIGHT_CFG, "reroute_sec", 2.0)
+static var AT_APPROACH_OFFSET: Vector2 = AssetDefs.vec2(AT_FLIGHT_CFG.get("approach_offset"), Vector2(120, 0))
+static var AT_HUNT_CFG: Dictionary = AT_CFG.get("hunt", {})
+static var AT_ENGAGE_DIST: float = AssetDefs.num(AT_HUNT_CFG, "engage_dist", 450.0)
+static var AT_HUNT_TIMEOUT_SEC: float = AssetDefs.num(AT_HUNT_CFG, "timeout_sec", 45.0)
+static var AT_MIN_CLOSURE_SPEED: float = AssetDefs.num(AT_HUNT_CFG, "min_closure_speed", 1.0)
+static var AT_PHASES_CFG: Dictionary = AT_CFG.get("phases", {})
+static var AT_START_DELAY_SEC: float = AssetDefs.num(AT_PHASES_CFG, "start_delay_sec", 1.5)
+static var AT_SPAWN_SETTLE_SEC: float = AssetDefs.num(AT_PHASES_CFG, "spawn_settle_sec", 3.0)
+static var AT_COMBAT_SHOTS_FOR_PHOTO: int = int(AssetDefs.num(AT_PHASES_CFG, "combat_shots_for_photo", 3))
+static var AT_BOX_PHOTO_DIST: float = AssetDefs.num(AT_PHASES_CFG, "box_photo_dist", 520.0)
+static var AT_STATION_APPROACH_OFFSET: Vector2 = AssetDefs.vec2(AT_PHASES_CFG.get("station_approach_offset"), Vector2(330, 60))
+static var AT_STATION_NEAR_DIST: float = AssetDefs.num(AT_PHASES_CFG, "station_near_dist", 420.0)
+static var AT_STEP_WAIT_SEC: float = AssetDefs.num(AT_PHASES_CFG, "step_wait_sec", 1.0)
+static var AT_RECONNECT_WAIT_SEC: float = AssetDefs.num(AT_PHASES_CFG, "reconnect_wait_sec", 3.0)
+static var AT_PORTAL_REST_SEC: float = AssetDefs.num(AT_PHASES_CFG, "portal_rest_sec", 1.5)
+static var AT_PORTAL_OPEN_SEC: float = AssetDefs.num(AT_PHASES_CFG, "portal_open_sec", 3.0)
+static var AT_SETTINGS_WAIT_SEC: float = AssetDefs.num(AT_PHASES_CFG, "settings_wait_sec", 0.6)
+static var AT_WINDOWS_WAIT_SEC: float = AssetDefs.num(AT_PHASES_CFG, "windows_wait_sec", 0.5)
+static var AT_ZOOM_WAIT_SEC: float = AssetDefs.num(AT_PHASES_CFG, "zoom_wait_sec", 0.4)
+static var AT_MINIMAP_MAX_DEFORMATION: float = AssetDefs.num(AT_PHASES_CFG, "minimap_max_deformation", 0.02)
+static var AT_MINIMAP_ZOOM_STEP: int = int(AssetDefs.num(AT_PHASES_CFG, "minimap_zoom_step", 2))
+static var AT_JUMP_CFG: Dictionary = AT_CFG.get("jump", {})
+static var AT_JUMP_PORTAL_NEAR_DIST: float = AssetDefs.num(AT_JUMP_CFG, "portal_near_dist", 400.0)
+static var AT_JUMP_FAR_INSET: float = AssetDefs.num(AT_JUMP_CFG, "far_target_inset", 2000)
+static var AT_JUMP_CURSOR_INSET: float = AssetDefs.num(AT_JUMP_CFG, "cursor_inset", 1500)
+static var AT_JUMP_ARRIVAL_TIMEOUT_SEC: float = AssetDefs.num(AT_JUMP_CFG, "arrival_timeout_sec", 15.0)
+static var AT_JUMP_SETTLE_SEC: float = AssetDefs.num(AT_JUMP_CFG, "settle_sec", 1.5)
+static var AT_JUMP_MAX_CAMERA_DIST: float = AssetDefs.num(AT_JUMP_CFG, "max_camera_dist", 150.0)
+static var AT_JUMP_MAX_DRIFT: float = AssetDefs.num(AT_JUMP_CFG, "max_drift", 200.0)
+static var AT_PORTRAIT_CFG: Dictionary = AT_CFG.get("portrait", {})
+static var AT_QUALITY_CHANGE_WAIT_SEC: float = AssetDefs.num(AT_PORTRAIT_CFG, "quality_change_wait_sec", 1.0)
+static var AT_FIRST_FRAME_SEC: float = AssetDefs.num(AT_PORTRAIT_CFG, "first_frame_sec", 1.2)
+static var AT_SECOND_FRAME_SEC: float = AssetDefs.num(AT_PORTRAIT_CFG, "second_frame_sec", 2.1)
+static var AT_DUMMY_POS_FRACTION: Vector2 = AssetDefs.vec2(AT_PORTRAIT_CFG.get("dummy_pos_fraction"), Vector2(0.5, 0.25))
+static var AT_CROP_Y_FROM: float = AssetDefs.num(AT_PORTRAIT_CFG, "crop_y_from", 0.30)
+static var AT_CROP_Y_TO: float = AssetDefs.num(AT_PORTRAIT_CFG, "crop_y_to", 0.70)
+static var AT_CROP_X_FROM: float = AssetDefs.num(AT_PORTRAIT_CFG, "crop_x_from", 0.35)
+static var AT_CROP_X_TO: float = AssetDefs.num(AT_PORTRAIT_CFG, "crop_x_to", 0.65)
+static var AT_CROP_STEP: int = int(AssetDefs.num(AT_PORTRAIT_CFG, "crop_step", 2))
+
 
 func _autotest(delta: float) -> void:
 	_autotest_t += delta
@@ -1474,23 +1624,23 @@ func _autotest(delta: float) -> void:
 	# modo BESTIARIO: solo los retratos. La pasada completa tarda ~3 min y para
 	# calibrar un shader eso es un peaje: se salta directo a la fase 10.
 	if Session.autotest_mode == "bestiario":
-		if _autotest_t > 60.0:
+		if _autotest_t > AT_BESTIARY_TIMEOUT_SEC:
 			_at_capture("BESTIARIO TIMEOUT en el bicho %d" % _at_creature, 1)
 			return
 		if _at_phase == 0:
 			# margen para que lleguen todos los spawns del mapa
-			if _autotest_t < 3.0 or _hero == null:
+			if _autotest_t < AT_SPAWN_SETTLE_SEC or _hero == null:
 				return
 			_at_free_camera = true
 			_at_phase = 10
 		_autotest_bestiary()
 		return
-	if _autotest_t > 190.0:
+	if _autotest_t > AT_LOOP_TIMEOUT_SEC:
 		_at_capture("AUTOTEST TIMEOUT en fase %d" % _at_phase, 1)
 		return
 	match _at_phase:
 		0:
-			if _autotest_t > 1.5 and _hero != null:
+			if _autotest_t > AT_START_DELAY_SEC and _hero != null:
 				# el Vex mas cercano, no el NPC mas cercano: con cinco especies en
 				# el mapa el vecino podia ser un Skarnox de 47 s de TTK y el
 				# autotest se comia su propio limite de tiempo peleando
@@ -1509,7 +1659,7 @@ func _autotest(delta: float) -> void:
 				_at_target = nearest.entity_id
 				_at_hunt_since = _autotest_t
 				_at_hunt_dist = _hero.position.distance_to(nearest.position)
-				_fly_to(nearest.position + Vector2(120, 0))
+				_fly_to(nearest.position + AT_APPROACH_OFFSET)
 				_at_phase = 1
 		1:
 			var vex: EntityNode = _entities.get(_at_target)
@@ -1521,7 +1671,7 @@ func _autotest(delta: float) -> void:
 			# esto correria para siempre. Y un fallo con nombre —"la caza no
 			# cerro en 45 s"— vale mil veces mas que un TIMEOUT generico, que no
 			# dice en que se atasco ni por que.
-			if _autotest_t - _at_hunt_since > 45.0:
+			if _autotest_t - _at_hunt_since > AT_HUNT_TIMEOUT_SEC:
 				_at_capture("AUTOTEST FALLO — la caza no logro ponerse a tiro en 45 s "
 					+ "(nave 320 contra Vex 270: revisa velocidades o densidad de bichos)", 1)
 				return
@@ -1542,7 +1692,7 @@ func _autotest(delta: float) -> void:
 			# AHORA y se cambia si compensa. Con quince Vex vagabundeando, la
 			# presa acaba viniendo sola — el bot deja de correr detras de uno y
 			# pasa a quedarse con el que se acerque.
-			if _autotest_t - _at_last_flight > 2.0:
+			if _autotest_t - _at_last_flight > AT_REROUTE_SEC:
 				_at_last_flight = _autotest_t
 				# `_mejor_presa` ya ordena por tiempo de intercepcion, asi que si
 				# devuelve otra es que se llega antes a esa. El margen del 20% de
@@ -1553,9 +1703,9 @@ func _autotest(delta: float) -> void:
 				if other != null and other.entity_id != _at_target:
 					_at_target = other.entity_id
 					vex = other
-				if _hero.position.distance_to(vex.position) > 450.0:
-					_fly_to(vex.position + Vector2(120, 0))
-			if _hero.position.distance_to(vex.position) < 450.0:
+				if _hero.position.distance_to(vex.position) > AT_ENGAGE_DIST:
+					_fly_to(vex.position + AT_APPROACH_OFFSET)
+			if _hero.position.distance_to(vex.position) < AT_ENGAGE_DIST:
 				_select(vex)
 				_laser_on = true
 				var msg := MexProtocol.LaserToggle.new()
@@ -1563,13 +1713,13 @@ func _autotest(delta: float) -> void:
 				_conn.send(msg.encode())
 				# el minimo teorico es (distancia - alcance) / velocidad de la nave:
 				# si el tiempo real se le parece, no hay nada que arreglar — es viaje
-				var t_min: float = maxf(_at_hunt_dist - 450.0, 0.0) / maxf(_hero.speed, 1.0)
+				var t_min: float = maxf(_at_hunt_dist - AT_ENGAGE_DIST, 0.0) / maxf(_hero.speed, 1.0)
 				print("AUTOTEST caza: %.1f s (presa inicial a %.0f u · minimo teorico %.1f s)"
 					% [_autotest_t - _at_hunt_since, _at_hunt_dist, t_min])
 				_at_phase = 2
 		2:
 			# captura extra a media pelea: sirve de QA visual del combate
-			if not _at_shot_combat and _at_shots >= 3:
+			if not _at_shot_combat and _at_shots >= AT_COMBAT_SHOTS_FOR_PHOTO:
 				_at_shot_combat = true
 				var img_c := get_viewport().get_texture().get_image()
 				img_c.save_png(Session.autotest_screenshot.replace(".png", "-combate.png"))
@@ -1577,10 +1727,10 @@ func _autotest(delta: float) -> void:
 			var npc_goal: EntityNode = _entities.get(_at_target)
 			if npc_goal != null and _hero.attack_target == null:
 				_hero.set_attack_target(npc_goal)
-			if npc_goal != null and _hero.position.distance_to(npc_goal.position) > 450.0 \
-					and _autotest_t - _at_last_flight > 2.0:
+			if npc_goal != null and _hero.position.distance_to(npc_goal.position) > AT_ENGAGE_DIST \
+					and _autotest_t - _at_last_flight > AT_REROUTE_SEC:
 				_at_last_flight = _autotest_t
-				_fly_to(npc_goal.position + Vector2(120, 0))
+				_fly_to(npc_goal.position + AT_APPROACH_OFFSET)
 			# _on_destroyed limpia la seleccion; la caja aparece via BoxSpawn y
 			# el click-flujo se simula fijando el pending directamente
 			if not _entities.has(_at_target):
@@ -1595,19 +1745,19 @@ func _autotest(delta: float) -> void:
 			# unico momento en que se la puede fotografiar. Se dispara a 520 y no
 			# pegado: al llegar encima, la nave la tapa entera.
 			if not _at_shot_box and _pending_box != 0 \
-					and _hero.position.distance_to(_pending_box_pos) < 520.0:
+					and _hero.position.distance_to(_pending_box_pos) < AT_BOX_PHOTO_DIST:
 				_at_shot_box = true
 				var img_k := get_viewport().get_texture().get_image()
 				img_k.save_png(Session.autotest_screenshot.replace(".png", "-caja.png"))
 			# recogida hecha: volver a la base
 			if _at_collected:
-				_fly_to(_station_pos + Vector2(330, 60))
+				_fly_to(_station_pos + AT_STATION_APPROACH_OFFSET)
 				_at_phase = 4
 		4:
 			# se acerca de verdad a la estacion antes de descargar (asi la
 			# captura del autotest sirve tambien para revisar su arte)
-			if _at_base and _hero.position.distance_to(_station_pos) < 420.0 \
-					and _autotest_t - _at_last_flight > 1.0:
+			if _at_base and _hero.position.distance_to(_station_pos) < AT_STATION_NEAR_DIST \
+					and _autotest_t - _at_last_flight > AT_STEP_WAIT_SEC:
 				# al ENTRAR en rango la Estacion se abre sola y sus acciones se
 				# encienden; el icono de la taskbar tiene que enterarse
 				if not _base.visible or not _taskbar.is_marked("estacion"):
@@ -1632,7 +1782,7 @@ func _autotest(delta: float) -> void:
 			# tarde que los bichos no soltaban ese: la prueba esperaba para
 			# siempre una confirmacion que no iba a llegar. Una prueba no puede
 			# depender de que la suerte reparta un material concreto.
-			if _at_unloaded and _autotest_t - _at_last_flight > 1.0:
+			if _at_unloaded and _autotest_t - _at_last_flight > AT_STEP_WAIT_SEC:
 				_at_last_flight = _autotest_t
 				var material := _base.first_sellable()
 				if material == "":
@@ -1647,14 +1797,14 @@ func _autotest(delta: float) -> void:
 				_at_phase = 6
 		6:
 			# chat: se manda al canal GLOBAL y debe volver por el mismo socket
-			if _at_sold and _autotest_t - _at_last_flight > 1.0:
+			if _at_sold and _autotest_t - _at_last_flight > AT_STEP_WAIT_SEC:
 				_at_last_flight = _autotest_t
 				_chat.focus_on()
 				_chat.send_message.emit(0, "autotest: hola sector")
 				_at_phase = 7
 		7:
 			# eco del chat recibido -> cortar la red y volver con el token
-			if _at_chat_ok and _autotest_t - _at_last_flight > 1.0:
+			if _at_chat_ok and _autotest_t - _at_last_flight > AT_STEP_WAIT_SEC:
 				_at_last_flight = _autotest_t
 				_conn.simulate_drop()
 				_at_phase = 8
@@ -1662,7 +1812,7 @@ func _autotest(delta: float) -> void:
 			# QA visual del portal: volar hasta el borde del mapa costaria ~50 s de
 			# reloj, asi que se suelta la camara y se retrata en su sitio
 			if _at_reconnected and _hero != null \
-					and _autotest_t - _at_last_flight > 3.0:
+					and _autotest_t - _at_last_flight > AT_RECONNECT_WAIT_SEC:
 				_at_last_flight = _autotest_t
 				if _portals.is_empty():
 					_at_capture("AUTOTEST FALLO — el mapa llego sin portales", 1)
@@ -1672,7 +1822,7 @@ func _autotest(delta: float) -> void:
 				_at_phase = 9
 		9:
 			# retrato en REPOSO: con atlas, el aro dormido del primer fotograma
-			if _autotest_t - _at_last_flight > 1.5:
+			if _autotest_t - _at_last_flight > AT_PORTAL_REST_SEC:
 				var img_p := get_viewport().get_texture().get_image()
 				img_p.save_png(Session.autotest_screenshot.replace(".png", "-portal.png"))
 				_at_last_flight = _autotest_t
@@ -1682,7 +1832,7 @@ func _autotest(delta: float) -> void:
 			# ...y retrato ABIERTO, tras los 2,1 s del encendido. Una foto sola no
 			# prueba nada: se comprueba que la secuencia llego a su ultimo
 			# fotograma, que es donde el portal se queda al saltar.
-			if _autotest_t - _at_last_flight > 3.0:
+			if _autotest_t - _at_last_flight > AT_PORTAL_OPEN_SEC:
 				var img_a := get_viewport().get_texture().get_image()
 				img_a.save_png(Session.autotest_screenshot.replace(".png", "-portal-abierto.png"))
 				# el encendido es del MODELO desde la tarde del 1-sep (luces en
@@ -1711,7 +1861,7 @@ func _autotest(delta: float) -> void:
 			_at_last_flight = _autotest_t
 			_at_phase = 92
 		92:
-			if _autotest_t - _at_last_flight > 0.6:
+			if _autotest_t - _at_last_flight > AT_SETTINGS_WAIT_SEC:
 				var img_c := get_viewport().get_texture().get_image()
 				img_c.save_png(Session.autotest_screenshot.replace(".png", "-ajustes.png"))
 				if not _settings.visible:
@@ -1777,15 +1927,15 @@ func _autotest(delta: float) -> void:
 			# —`canvas_cuadra`— espera a la fase siguiente.
 			for i in _minimap.zoom_steps():
 				_minimap.zoom_to(i)
-				if _minimap.deformation() > 0.02:
+				if _minimap.deformation() > AT_MINIMAP_MAX_DEFORMATION:
 					_at_capture("AUTOTEST FALLO — el minimapa se deforma en el paso %d (%.3f)"
 						% [i, _minimap.deformation()], 1)
 					return
-			_minimap.zoom_to(2)
+			_minimap.zoom_to(AT_MINIMAP_ZOOM_STEP)
 			_at_last_flight = _autotest_t
 			_at_phase = 95
 		95:
-			if _autotest_t - _at_last_flight > 0.5:
+			if _autotest_t - _at_last_flight > AT_WINDOWS_WAIT_SEC:
 				if not _at_jump_rejected:
 					_at_capture("AUTOTEST FALLO — el server no rechazo un salto desde lejos", 1)
 					return
@@ -1809,7 +1959,7 @@ func _autotest(delta: float) -> void:
 				_stage.zoom_direct(Stage3D.ZOOM_MAX)
 				_at_phase = 96
 		96:
-			if _autotest_t - _at_last_flight > 0.4:
+			if _autotest_t - _at_last_flight > AT_ZOOM_WAIT_SEC:
 				var img_z := get_viewport().get_texture().get_image()
 				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
 				_stage.zoom_direct(Stage3D.ZOOM_MIN)
@@ -1853,13 +2003,13 @@ func _portrait_motion() -> float:
 	var h := a.get_height()
 	var diff := 0.0
 	var brightness := 0.0
-	for y in range(int(h * 0.30), int(h * 0.70), 2):
-		for x in range(int(w * 0.35), int(w * 0.65), 2):
+	for y in range(int(h * AT_CROP_Y_FROM), int(h * AT_CROP_Y_TO), AT_CROP_STEP):
+		for x in range(int(w * AT_CROP_X_FROM), int(w * AT_CROP_X_TO), AT_CROP_STEP):
 			var lum_a := a.get_pixel(x, y).get_luminance()
 			var lb := b.get_pixel(x, y).get_luminance()
 			diff += absf(lum_a - lb)
 			brightness += lum_a
-	return diff / maxf(brightness, 0.0001)
+	return diff / maxf(brightness, AT_EPSILON)
 
 
 func _read_png(path: String) -> Image:
@@ -1891,7 +2041,7 @@ func _hull_difference(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 		diff += absf(va - vb)
 		brightness += va
 		n += 1
-	if n < 400 or brightness <= 0.0001:
+	if n < AT_RELIEF_MIN_SAMPLES or brightness <= AT_EPSILON:
 		return NAN
 	return diff / brightness
 
@@ -1901,7 +2051,7 @@ func _hull_difference(a: PackedFloat32Array, b: PackedFloat32Array) -> float:
 ## a 45 grados le ensenia la altura sola, que es justo lo que su elevacion
 ## oblicua fingia antes. Devuelve false si no hay modelo y se cae al quad.
 func _mount_station_3d(d: Dictionary) -> bool:
-	var path := str(d.get("modelo", ""))
+	var path := str(d.get("model", ""))
 	if path == "" or not ResourceLoader.exists(path):
 		return false
 	var scene: PackedScene = load(path)
@@ -1917,12 +2067,12 @@ func _mount_station_3d(d: Dictionary) -> bool:
 	_station_mats = AssetDefs.materials_3d(_station_model)
 	if _station_mats.is_empty():
 		push_warning("estacion 3D sin materiales: la emision no va a latir")
-	_station_emission = float(d.get("emision", 1.0))
+	_station_emission = float(d.get("emission", STATION_EMISSION))
 	var pulse_def: Dictionary = d.get("pulse", {})
-	_station_pulse_min = float(pulse_def.get("min_intensity", 0.55))
-	_station_pulse_max = float(pulse_def.get("max_intensity", 1.8))
-	_station_pulse_speed = float(pulse_def.get("speed", 1.1))
-	_station_pulse_sharpness = float(pulse_def.get("sharpness", 1.6))
+	_station_pulse_min = float(pulse_def.get("min_intensity", STATION_PULSE_MIN))
+	_station_pulse_max = float(pulse_def.get("max_intensity", STATION_PULSE_MAX))
+	_station_pulse_speed = float(pulse_def.get("speed", STATION_PULSE_SPEED))
+	_station_pulse_sharpness = float(pulse_def.get("sharpness", STATION_PULSE_SHARPNESS))
 	return true
 
 
@@ -2010,7 +2160,7 @@ func _residue_on_unturn(a: PackedFloat32Array, b: PackedFloat32Array, degrees: f
 			rot_diff += absf(va - vb)
 			raw_diff += absf(va - raw_vb)
 			n += 1
-	if n < 400 or raw_diff <= 0.0001:
+	if n < AT_RELIEF_MIN_SAMPLES or raw_diff <= AT_EPSILON:
 		return NAN
 	return rot_diff / raw_diff
 
@@ -2019,10 +2169,11 @@ func _residue_on_unturn(a: PackedFloat32Array, b: PackedFloat32Array, degrees: f
 ## `vex` a `vex` + `vexor` sube la densidad de presa de 15 a 23 en el 1-1, y ya
 ## no hay motivo para exigir una especie concreta — desde que la venta pregunta
 ## al almacen que hay, al bot le sirve cualquier caja.
-const AT_PREY := ["vex", "vexor"]
+static var AT_PREY: Array = _strings(AT_CFG.get("prey"), ["vex", "vexor"])
 
 ## Lado de la caja con la que se retrata el casco para la prueba del relieve.
-const BOX := 128
+static var RELIEF_CFG: Dictionary = AT_CFG.get("relief", {})
+static var BOX: int = int(AssetDefs.num(RELIEF_CFG, "box_px", 128))
 
 ## Margen del encuadre de la estacion y ELEVACION de su camara, en grados: 90 es
 ## cenital y por debajo empieza el escorzo.
@@ -2033,21 +2184,33 @@ const BOX := 128
 ##
 ## Al bajarla hay que encuadrar con `extension_vista` y no con la huella: la
 ## altura pasa a ocupar pantalla y con la huella la torre se sale por arriba.
-const STATION_MARGIN := 1.15
-const STATION_ELEVATION := 30.0
+static var STATION_CFG: Dictionary = CFG.get("station", {})
+static var STATION_MARGIN: float = AssetDefs.num(STATION_CFG, "margin", 1.15)
+static var STATION_ELEVATION: float = AssetDefs.num(STATION_CFG, "elevation_deg", 30.0)
+## Altura del anillo de la zona segura y el latido de la emision por defecto (la
+## ficha data/props/station.json manda cuando trae `emission`/`pulse`).
+static var STATION_RING_HEIGHT: float = AssetDefs.num(STATION_CFG, "ring_height", 1.0)
+static var STATION_EMISSION: float = AssetDefs.num(STATION_CFG, "emission", 1.0)
+static var STATION_PULSE_CFG: Dictionary = STATION_CFG.get("pulse", {})
+static var STATION_PULSE_MIN: float = AssetDefs.num(STATION_PULSE_CFG, "min_intensity", 0.55)
+static var STATION_PULSE_MAX: float = AssetDefs.num(STATION_PULSE_CFG, "max_intensity", 1.8)
+static var STATION_PULSE_SPEED: float = AssetDefs.num(STATION_PULSE_CFG, "speed", 1.1)
+static var STATION_PULSE_SHARPNESS: float = AssetDefs.num(STATION_PULSE_CFG, "sharpness", 1.6)
 
 ## Por debajo de esto un bicho se considera QUIETO entre sus dos retratos. Es un
 ## suelo de ruido, no un objetivo: dos capturas del mismo fotograma dan 0 exacto.
-const MIN_MOVE := 0.004
+static var MIN_MOVE: float = AssetDefs.num(AT_PORTRAIT_CFG, "min_move", 0.004)
 
 ## Fotogramas de asiento antes de la primera foto del relieve.
-const SETTLE := 3
+static var SETTLE: int = int(AssetDefs.num(RELIEF_CFG, "settle_frames", 3))
 ## Cuanto se gira la nave (y cuanto se le miente la luz) durante la prueba.
-const RELIEF_SPIN := 90.0
+static var RELIEF_SPIN: float = AssetDefs.num(RELIEF_CFG, "spin_deg", 90.0)
 ## Cuanto tienen que moverse los pixeles al mentirle la luz al shader. El umbral
 ## puede ser ridiculamente bajo porque el caso roto es CERO EXACTO: misma nave,
 ## mismo sitio, mismo rumbo, solo cambia un uniform que se estaria ignorando.
-const MIN_EFFECT := 0.02
+static var MIN_EFFECT: float = AssetDefs.num(RELIEF_CFG, "min_effect", 0.02)
+static var AT_RELIEF_MIN_SAMPLES: int = int(AssetDefs.num(RELIEF_CFG, "min_samples", 400))
+static var AT_EPSILON: float = AssetDefs.num(RELIEF_CFG, "epsilon", 0.0001)
 
 
 ## La mejor presa NO es la mas cercana: es a la que se llega antes.
@@ -2067,16 +2230,35 @@ const MIN_EFFECT := 0.02
 ## corrida barre un mapa distinto. Volando a 320 con 2000 de rango, cada tramo
 ## peina un pasillo de 4000 de ancho: con quince Vex sueltos, el primero suele
 ## aparecer antes de terminar el primer tramo.
-const AT_PATROL: Array[Vector2] = [
+static var AT_PATROL_CFG: Dictionary = AT_CFG.get("patrol", {})
+static var AT_PATROL: Array[Vector2] = _vec2_list(AT_PATROL_CFG.get("waypoints"), [
 	Vector2(4000, 3000), Vector2(16000, 3000), Vector2(16000, 9500),
 	Vector2(4000, 9500), Vector2(10400, 6400),
-]
+])
+static var AT_PATROL_ARRIVE_DIST: float = AssetDefs.num(AT_PATROL_CFG, "arrive_dist", 400.0)
+
+
+## Lista de strings desde un JSON (la de respaldo si falta o esta vacia).
+static func _strings(v: Variant, fallback: Array) -> Array:
+	if typeof(v) == TYPE_ARRAY and not (v as Array).is_empty():
+		return v as Array
+	return fallback
+
+
+## Lista de Vector2 desde un JSON `[[x, y], ...]` (la de respaldo si falta).
+static func _vec2_list(v: Variant, fallback: Array[Vector2]) -> Array[Vector2]:
+	if typeof(v) != TYPE_ARRAY or (v as Array).is_empty():
+		return fallback
+	var out: Array[Vector2] = []
+	for p in v:
+		out.append(AssetDefs.vec2(p))
+	return out
 
 var _at_patrol_i := -1
 
 
 func _at_patrol() -> void:
-	if _at_patrol_i >= 0 and _hero.position.distance_to(_at_patrol_dest()) > 400.0:
+	if _at_patrol_i >= 0 and _hero.position.distance_to(_at_patrol_dest()) > AT_PATROL_ARRIVE_DIST:
 		return                            # sigue en camino al waypoint actual
 	_at_patrol_i = (_at_patrol_i + 1) % AT_PATROL.size()
 	_fly_to(_at_patrol_dest())
@@ -2095,16 +2277,16 @@ func _best_prey() -> EntityNode:
 			continue
 		var towards := e.position - _hero.position
 		var d := towards.length()
-		if d <= 450.0:
+		if d <= AT_ENGAGE_DIST:
 			return e                      # ya esta a tiro: no hay nada mejor
 		var dir := towards / d
 		var v := Vector2.ZERO
-		if e.speed > 0.0 and e.goal.distance_to(e.position) > 1.0:
+		if e.speed > 0.0 and e.goal.distance_to(e.position) > GOAL_REACHED_DIST:
 			v = (e.goal - e.position).normalized() * e.speed
 		var closure := _hero.speed - v.dot(dir)
-		if closure <= 1.0:
+		if closure <= AT_MIN_CLOSURE_SPEED:
 			continue                      # huye tan rapido como volamos: inalcanzable
-		var t := (d - 450.0) / closure
+		var t := (d - AT_ENGAGE_DIST) / closure
 		if t < better:
 			better = t
 			chosen = e
@@ -2125,7 +2307,7 @@ func _best_prey() -> EntityNode:
 ## El salto de sector, de punta a punta: volar al portal, cruzarlo, y comprobar
 ## que se llego a OTRO mapa con la nave entera.
 func _autotest_jump() -> void:
-	if _autotest_t > 150.0:
+	if _autotest_t > AT_JUMP_TIMEOUT_SEC:
 		_at_capture("SALTO TIMEOUT en la fase %d (mapa %s)" % [_at_phase, _map_code], 1)
 		return
 	match _at_phase:
@@ -2143,10 +2325,10 @@ func _autotest_jump() -> void:
 		1:
 			# reencaminar cada 2 s: el clamp del server y la deriva hacen que un
 			# solo `volar_a` se quede corto en un viaje tan largo
-			if _autotest_t - _at_last_flight > 2.0:
+			if _autotest_t - _at_last_flight > AT_REROUTE_SEC:
 				_at_last_flight = _autotest_t
 				_fly_to(_at_jump_portal.position)
-			if _hero.position.distance_to(_at_jump_portal.position) < 400.0:
+			if _hero.position.distance_to(_at_jump_portal.position) < AT_JUMP_PORTAL_NEAR_DIST:
 				var img := get_viewport().get_texture().get_image()
 				img.save_png(Session.autotest_screenshot.replace(".png", "-salto-antes.png"))
 				# Se salta EN MARCHA, con un destino lejos y sin alcanzar. Es el
@@ -2154,11 +2336,11 @@ func _autotest_jump() -> void:
 				# unico que reproduce el fallo: volando justo hasta el portal, el
 				# autopiloto se completa y se limpia solo antes de saltar, asi
 				# que la prueba pasaba aunque el arreglo no estuviera.
-				_on_autopilot(Vector2(_bounds.x - 2000, _bounds.y - 2000))
+				_on_autopilot(_bounds - Vector2.ONE * AT_JUMP_FAR_INSET)
 				# y con el boton SOSTENIDO apuntando lejos, que es como se salta
 				# huyendo: eso es lo que seguia mandando destinos del mapa viejo
 				# por el socket del mapa nuevo
-				_at_cursor = Vector2(_bounds.x - 1500, _bounds.y - 1500)
+				_at_cursor = _bounds - Vector2.ONE * AT_JUMP_CURSOR_INSET
 				_hold_move = true
 				_hold_timer = 0.0
 				# por el camino DEL JUGADOR, no mandando el mensaje a mano: asi la
@@ -2176,10 +2358,10 @@ func _autotest_jump() -> void:
 				_hold_move = false
 				_at_last_flight = _autotest_t
 				_at_phase = 3
-			elif _autotest_t - _at_last_flight > 15.0:
+			elif _autotest_t - _at_last_flight > AT_JUMP_ARRIVAL_TIMEOUT_SEC:
 				_at_capture("SALTO FALLO — se pidio el salto y el mapa sigue siendo %s" % _map_code, 1)
 		3:
-			if _autotest_t - _at_last_flight < 1.5:
+			if _autotest_t - _at_last_flight < AT_JUMP_SETTLE_SEC:
 				return
 			var img2 := get_viewport().get_texture().get_image()
 			img2.save_png(Session.autotest_screenshot.replace(".png", "-salto-despues.png"))
@@ -2199,12 +2381,12 @@ func _autotest_jump() -> void:
 			# la camara tiene que estar SOBRE la nave nada mas llegar: si se quedo
 			# cruzando desde el mapa viejo, el cursor apunta a coordenadas de otro
 			# sitio y el vuelo sostenido manda la nave alli
-			if _at_jump_camera > 150.0:
+			if _at_jump_camera > AT_JUMP_MAX_CAMERA_DIST:
 				_at_capture("SALTO FALLO — al llegar, la camara estaba a %d unidades de la nave"
 					% _at_jump_camera, 1)
 				return
 			var far_away := _hero.position.distance_to(_at_jump_arrival)
-			if far_away > 200.0:
+			if far_away > AT_JUMP_MAX_DRIFT:
 				_at_capture("SALTO FALLO — aterrizo en (%d, %d) y se fue a (%d, %d): %d unidades"
 					% [_at_jump_arrival.x, _at_jump_arrival.y,
 					   _hero.position.x, _hero.position.y, far_away], 1)
@@ -2237,7 +2419,7 @@ func _autotest_bestiary() -> void:
 				Quality.apply("baja")
 				_at_camera_t = _autotest_t
 				return
-			if _at_quality_change and _autotest_t - _at_camera_t < 1.0:
+			if _at_quality_change and _autotest_t - _at_camera_t < AT_QUALITY_CHANGE_WAIT_SEC:
 				return
 			if _at_quality_change:
 				_portrait("cambio-calidad", "")
@@ -2308,13 +2490,13 @@ func _autotest_bestiary() -> void:
 	# compara. En la pasada del loop sobra — ahi solo se comprueba que existan.
 	var two_frames := Session.autotest_mode == "bestiario"
 	if not _at_first_frame:
-		if dt <= 1.2:
+		if dt <= AT_FIRST_FRAME_SEC:
 			return
 		_at_first_frame = true
 		_portrait(species, "")
 		if two_frames:
 			return
-	elif dt <= 2.1:
+	elif dt <= AT_SECOND_FRAME_SEC:
 		return
 	else:
 		_portrait(species, "-b")
@@ -2363,8 +2545,8 @@ func _dummy_of_species(code: String) -> EntityNode:
 	sp.name = code.capitalize()
 	sp.faction = 0
 	# lejos del heroe y de la estacion, para que nada se cuele en el encuadre
-	sp.x = int(_bounds.x * 0.5)
-	sp.y = int(_bounds.y * 0.25)
+	sp.x = int(_bounds.x * AT_DUMMY_POS_FRACTION.x)
+	sp.y = int(_bounds.y * AT_DUMMY_POS_FRACTION.y)
 	sp.hp_pct = 1.0
 	sp.shield_pct = 1.0
 	sp.speed = 0

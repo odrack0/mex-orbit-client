@@ -32,7 +32,7 @@ var click_radius := 190.0
 ## A que distancia se puede SALTAR. Tiene que casar con `JumpRange` del server
 ## (el cliente propone y el server dispone); el radio de click es aparte y mas
 ## chico a proposito.
-const JUMP_RANGE := 600.0
+static var JUMP_RANGE: float = AssetDefs.num(AssetDefs.prop("portal"), "jump_range", 600.0)
 
 var _data = null                 # MexProtocol.MapPortal, para poder reconstruir
 var _body: Node3D               # el cuerpo en la escena unica
@@ -43,12 +43,18 @@ var _mats_core: Array[BaseMaterial3D] = []
 var _tag: Label              # en la capa HUD del mundo, proyectada
 var _scale_factor := 1.0
 var _size_px := 380.0
+var _body_height := 1.0           # altura del cuerpo sobre el plano de vuelo (JSON `body_height`)
+var _inactive_glow := 0.25        # factor de emision de un portal apagado (JSON `inactive_glow`)
 
-# pose de reposo (JSON `orientacion` / `flotar`)
+# etiqueta (JSON `label`): offset en pixeles de pantalla desde el centro del aro
+var _tag_offset := Vector2(-90, 40)
+
+# pose de reposo (JSON `orientation` / `floating`)
 var _pan := 0.0                   # giro EXTRA sobre la cara a camara (0 = de frente)
 var _base := Basis()              # la cara a camara, calculada una vez
 var _float_deg := 3.0         # el `floating rotation` del original
 var _float_cycle := 6.0
+var _float_yaw_ratio := 0.8       # frecuencia del segundo eje del balanceo, relativa
 var _phase := 0.0
 
 # pulso de reposo (JSON `pulse`): el `<glow duration=5>` del original
@@ -56,15 +62,22 @@ var _pulse_min_e := 0.45
 var _pulse_max_e := 1.6
 var _pulse_speed_e := 0.9
 var _pulse_sharpness := 1.4
+var _pulse_phase_per_id := 1.7    # desfase del pulso por portal_id
 
-# encendido (JSON `encendido`)
+# encendido (JSON `ignition`)
 var _ign_sec := 2.1
 var _ign_glow := 4.0
 var _ign_spin_dps := 240.0
 var _ign_flash := 6.0
+var _ign_flash_height := 0.5      # altura del destello, en fracciones de world_size
+var _ign_flash_radius := 1.5      # alcance del destello, en fracciones de world_size
+var _ign_flash_fade := 0.6        # fundido del destello, en segundos
 var _ign_blink_hz := 6.0       # las luces del aro van y vienen mientras carga
 var _ign_blink_min := 0.15     # a cuanto bajan en el "apagado" del parpadeo
+var _ign_blink_edge_low := 0.35   # umbrales del smoothstep que hace el parpadeo
+var _ign_blink_edge_high := 0.65
 var _ign_vortex := false         # si el centro (el vortice) aparece al encender
+var _ign_vortex_min_scale := 0.02  # escala minima del vortice al arrancar la rampa
 var _igniting := false
 var _open := false
 var _anim_t := 0.0
@@ -111,12 +124,14 @@ func _build() -> void:
 	var d := AssetDefs.prop("portal")
 	click_radius = float(d.get("click_radius", 190))
 	_size_px = float(d.get("world_size", 380))
+	_body_height = AssetDefs.num(d, "body_height", 1.0)
+	_inactive_glow = AssetDefs.num(d, "inactive_glow", 0.25)
 
 	_body = Node3D.new()
-	_body.position = Vector3(position.x, 1.0, position.y)
+	_body.position = Vector3(position.x, _body_height, position.y)
 	Stage3D.instance.add_child(_body)
 
-	var path := str(d.get("modelo", ""))
+	var path := str(d.get("model", ""))
 	if path != "" and ResourceLoader.exists(path):
 		var scene: PackedScene = load(path)
 		if scene != null:
@@ -142,7 +157,7 @@ func _build() -> void:
 						_mats.erase(mat)
 				_core.visible = false
 
-	var orient_def: Dictionary = d.get("orientacion", {})
+	var orient_def: Dictionary = d.get("orientation", {})
 	_pan = float(orient_def.get("pan", 0.0))
 	# de cara a la camara: la normal del aro (Z del modelo) apunta a donde
 	# esta la camara del rig con el tilt BASE (sin el acoplamiento del zoom:
@@ -151,22 +166,30 @@ func _build() -> void:
 	var pn := deg_to_rad(Stage3D.instance.pan_deg + _pan)
 	var towards := Vector3(sin(t) * sin(pn), -cos(t), sin(t) * cos(pn)).normalized()
 	_base = Basis.looking_at(-towards, Vector3.UP)   # -Z mira a -hacia: +Z (la normal) mira a la camara
-	var fl: Dictionary = d.get("flotar", {})
-	_float_deg = float(fl.get("grados", 3.0))
-	_float_cycle = float(fl.get("ciclo", 6.0))
+	var fl: Dictionary = d.get("floating", {})
+	_float_deg = float(fl.get("degrees", 3.0))
+	_float_cycle = float(fl.get("cycle", 6.0))
+	_float_yaw_ratio = AssetDefs.num(fl, "yaw_ratio", 0.8)
 	var pulse_def: Dictionary = d.get("pulse", {})
 	_pulse_min_e = float(pulse_def.get("min_intensity", 0.45))
 	_pulse_max_e = float(pulse_def.get("max_intensity", 1.6))
 	_pulse_speed_e = float(pulse_def.get("speed", 0.9))
 	_pulse_sharpness = float(pulse_def.get("sharpness", 1.4))
-	var ign_def: Dictionary = d.get("encendido", {})
-	_ign_sec = float(ign_def.get("segundos", 2.1))
+	_pulse_phase_per_id = AssetDefs.num(pulse_def, "phase_per_id", 1.7)
+	var ign_def: Dictionary = d.get("ignition", {})
+	_ign_sec = float(ign_def.get("seconds", 2.1))
 	_ign_glow = float(ign_def.get("glow", 4.0))
-	_ign_spin_dps = float(ign_def.get("giro_dps", 240.0))
-	_ign_flash = float(ign_def.get("destello", 6.0))
-	_ign_blink_hz = float(ign_def.get("parpadeo_hz", 6.0))
-	_ign_blink_min = float(ign_def.get("parpadeo_min", 0.15))
-	_ign_vortex = bool(ign_def.get("vortice", false))
+	_ign_spin_dps = float(ign_def.get("spin_dps", 240.0))
+	_ign_flash = float(ign_def.get("flash", 6.0))
+	_ign_flash_height = AssetDefs.num(ign_def, "flash_height", 0.5)
+	_ign_flash_radius = AssetDefs.num(ign_def, "flash_radius", 1.5)
+	_ign_flash_fade = AssetDefs.num(ign_def, "flash_fade_sec", 0.6)
+	_ign_blink_hz = float(ign_def.get("blink_hz", 6.0))
+	_ign_blink_min = float(ign_def.get("blink_min", 0.15))
+	_ign_blink_edge_low = AssetDefs.num(ign_def, "blink_edge_low", 0.35)
+	_ign_blink_edge_high = AssetDefs.num(ign_def, "blink_edge_high", 0.65)
+	_ign_vortex = bool(ign_def.get("vortex", false))
+	_ign_vortex_min_scale = AssetDefs.num(ign_def, "vortex_min_scale", 0.02)
 	_phase = randf() * TAU
 	_apply_pose()
 	_mount_tag(d)
@@ -184,7 +207,7 @@ func _apply_pose() -> void:
 	var sway := deg_to_rad(_float_deg)
 	var rot := _base \
 		* Basis(Vector3.RIGHT, sin(t) * sway) \
-		* Basis(Vector3.UP, cos(t * 0.8) * sway)
+		* Basis(Vector3.UP, cos(t * _float_yaw_ratio) * sway)
 	if _core != null:
 		_core.rotation = Vector3(0.0, 0.0, deg_to_rad(_spin))
 	else:
@@ -200,10 +223,12 @@ func _mount_tag(d: Dictionary) -> void:
 		txt = "Sector %s · inactivo" % target_map_code
 	_tag = NTheme.label(txt, NTheme.exo2(), int(tag_def.get("size", 12)),
 		AssetDefs.color(tag_def.get("color", "A78BFA"), NTheme.VIOLET) if is_working else NTheme.MUTED)
-	_tag.custom_minimum_size = Vector2(180, 0)
+	_tag_offset = AssetDefs.vec2(tag_def.get("offset"), Vector2(-90, 40))
+	_tag.custom_minimum_size = Vector2(AssetDefs.num(tag_def, "width", 180.0), 0)
 	_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_tag.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	_tag.add_theme_constant_override("outline_size", 4)
+	_tag.add_theme_color_override("font_outline_color",
+		Color(0, 0, 0, AssetDefs.num(tag_def, "outline_alpha", 0.85)))
+	_tag.add_theme_constant_override("outline_size", int(AssetDefs.num(tag_def, "outline_size", 4)))
 	if EntityNode.hud_layer != null:
 		EntityNode.hud_layer.add_child(_tag)
 	else:
@@ -219,8 +244,8 @@ func activate() -> bool:
 	_anim_t = 0.0
 	# el destello: una luz del pool sobre el aro, que aguanta el encendido
 	# entero y se funde sola (solo con luces dinamicas, `luces` >= 1)
-	Stage3D.instance.effect_light(Vector3(position.x, _size_px * 0.5, position.y), NTheme.CYAN,
-		_ign_flash, _size_px * 1.5, _ign_sec, 0.6)
+	Stage3D.instance.effect_light(Vector3(position.x, _size_px * _ign_flash_height, position.y),
+		NTheme.CYAN, _ign_flash, _size_px * _ign_flash_radius, _ign_sec, _ign_flash_fade)
 	return true
 
 
@@ -244,14 +269,15 @@ func _process(delta: float) -> void:
 	# la camara si — y con el tilt-zoom la proyeccion cambia cada frame)
 	if _tag != null and Stage3D.instance != null:
 		var px := Stage3D.instance.to_screen(position)
-		_tag.position = (px + Vector2(-90, 40)).floor()
+		_tag.position = (px + _tag_offset).floor()
 	if _body != null:
 		_body.visible = visible
 	if _model == null:
 		return
 
 	# reposo: el glow senoidal de 5 s del original, con fase propia
-	var wave := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed_e + portal_id * 1.7)
+	var wave := 0.5 + 0.5 * sin(Time.get_ticks_msec() * 0.001 * _pulse_speed_e
+		+ portal_id * _pulse_phase_per_id)
 	var e: float = _pulse_min_e + (_pulse_max_e - _pulse_min_e) * pow(wave, _pulse_sharpness)
 
 	var e_core := 0.0
@@ -264,13 +290,14 @@ func _process(delta: float) -> void:
 		e = lerpf(e, _ign_glow, k)
 		if _igniting:
 			var par := 0.5 + 0.5 * sin(_anim_t * _ign_blink_hz * TAU)
-			e *= lerpf(_ign_blink_min, 1.0, smoothstep(0.35, 0.65, par))
+			e *= lerpf(_ign_blink_min, 1.0,
+				smoothstep(_ign_blink_edge_low, _ign_blink_edge_high, par))
 		_spin = fmod(_spin + lerpf(0.0, _ign_spin_dps, k) * delta, 360.0)
 		e_core = lerpf(0.0, _ign_glow, k)
 		if _core != null:
 			# el vortice solo si el JSON lo pide (2-sep: apagado, no gusto en vivo)
 			_core.visible = _ign_vortex
-			_core.scale = Vector3.ONE * maxf(k, 0.02)
+			_core.scale = Vector3.ONE * maxf(k, _ign_vortex_min_scale)
 		if _igniting:
 			_anim_t += delta
 			if _anim_t >= _ign_sec:
@@ -280,7 +307,7 @@ func _process(delta: float) -> void:
 	elif _core != null:
 		_core.visible = false
 	if not is_working:
-		e *= 0.25          # un portal apagado apenas alumbra
+		e *= _inactive_glow          # un portal apagado apenas alumbra
 	for mat in _mats:
 		mat.emission_energy_multiplier = e
 	for mat in _mats_core:

@@ -22,8 +22,16 @@ extends NWindow
 signal unload_pressed
 signal sell_pressed(material_id: String, amount: int)
 
-const ICON := "res://assets/ui/icons/hangar.svg"
-const WIDTH := 268
+static var CFG: Dictionary = AssetDefs.config("ui").get("station", {})
+static var _BUTTON: Dictionary = CFG.get("button", {})
+static var ICON: String = str(CFG.get("icon", "res://assets/ui/icons/hangar.svg"))
+static var WIDTH: int = int(AssetDefs.num(CFG, "width", 268))
+static var LIST_SEPARATION: int = int(AssetDefs.num(CFG, "list_separation", 3))
+static var ROW_SEPARATION: int = int(AssetDefs.num(CFG, "row_separation", 6))
+static var ENTRY_FONT_SIZE: int = int(AssetDefs.num(CFG, "entry_font_size", 11))
+static var BUTTON_FONT_SIZE: int = int(AssetDefs.num(_BUTTON, "font_size", 7))
+static var BUTTON_HEIGHT: int = int(AssetDefs.num(_BUTTON, "height", 26))
+static var SELL_BUTTON_SIZE: Vector2 = AssetDefs.vec2(_BUTTON.get("sell_size"), Vector2(96, 22))
 
 var _list: VBoxContainer
 var _warning: Label
@@ -54,14 +62,15 @@ func _body() -> void:
 	_unload.pressed.connect(func(): unload_pressed.emit())
 	content.add_child(_unload)
 
-	_warning = NTheme.label("", NTheme.exo2(), 11, NTheme.WARN)
+	_warning = NTheme.label("", NTheme.exo2(), NTheme.ROW_LABEL_FONT_SIZE, NTheme.WARN)
 	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_warning.custom_minimum_size = Vector2(WIDTH - 20, 0)
+	_warning.custom_minimum_size = Vector2(WIDTH - NTheme.PANEL_PAD_LEFT - NTheme.PANEL_PAD_RIGHT, 0)
 	content.add_child(_warning)
 
-	content.add_child(NTheme.label("Almacén — venta al NPC", NTheme.exo2(), 11, NTheme.MUTED))
+	content.add_child(NTheme.label("Almacén — venta al NPC", NTheme.exo2(),
+		NTheme.ROW_LABEL_FONT_SIZE, NTheme.MUTED))
 	_list = VBoxContainer.new()
-	_list.add_theme_constant_override("separation", 3)
+	_list.add_theme_constant_override("separation", LIST_SEPARATION)
 	content.add_child(_list)
 	_refresh()
 
@@ -97,18 +106,18 @@ func first_sellable() -> String:
 
 func _place() -> void:
 	await get_tree().process_frame
-	position = Vector2(12, get_viewport_rect().size.y * 0.5 - size.y * 0.5)
+	position = Vector2(NTheme.SCREEN_MARGIN, get_viewport_rect().size.y * 0.5 - size.y * 0.5)
 
 
 func _button(txt: String) -> Button:
 	var b := Button.new()
 	b.text = txt
 	b.add_theme_font_override("font", NTheme.michroma())
-	b.add_theme_font_size_override("font_size", 7)
+	b.add_theme_font_size_override("font_size", BUTTON_FONT_SIZE)
 	b.add_theme_color_override("font_color", NTheme.CYAN)
 	b.add_theme_color_override("font_disabled_color", NTheme.FAINT)
 	b.focus_mode = Control.FOCUS_NONE
-	b.custom_minimum_size = Vector2(0, 26)
+	b.custom_minimum_size = Vector2(0, BUTTON_HEIGHT)
 	return b
 
 
@@ -116,7 +125,7 @@ func _button(txt: String) -> Button:
 ## accion existe y que falta algo para poder usarla.
 func _lock(b: Button, locked: bool) -> void:
 	b.disabled = locked
-	b.modulate = Color(1, 1, 1, 0.45 if locked else 1.0)
+	b.modulate = Color(1, 1, 1, NTheme.DISABLED_ALPHA if locked else 1.0)
 
 
 func set_prices(prices: Array) -> void:
@@ -143,20 +152,21 @@ func _refresh() -> void:
 	for child in _list.get_children():
 		child.queue_free()
 	if _storage.is_empty():
-		_list.add_child(NTheme.label("(almacén vacío)", NTheme.exo2(), 11, NTheme.FAINT))
+		_list.add_child(NTheme.label("(almacén vacío)", NTheme.exo2(),
+			NTheme.ROW_LABEL_FONT_SIZE, NTheme.FAINT))
 		return
 	for loot_id in _storage:
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
+		row.add_theme_constant_override("separation", ROW_SEPARATION)
 		var entry_name: String = str(loot_id).trim_prefix("material_").capitalize()
 		var tag := NTheme.label("%s  %s" % [entry_name, _thousands(_storage[loot_id])],
-			NTheme.mono(), 11, NTheme.WARN)
+			NTheme.mono(), ENTRY_FONT_SIZE, NTheme.WARN)
 		tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(tag)
 		if _prices.has(loot_id):
 			var b := _button("VENDER  %d C" % _prices[loot_id])
-			b.custom_minimum_size = Vector2(96, 22)
+			b.custom_minimum_size = SELL_BUTTON_SIZE
 			var id: String = loot_id
 			b.pressed.connect(func(): sell_pressed.emit(id, 0))   # 0 = todo
 			_lock(b, not _in_range)

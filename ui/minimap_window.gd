@@ -10,14 +10,67 @@ extends NWindow
 
 signal fly_to(world_pos: Vector2)
 
-const ICON := "res://assets/ui/icons/map.svg"
-const WIDTHS := [180, 238, 300, 380, 460]
+static var CFG: Dictionary = AssetDefs.config("ui").get("minimap", {})
+static var _PORTAL: Dictionary = CFG.get("portal", {})
+static var _NPC: Dictionary = CFG.get("npc", {})
+static var _HERO: Dictionary = CFG.get("hero", {})
+static var _AUTOPILOT: Dictionary = CFG.get("autopilot", {})
+static var _FRAMING: Dictionary = CFG.get("framing", {})
+
+static var ICON: String = str(CFG.get("icon", "res://assets/ui/icons/map.svg"))
+static var WIDTHS: Array = CFG.get("widths", [180, 238, 300, 380, 460])
+static var DEFAULT_ZOOM_INDEX: int = int(AssetDefs.num(CFG, "default_zoom_index", 2))
+static var FIT_TOLERANCE: float = AssetDefs.num(CFG, "fit_tolerance", 2.0)
+static var CANVAS_BG: Color = _rgba(CFG.get("canvas_bg"), Color(0.02, 0.03, 0.055, 0.9))
+static var GRID_COLUMNS: int = int(AssetDefs.num(CFG, "grid_columns", 5))
+static var GRID_ROWS: int = int(AssetDefs.num(CFG, "grid_rows", 4))
+static var STATION_RADIUS: float = AssetDefs.num(CFG, "station_radius", 4.0)
+static var BOX_RADIUS_FALLBACK: float = AssetDefs.num(CFG, "box_radius_fallback", 2.0)
+static var ENTITY_RADIUS: float = AssetDefs.num(CFG, "entity_radius", 2.0)
+
+static var PORTAL_RADIUS_FALLBACK: float = AssetDefs.num(_PORTAL, "radius_fallback", 3.0)
+static var PORTAL_RADIUS_EXTRA: float = AssetDefs.num(_PORTAL, "radius_extra", 1.0)
+static var PORTAL_RING_RADIUS: float = AssetDefs.num(_PORTAL, "ring_radius", 6.0)
+static var PORTAL_RING_ALPHA: float = AssetDefs.num(_PORTAL, "ring_alpha", 0.45)
+static var PORTAL_RING_POINTS: int = int(AssetDefs.num(_PORTAL, "ring_points", 20))
+
+static var NPC_RING_RADIUS: float = AssetDefs.num(_NPC, "ring_radius", 4.5)
+static var NPC_PULSE_BASE: float = AssetDefs.num(_NPC, "pulse_base", 0.3)
+static var NPC_PULSE_AMPLITUDE: float = AssetDefs.num(_NPC, "pulse_amplitude", 0.25)
+static var NPC_PULSE_SPEED: float = AssetDefs.num(_NPC, "pulse_speed", 2.4)
+static var NPC_RING_POINTS: int = int(AssetDefs.num(_NPC, "ring_points", 20))
+
+static var HERO_RADIUS: float = AssetDefs.num(_HERO, "radius", 3.0)
+static var HERO_RING_RADIUS: float = AssetDefs.num(_HERO, "ring_radius", 5.5)
+static var HERO_RING_ALPHA: float = AssetDefs.num(_HERO, "ring_alpha", 0.5)
+static var HERO_BREATH_AMPLITUDE: float = AssetDefs.num(_HERO, "breath_amplitude", 1.2)
+static var HERO_BREATH_SPEED: float = AssetDefs.num(_HERO, "breath_speed", 3.0)
+static var HERO_RING_POINTS: int = int(AssetDefs.num(_HERO, "ring_points", 24))
+
+static var AUTOPILOT_LINE_ALPHA: float = AssetDefs.num(_AUTOPILOT, "line_alpha", 0.9)
+static var AUTOPILOT_DASH_STEP: float = AssetDefs.num(_AUTOPILOT, "dash_step", 8.0)
+static var AUTOPILOT_DASH_LENGTH: float = AssetDefs.num(_AUTOPILOT, "dash_length", 4.0)
+static var AUTOPILOT_DASH_SPEED: float = AssetDefs.num(_AUTOPILOT, "dash_speed", 14.0)
+static var AUTOPILOT_DASH_WIDTH: float = AssetDefs.num(_AUTOPILOT, "dash_width", 1.5)
+static var AUTOPILOT_CROSS_HALF: float = AssetDefs.num(_AUTOPILOT, "cross_half", 4.0)
+static var AUTOPILOT_CROSS_WIDTH: float = AssetDefs.num(_AUTOPILOT, "cross_width", 1.4)
+
+static var FRAMING_ALPHA: float = AssetDefs.num(_FRAMING, "alpha", 0.45)
+static var FRAMING_FRACTION: float = AssetDefs.num(_FRAMING, "fraction", 0.125)
 
 var _world: Node          # el mundo: entidades, cajas, heroe, limites
-var _wi := 2              # indice del paso de zoom
+var _wi := DEFAULT_ZOOM_INDEX              # indice del paso de zoom
 var _canvas: Control
 var _side := Vector2.ZERO      # el tamanio REAL del mapa dibujado, sin deformar
 var _t := 0.0
+
+
+## Un color con alpha del JSON: {"rgb": "RRGGBB", "alpha": a}.
+static func _rgba(v: Variant, fallback: Color) -> Color:
+	if typeof(v) != TYPE_DICTIONARY:
+		return fallback
+	var d: Dictionary = v
+	return Color(AssetDefs.color(d.get("rgb"), fallback), AssetDefs.num(d, "alpha", fallback.a))
 
 
 func setup(world: Node, map_code: String) -> void:
@@ -82,7 +135,7 @@ func deformation() -> float:
 ## Y que el canvas mida de verdad lo que dice medir: si el contenedor lo estira,
 ## el dibujo y los clicks dejan de coincidir con lo que se ve.
 func canvas_fits() -> bool:
-	return _canvas != null and _canvas.size.distance_to(_side) < 2.0
+	return _canvas != null and _canvas.size.distance_to(_side) < FIT_TOLERANCE
 
 
 func zoom_steps() -> int:
@@ -105,7 +158,7 @@ func _reposition() -> void:
 	await get_tree().process_frame
 	if load_position():
 		return
-	position = get_viewport_rect().size - size - Vector2(12, 12)
+	position = get_viewport_rect().size - size - Vector2(NTheme.SCREEN_MARGIN, NTheme.SCREEN_MARGIN)
 
 
 func _process(delta: float) -> void:
@@ -130,13 +183,15 @@ func _canvas_click(event: InputEvent) -> void:
 func _redraw() -> void:
 	var s := _side
 	# fondo y borde del canvas (tokens N)
-	_canvas.draw_rect(Rect2(Vector2.ZERO, s), Color(0.02, 0.03, 0.055, 0.9))
+	_canvas.draw_rect(Rect2(Vector2.ZERO, s), CANVAS_BG)
 	# rejilla tenue 5x4
-	for i in range(1, 5):
-		_canvas.draw_line(Vector2(s.x * i / 5.0, 0), Vector2(s.x * i / 5.0, s.y), NTheme.EDGE_SOFT, 1)
-	for i in range(1, 4):
-		_canvas.draw_line(Vector2(0, s.y * i / 4.0), Vector2(s.x, s.y * i / 4.0), NTheme.EDGE_SOFT, 1)
-	_canvas.draw_rect(Rect2(Vector2.ZERO, s), NTheme.EDGE, false, 1.0)
+	for i in range(1, GRID_COLUMNS):
+		var x := s.x * i / float(GRID_COLUMNS)
+		_canvas.draw_line(Vector2(x, 0), Vector2(x, s.y), NTheme.EDGE_SOFT, NTheme.HAIRLINE)
+	for i in range(1, GRID_ROWS):
+		var y := s.y * i / float(GRID_ROWS)
+		_canvas.draw_line(Vector2(0, y), Vector2(s.x, y), NTheme.EDGE_SOFT, NTheme.HAIRLINE)
+	_canvas.draw_rect(Rect2(Vector2.ZERO, s), NTheme.EDGE, false, NTheme.HAIRLINE)
 
 	if _world == null:
 		return
@@ -144,21 +199,22 @@ func _redraw() -> void:
 	# mobiliario del mapa primero, para que las entidades queden encima:
 	# la estacion (rombo cian) y los portales (rombo violeta con anillo)
 	var base := _to_map(_world.station_pos())
-	_diamond(base, 4.0, NTheme.CYAN)
+	_diamond(base, STATION_RADIUS, NTheme.CYAN)
 	var dp: Dictionary = AssetDefs.prop("portal").get("minimap", {})
-	var rp: float = float(dp.get("radius", 3.0)) + 1.0
+	var rp: float = AssetDefs.num(dp, "radius", PORTAL_RADIUS_FALLBACK) + PORTAL_RADIUS_EXTRA
 	for p in _world.portal_list().values():
-		var c := AssetDefs.color(dp.get("color", "A78BFA"), NTheme.VIOLET)
+		var c := AssetDefs.color(dp.get("color"), NTheme.VIOLET)
 		if not p.is_working:
 			c = NTheme.MUTED
 		var pp := _to_map(p.position)
 		_diamond(pp, rp, c)
-		_canvas.draw_arc(pp, 6.0, 0, TAU, 20, Color(c, 0.45), 1.0)
+		_canvas.draw_arc(pp, PORTAL_RING_RADIUS, 0, TAU, PORTAL_RING_POINTS,
+			Color(c, PORTAL_RING_ALPHA), NTheme.HAIRLINE)
 
 	# cajas: puntos ambar (su color sale del JSON de la caja)
 	var dc: Dictionary = AssetDefs.prop("cargo-box").get("minimap", {})
-	var cc := AssetDefs.color(dc.get("color", "FFC85C"), NTheme.WARN)
-	var rc := float(dc.get("radius", 2.0))
+	var cc := AssetDefs.color(dc.get("color"), NTheme.WARN)
+	var rc := AssetDefs.num(dc, "radius", BOX_RADIUS_FALLBACK)
 	for box in _world.boxes().values():
 		_canvas.draw_circle(_to_map(box.position), rc, cc)
 
@@ -169,11 +225,12 @@ func _redraw() -> void:
 			continue
 		var p := _to_map(e.position)
 		if e.is_npc:
-			_canvas.draw_circle(p, 2.0, NTheme.HOSTILE)
-			var pulse := 0.3 + 0.25 * sin(_t * 2.4 + e.entity_id)
-			_canvas.draw_arc(p, 4.5, 0, TAU, 20, Color(NTheme.HOSTILE, pulse), 1.0)
+			_canvas.draw_circle(p, ENTITY_RADIUS, NTheme.HOSTILE)
+			var pulse := NPC_PULSE_BASE + NPC_PULSE_AMPLITUDE * sin(_t * NPC_PULSE_SPEED + e.entity_id)
+			_canvas.draw_arc(p, NPC_RING_RADIUS, 0, TAU, NPC_RING_POINTS,
+				Color(NTheme.HOSTILE, pulse), NTheme.HAIRLINE)
 		else:
-			_canvas.draw_circle(p, 2.0, NTheme.TXT)
+			_canvas.draw_circle(p, ENTITY_RADIUS, NTheme.TXT)
 
 	# el heroe: cian con anillo respirando, y su autopiloto si esta activo
 	if hero != null:
@@ -181,11 +238,13 @@ func _redraw() -> void:
 		var auto: Vector2 = _world.autopilot_on()
 		if auto != Vector2.INF:
 			var ap := _to_map(auto)
-			_dotted_line(hp, ap, Color(NTheme.WARN, 0.9))
-			_canvas.draw_line(ap + Vector2(-4, -4), ap + Vector2(4, 4), NTheme.WARN, 1.4)
-			_canvas.draw_line(ap + Vector2(4, -4), ap + Vector2(-4, 4), NTheme.WARN, 1.4)
-		_canvas.draw_circle(hp, 3.0, NTheme.CYAN)
-		_canvas.draw_arc(hp, 5.5 + sin(_t * 3.0) * 1.2, 0, TAU, 24, Color(NTheme.CYAN, 0.5), 1.0)
+			_dotted_line(hp, ap, Color(NTheme.WARN, AUTOPILOT_LINE_ALPHA))
+			var h := AUTOPILOT_CROSS_HALF
+			_canvas.draw_line(ap + Vector2(-h, -h), ap + Vector2(h, h), NTheme.WARN, AUTOPILOT_CROSS_WIDTH)
+			_canvas.draw_line(ap + Vector2(h, -h), ap + Vector2(-h, h), NTheme.WARN, AUTOPILOT_CROSS_WIDTH)
+		_canvas.draw_circle(hp, HERO_RADIUS, NTheme.CYAN)
+		_canvas.draw_arc(hp, HERO_RING_RADIUS + sin(_t * HERO_BREATH_SPEED) * HERO_BREATH_AMPLITUDE,
+			0, TAU, HERO_RING_POINTS, Color(NTheme.CYAN, HERO_RING_ALPHA), NTheme.HAIRLINE)
 
 	# EL ENCUADRE de la camara (§8): las cuatro esquinas del viewport llevadas al
 	# plano del juego, dibujando solo el 12.5% de cada lado desde cada esquina —
@@ -196,11 +255,11 @@ func _redraw() -> void:
 		var corners: Array[Vector2] = []
 		for m in stage:
 			corners.append(_to_map(m).clamp(Vector2.ZERO, s))
-		var ce := Color(NTheme.TXT, 0.45)
+		var ce := Color(NTheme.TXT, FRAMING_ALPHA)
 		for i in 4:
 			var e := corners[i]
 			for neighbor in [corners[(i + 1) % 4], corners[(i + 3) % 4]]:
-				_canvas.draw_line(e, e + (neighbor - e) * 0.125, ce, 1.0)
+				_canvas.draw_line(e, e + (neighbor - e) * FRAMING_FRACTION, ce, NTheme.HAIRLINE)
 
 
 ## Rombo: la forma del mobiliario fijo, para no confundirlo con naves ni cajas.
@@ -216,10 +275,10 @@ func _dotted_line(start_at: Vector2, until: Vector2, color: Color) -> void:
 	if span_len < 1.0:
 		return
 	dir /= span_len
-	var step := 8.0
-	var offset := fmod(_t * 14.0, step)
+	var step := AUTOPILOT_DASH_STEP
+	var offset := fmod(_t * AUTOPILOT_DASH_SPEED, step)
 	var d := offset
 	while d < span_len:
-		var end_at := minf(d + 4.0, span_len)
-		_canvas.draw_line(start_at + dir * d, start_at + dir * end_at, color, 1.5)
+		var end_at := minf(d + AUTOPILOT_DASH_LENGTH, span_len)
+		_canvas.draw_line(start_at + dir * d, start_at + dir * end_at, color, AUTOPILOT_DASH_WIDTH)
 		d += step

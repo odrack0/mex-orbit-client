@@ -1,0 +1,103 @@
+{
+  "_comment": "Diales del AUTOTEST y del BESTIARIO de game/world.gd (corren headless, ver tools/dev-run.ps1). Valores tal cual estaban en el codigo el 2-sep-2026. Ojo: algunos textos de FALLO del codigo citan estos numeros a mano.",
+  "bestiary": ["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax"],
+  "_bestiary": "Bichos a los que se les toma retrato de QA (uno por especie); agregar un alien = agregarlo aqui.",
+  "prey": ["vex", "vexor"],
+  "_prey": "Especies que caza el loop: las dos comunes y flojas.",
+  "timeouts": {
+    "_comment": "Techo de reloj de cada modo; al pasarse se captura y se sale con codigo 1.",
+    "loop_sec": 190.0,
+    "bestiary_sec": 60.0,
+    "jump_sec": 150.0
+  },
+  "flight": {
+    "reroute_sec": 2.0,
+    "_reroute_sec": "Cada cuanto se reemite el destino en vuelos largos (reevaluar presa, persecucion en combate y viaje al portal).",
+    "approach_offset": [120, 0],
+    "_approach_offset": "Se vuela a la presa con este desplazamiento, no encima."
+  },
+  "patrol": {
+    "waypoints": [[4000, 3000], [16000, 3000], [16000, 9500], [4000, 9500], [10400, 6400]],
+    "_waypoints": "Itinerario FIJO por el sector cuando no hay presa a la vista; se recorta a los limites del mapa.",
+    "arrive_dist": 400.0,
+    "_arrive_dist": "A menos de esto del waypoint se pasa al siguiente."
+  },
+  "hunt": {
+    "engage_dist": 450.0,
+    "_engage_dist": "Distancia a la que se enciende el laser y desde la que se persigue; tambien el alcance con que se elige la mejor presa.",
+    "timeout_sec": 45.0,
+    "_timeout_sec": "Techo duro de la fase de caza (nave 320 contra Vex 270).",
+    "min_closure_speed": 1.0,
+    "_min_closure_speed": "Velocidad de acercamiento por debajo de la cual la presa se considera inalcanzable."
+  },
+  "phases": {
+    "start_delay_sec": 1.5,
+    "_start_delay_sec": "Espera desde el arranque antes de buscar presa (modo loop).",
+    "spawn_settle_sec": 3.0,
+    "_spawn_settle_sec": "Margen para que lleguen todos los spawns del mapa (modo bestiario).",
+    "combat_shots_for_photo": 3,
+    "_combat_shots_for_photo": "Disparos vistos antes de la captura a media pelea.",
+    "box_photo_dist": 520.0,
+    "_box_photo_dist": "Retrato de la caja a esta distancia, antes de que la nave la tape.",
+    "station_approach_offset": [330, 60],
+    "station_near_dist": 420.0,
+    "_station": "A donde se vuela al volver a la base (offset desde la estacion) y a que distancia de ella se descarga.",
+    "step_wait_sec": 1.0,
+    "_step_wait_sec": "Espera entre fases encadenadas (descarga, venta, chat, corte de red).",
+    "reconnect_wait_sec": 3.0,
+    "portal_rest_sec": 1.5,
+    "portal_open_sec": 3.0,
+    "_portal": "Espera para el retrato del portal en reposo y, tras el encendido (2,1 s), abierto.",
+    "settings_wait_sec": 0.6,
+    "windows_wait_sec": 0.5,
+    "zoom_wait_sec": 0.4,
+    "_waits": "Asiento antes de las capturas de ajustes, ventanas y zoom.",
+    "minimap_max_deformation": 0.02,
+    "_minimap_max_deformation": "§8: el minimapa nunca se deforma; tolerancia por paso de zoom.",
+    "minimap_zoom_step": 2,
+    "_minimap_zoom_step": "Paso de zoom en el que se deja el minimapa para la captura de ventanas."
+  },
+  "jump": {
+    "portal_near_dist": 400.0,
+    "_portal_near_dist": "A menos de esto del portal se pulsa J.",
+    "far_target_inset": 2000,
+    "cursor_inset": 1500,
+    "_insets": "Al saltar se deja un autopiloto y un cursor sostenido apuntando a (limites - inset): el caso real de huir con el boton pulsado.",
+    "arrival_timeout_sec": 15.0,
+    "settle_sec": 1.5,
+    "_settle_sec": "Cuanto se observa la nave tras aterrizar antes de juzgar.",
+    "max_camera_dist": 150.0,
+    "_max_camera_dist": "La camara tiene que estar SOBRE la nave nada mas llegar.",
+    "max_drift": 200.0,
+    "_max_drift": "La nave no puede alejarse mas que esto de donde aterrizo (a 320 u/s, 900 no distinguia quieta de arrastrada)."
+  },
+  "portrait": {
+    "quality_change_wait_sec": 1.0,
+    "_quality_change_wait_sec": "Espera tras bajar la calidad en caliente antes de retratar.",
+    "first_frame_sec": 1.2,
+    "second_frame_sec": 2.1,
+    "_frames": "Instantes de las dos fotos de cada bicho (la segunda solo en modo bestiario).",
+    "dummy_pos_fraction": [0.5, 0.25],
+    "_dummy_pos_fraction": "Donde se fabrica el ejemplar de laboratorio, como fraccion de los limites del mapa.",
+    "crop_y_from": 0.3,
+    "crop_y_to": 0.7,
+    "crop_x_from": 0.35,
+    "crop_x_to": 0.65,
+    "crop_step": 2,
+    "_crop": "Caja central (fracciones de la captura) y paso de muestreo con que se mide el movimiento entre las dos fotos.",
+    "min_move": 0.004,
+    "_min_move": "Por debajo de esto un bicho se reporta QUIETO entre sus dos retratos (suelo de ruido, no objetivo)."
+  },
+  "relief": {
+    "_comment": "Prueba del relieve (la luz no gira con la nave); hoy se cumple por construccion en la escena unica y solo quedan sus medidores.",
+    "box_px": 128,
+    "_box_px": "Lado de la caja con la que se recorta el casco.",
+    "settle_frames": 3,
+    "spin_deg": 90.0,
+    "min_effect": 0.02,
+    "min_samples": 400,
+    "_min_samples": "Pixeles validos minimos para que una comparacion cuente.",
+    "epsilon": 0.0001,
+    "_epsilon": "Suelo del denominador en los cocientes de brillo."
+  }
+}

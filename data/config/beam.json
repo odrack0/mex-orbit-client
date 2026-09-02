@@ -1,0 +1,32 @@
+{
+  "_comment": "Diales del HAZ laser (game/beam_3d.gd, G§9.4): la envolvente de vida, el scroll del patron y el destello de boca. Lo que cambia por municion (color, largo del patron, grosor, textura) vive en data/ammo/<code>.json; aqui van los defaults de esas claves cuando el JSON de la municion no las trae.",
+  "_envelope": "Vida del haz de un disparo y su envolvente: rampa de salida al nacer y fundido al morir, en segundos.",
+  "duration_sec": 0.35,
+  "ramp_sec": 0.1,
+  "fade_sec": 0.1,
+  "_cycle_sec": "Scroll del patron: segundos por repeticion (0.3-0.5 en el original).",
+  "cycle_sec": 0.4,
+  "_height": "Altura del haz sobre el plano del juego, en unidades de mundo.",
+  "height": 15.0,
+  "shader_path": "res://game/shaders/beam_scroll.gdshader",
+  "_quad": "thickness_scale: unidades de mundo por unidad de `thickness` de la municion; min_thickness: grosor minimo del quad; min_pattern_length: largo minimo del patron (evita repeticiones infinitas).",
+  "thickness_scale": 3.0,
+  "min_thickness": 3.0,
+  "min_pattern_length": 8.0,
+  "_defaults": "Lo que se asume cuando `beam`/`beam_skilled` de la municion no lo trae.",
+  "defaults": {
+    "length": 96.0,
+    "thickness": 1.0,
+    "color": "FA0000",
+    "texture_path": "res://assets/fx/beam.png",
+    "texture_skilled_path": "res://assets/fx/beam-skilled.png"
+  },
+  "_flash": "El destello del disparo en la boca del canon (luz del pool del mundo, G§7.2): color, energia, alcance en unidades de mundo, cuanto se mantiene y cuanto tarda en fundirse.",
+  "flash": {
+    "color": "F7C0C0",
+    "energy": 1.2,
+    "range": 200.0,
+    "hold_sec": 0.05,
+    "fade_sec": 0.15
+  }
+}

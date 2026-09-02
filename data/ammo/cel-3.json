@@ -1,9 +1,8 @@
 {
-  "_comentario": "Color heredado del original (MCB-50 = verde #2cfa00). Su variante skilled cambiaba a violeta en el original, y se conserva ese guiño.",
+  "_comment": "Color heredado del original (MCB-50 = verde #2cfa00). Su variante skilled cambiaba a violeta en el original, y se conserva ese guiño.",
   "code": "cel-3",
   "loot_id": "ammo_cel_3",
   "display_name": "CEL-3",
-
   "beam": {
     "texture": "res://assets/fx/beam.png",
     "color": "2CFA00",

@@ -1,0 +1,14 @@
+{
+  "_comment": "Diales de la capa de red del cliente: net/session.gd y net/game_connection.gd. Lo que es PROTOCOLO (version del contrato, codigos de cierre del WebSocket, el varint del id de mensaje) NO vive aqui: es contrato con el server, no calibracion, y se queda como constante con nombre en el codigo.",
+  "session": {
+    "_api_base_default": "A donde llama el cliente EN ESCRITORIO si project.godot [mexorbit] api_base no lo dice. Un --api= por linea de comandos pisa a los dos. En web no se usa: alli la URL se deduce del origen de la pagina.",
+    "api_base_default": "http://127.0.0.1:5100",
+    "_api_path_default": "Ruta de la api DENTRO del mismo origen, en web, si project.godot [mexorbit] api_path no lo dice. Es /api porque asi lo sirve nginx.",
+    "api_path_default": "/api",
+    "_dev_login_path": "Archivo (NO versionado) con las credenciales de dev que se precargan en el login. Se parsea a mano por el BOM de PowerShell.",
+    "dev_login_path": "res://dev_login.cfg"
+  },
+  "game_connection": {
+    "_comment": "Hoy la conexion no tiene reintentos, esperas ni timeouts propios: quien decide cuando reconectar es quien la usa (world.gd), y la ventana de gracia la manda el server. El dia que los tenga, van aqui."
+  }
+}

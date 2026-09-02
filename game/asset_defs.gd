@@ -9,6 +9,19 @@ const NPCS_PATH := "res://data/npcs/%s.json"
 const MAPS_PATH := "res://data/maps/%s.json"
 const PROPS_PATH := "res://data/props/%s.json"
 const AMMO_PATH := "res://data/ammo/%s.json"
+const CONFIG_PATH := "res://data/config/%s.json"
+
+static var _cache := {}
+
+## Los diales de la luz y el material: data/config/lighting.json. Se declara
+## ANTES de las estaticas que lo leen (las `static var` se inicializan en orden
+## de declaracion) y despues de `_cache`, que usa la carga.
+static var CFG: Dictionary = config("lighting")
+static var _WORLD_LIGHT: Dictionary = CFG.get("world_light", {})
+static var _HERO_LIGHT: Dictionary = CFG.get("hero_light", {})
+static var _MATERIAL: Dictionary = CFG.get("material", {})
+static var _GLOW: Dictionary = CFG.get("glow", {})
+static var _MEASURE_CAMERA: Dictionary = CFG.get("measure_camera", {})
 
 ## De donde viene la luz del mundo, en grados de pantalla (0 = derecha, 90 =
 ## abajo). UNA sola para todo lo que se ilumine, o el mundo se rompe: dos objetos
@@ -19,7 +32,7 @@ const AMMO_PATH := "res://data/ammo/%s.json"
 ## 315 grados = arriba y a la izquierda. Es la convencion de toda la vida en arte
 ## 2D, y no por capricho: el ojo humano da por supuesta la luz de arriba, y el
 ## sesgo a la izquierda desambigua bulto de hueco.
-const WORLD_LIGHT_DEG := 315.0
+static var WORLD_LIGHT_DEG: float = num(_WORLD_LIGHT, "deg", 315.0)
 
 ## Color, elevacion y energia de esa misma luz, para el camino 3D. Viven AQUI y no
 ## en entity_node por el motivo de arriba: son del MUNDO, no del asset. Estaban
@@ -33,14 +46,14 @@ const WORLD_LIGHT_DEG := 315.0
 ## bichos y props de fondo por igual. El cian 0.8 anterior venia de otro rincon
 ## del legacy y despegaba los props del ambiente. OJO homologacion: cambiar esto
 ## descalibra el horneado de media (HORNO_SOL); media se rehornea despues.
-const WORLD_LIGHT_COLOR := Color.WHITE
-const WORLD_LIGHT_ENERGY := 1.0
-const WORLD_LIGHT_SPECULAR := 0.7
+static var WORLD_LIGHT_COLOR: Color = color(_WORLD_LIGHT.get("color", ""), Color.WHITE)
+static var WORLD_LIGHT_ENERGY: float = num(_WORLD_LIGHT, "energy", 1.0)
+static var WORLD_LIGHT_SPECULAR: float = num(_WORLD_LIGHT, "specular", 0.7)
 ## Direccion por la formula esferica del original (la de su camara/luz):
 ## offset = (sin t sin p, -cos t, -sin t cos p) con t=tilt 100, p=pan 35,
 ## apuntando al origen y con la z espejada a Godot.
-const WORLD_LIGHT_TILT := 100.0
-const WORLD_LIGHT_PAN := 35.0
+static var WORLD_LIGHT_TILT: float = num(_WORLD_LIGHT, "tilt", 100.0)
+static var WORLD_LIGHT_PAN: float = num(_WORLD_LIGHT, "pan", 35.0)
 
 ## La luz de FONDO del mundo 3D y el tonemap, hermanas de las de arriba y con el
 ## mismo contrato: son del MUNDO, no del asset. Estaban copiadas a mano en OCHO
@@ -53,15 +66,15 @@ const WORLD_LIGHT_PAN := 35.0
 ## props (se veian vivos, despegados del entorno). Se conserva el tonemap
 ## FILMIC, que es de Godot y no del legacy, porque el lineal aplana los medios.
 ## Desde el 1-sep no hay horneado que recalibrar: la malla es el unico cuerpo.
-const WORLD_LIGHT_AMBIENT_COLOR := Color("ffa5ae")
-const WORLD_LIGHT_AMBIENT := 0.2
+static var WORLD_LIGHT_AMBIENT_COLOR: Color = color(_WORLD_LIGHT.get("ambient_color", ""), Color("ffa5ae"))
+static var WORLD_LIGHT_AMBIENT: float = num(_WORLD_LIGHT, "ambient", 0.2)
 
 ## La LUZ DEL HEROE: un punto azul (0x2E7DFF, diffuse 0.6) pegado a tu propia nave,
 ## portado del legacy: en la escena unica vive en el mundo compartido y bania a
 ## las entidades cercanas con radio 450 unidades de mundo, como el original
 ## (la monta entity_node; solo con `luces` >= 1).
-const HERO_LIGHT_COLOR := Color("2e7dff")
-const HERO_LIGHT_ENERGY := 0.6
+static var HERO_LIGHT_COLOR: Color = color(_HERO_LIGHT.get("color", ""), Color("2e7dff"))
+static var HERO_LIGHT_ENERGY: float = num(_HERO_LIGHT, "energy", 0.6)
 
 ## MATERIAL 3D: la mitad BARATA del look "no plano", portada del material de nave del
 ## legacy (Away3D). Son dos cosas:
@@ -74,9 +87,19 @@ const HERO_LIGHT_ENERGY := 0.6
 ##    Godot es `rim`; separa la silueta del negro del espacio.
 ## Lo que de verdad quita lo plano —la reflexion de entorno (FresnelEnvMapMethod)— NO
 ## esta aqui: necesita una fuente de reflexion en el viewport y va aparte.
-const MAT_ROUGHNESS := 0.35
-const MAT_RIM := 0.3
-const MAT_RIM_TINT := 0.5
+static var MAT_ROUGHNESS: float = num(_MATERIAL, "roughness", 0.35)
+static var MAT_RIM: float = num(_MATERIAL, "rim", 0.3)
+static var MAT_RIM_TINT: float = num(_MATERIAL, "rim_tint", 0.5)
+
+## GLOW por defecto del viewport propio de un asset (`stage_3d`) cuando su JSON
+## no trae el suyo — ver el comentario de ahi: se calibro con vetas finas.
+static var GLOW_INTENSITY: float = num(_GLOW, "intensity", 1.0)
+static var GLOW_BLOOM: float = num(_GLOW, "bloom", 0.25)
+static var GLOW_THRESHOLD: float = num(_GLOW, "threshold", 0.9)
+
+## Distancia al origen de la camara ORTOGRAFICA de medicion y encuadre
+## (`stage_3d` y `view_extent` deben usar LA MISMA, o el encuadre miente).
+static var MEASURE_CAM_DIST: float = num(_MEASURE_CAMERA, "distance", 8.0)
 
 
 ## La luz de fondo y el tonemap del mundo, aplicados a un Environment. UN solo
@@ -98,7 +121,11 @@ static func world_ambient(ent: Environment) -> void:
 ## el sol no, y cada rig media contra una luz distinta. `energia` admite el override por bicho (`luz.sol` del JSON); por defecto,
 ## la del mundo. El banco NO usa esto a proposito: tiene sus valores de perf (2.6) y
 ## no es la referencia de aspecto.
-static func world_sun(energy_val := WORLD_LIGHT_ENERGY) -> DirectionalLight3D:
+static func world_sun(energy_val: float = NAN) -> DirectionalLight3D:
+	# NAN = "la del mundo": el default de un parametro tiene que ser constante y
+	# WORLD_LIGHT_ENERGY ya es un `static var` leido del JSON
+	if is_nan(energy_val):
+		energy_val = WORLD_LIGHT_ENERGY
 	var sun := DirectionalLight3D.new()
 	sun.light_color = WORLD_LIGHT_COLOR
 	sun.light_energy = energy_val
@@ -110,9 +137,6 @@ static func world_sun(energy_val := WORLD_LIGHT_ENERGY) -> DirectionalLight3D:
 	sun.basis = Basis.looking_at(dir, Vector3.UP)
 	sun.shadow_enabled = false
 	return sun
-
-
-static var _cache := {}
 
 
 static func ship(code: String) -> Dictionary:
@@ -142,6 +166,37 @@ static func prop(code: String) -> Dictionary:
 static func ammo(id: String) -> Dictionary:
 	var code := id.trim_prefix("ammo_").replace("_", "-")
 	return _load_file(AMMO_PATH % code)
+
+
+## Diales del cliente por modulo: data/config/<name>.json (camera, entity, world,
+## backdrop, quality, ui...). Desde el 2-sep-2026 NADA calibrable vive en el codigo:
+## un numero suelto en un .gd que no sea una identidad matematica es un bug.
+## Se carga una vez y se cachea; si falta el archivo se avisa y se devuelve vacio
+## (los `static var` que leen de aqui caen entonces en su valor por defecto).
+static func config(name: String) -> Dictionary:
+	var d := _load_file(CONFIG_PATH % name)
+	if d.is_empty():
+		push_error("falta data/config/%s.json" % name)
+	return d
+
+
+## Un numero de un JSON (que siempre llega como float) como float, con defecto.
+static func num(d: Dictionary, key: String, fallback: float) -> float:
+	return float(d.get(key, fallback))
+
+
+## Vector2 desde un JSON `[x, y]`.
+static func vec2(v: Variant, fallback := Vector2.ZERO) -> Vector2:
+	if typeof(v) == TYPE_ARRAY and (v as Array).size() >= 2:
+		return Vector2(float(v[0]), float(v[1]))
+	return fallback
+
+
+## Vector3 desde un JSON `[x, y, z]`.
+static func vec3(v: Variant, fallback := Vector3.ZERO) -> Vector3:
+	if typeof(v) == TYPE_ARRAY and (v as Array).size() >= 3:
+		return Vector3(float(v[0]), float(v[1]), float(v[2]))
+	return fallback
 
 
 static func _load_file(path: String) -> Dictionary:
@@ -199,7 +254,7 @@ static func stage_3d(scene: PackedScene, side: int, extent: float,
 	ent.background_mode = Environment.BG_CLEAR_COLOR
 	world_ambient(ent)
 	# GLOW: sin el, la emision se RECORTA a 1.0 y lo encendido se lee como
-	# "claro" en vez de como "encendido".
+	# "claro" en vez de como "ignition".
 	# Los valores por defecto se calibraron con las VETAS de un bicho: lineas
 	# finas donde el problema era que no se leyeran como encendidas. Un asset con
 	# una zona emisiva grande —el reactor de la estacion— con esos mismos numeros
@@ -207,9 +262,9 @@ static func stage_3d(scene: PackedScene, side: int, extent: float,
 	# asset y no una constante.
 	if con_glow:
 		ent.glow_enabled = true
-		ent.glow_intensity = float(glow.get("intensity", 1.0))
-		ent.glow_bloom = float(glow.get("bloom", 0.25))
-		ent.glow_hdr_threshold = float(glow.get("threshold", 0.9))
+		ent.glow_intensity = float(glow.get("intensity", GLOW_INTENSITY))
+		ent.glow_bloom = float(glow.get("bloom", GLOW_BLOOM))
+		ent.glow_hdr_threshold = float(glow.get("threshold", GLOW_THRESHOLD))
 	var we := WorldEnvironment.new()
 	we.environment = ent
 	vp.add_child(we)
@@ -228,10 +283,11 @@ static func stage_3d(scene: PackedScene, side: int, extent: float,
 	# `look_at_from_position` y no `look_at`: esto corre antes de estar en el
 	# arbol. Y el "arriba" es -Z, no Y: a 90 grados la camara mira justo por Y y
 	# el vector de arriba seria paralelo a su eje de vista.
-	cam.look_at_from_position(Vector3(0.0, 8.0 * sin(elev_rad), 8.0 * cos(elev_rad)),
+	cam.look_at_from_position(
+		Vector3(0.0, MEASURE_CAM_DIST * sin(elev_rad), MEASURE_CAM_DIST * cos(elev_rad)),
 		Vector3.ZERO, Vector3.FORWARD)
 	cam.current = true
-	return {"vp": vp, "modelo": model, "cam": cam}
+	return {"vp": vp, "model": model, "cam": cam}
 
 
 ## La HUELLA del modelo —su lado mayor en el plano XZ— en unidades de su mundo.
@@ -284,7 +340,7 @@ static func view_extent(node: Node, elevation: float) -> float:
 	var box := bounds_3d(node)
 	# La misma camara que monta `mundo_3d`, para medir lo que ella va a ver.
 	var elev_rad := deg_to_rad(elevation)
-	var eye := Vector3(0.0, 8.0 * sin(elev_rad), 8.0 * cos(elev_rad))
+	var eye := Vector3(0.0, MEASURE_CAM_DIST * sin(elev_rad), MEASURE_CAM_DIST * cos(elev_rad))
 	var view := Transform3D().looking_at(-eye, Vector3.FORWARD)
 	view.origin = eye
 	var inv := view.affine_inverse()

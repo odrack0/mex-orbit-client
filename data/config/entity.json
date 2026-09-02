@@ -1,0 +1,162 @@
+{
+  "_comment": "Diales de las entidades del mundo (game/entity_node.gd): giro, banking, flotacion, llamas de motor, HUD, movimiento/reconcile, FX de impacto y marcador de seleccion. Lo que es POR ESPECIE (alas, cola, brazos, pulso, lava, canones, tamano) vive en data/ships y data/npcs; en `defaults` van los valores que se asumen cuando el JSON de la especie no los trae.",
+  "_turn": "Giro del cliente 3D original (G§5.2): `time` es el ease en segundos de las NAVES por el camino corto; `dead_zone` en unidades de mundo para no vibrar persiguiendo el cursor; `flight_deg_per_sec` es la velocidad angular de los BICHOS al emprender vuelo (la proa va delante siempre); `heading_noise_deg`: un rumbo nuevo a menos de esto del ya comandado se ignora (el temblor de proa en combate cercano).",
+  "turn": {
+    "time": 0.2,
+    "dead_zone": 2.0,
+    "flight_deg_per_sec": 420.0,
+    "heading_noise_deg": 1.5
+  },
+  "_bank": "BANKING (G§5.2): el alabeo es el error angular pendiente del giro, en grados, con ease en segundos. En combate (con objetivo de ataque y en vuelo) el error se multiplica por `combat_gain` y se acota a `combat_max`, con `combat_ease`.",
+  "bank": {
+    "max": 20.0,
+    "ease": 0.2,
+    "combat_gain": -2.0,
+    "combat_max": 10.0,
+    "combat_ease": 0.08
+  },
+  "_hover": "FLOTACION idle (G§5.3): Lissajous del cuerpo solo parada. `amp` en unidades de mundo (la vertical es altura real), `cycle` en segundos por radian de fase, `fade_sec` el fundido al arrancar/parar, y `z_freq_a/b` las frecuencias del eje Z relativas a la fase.",
+  "hover": {
+    "amp": 5.0,
+    "cycle": 2.0,
+    "fade_sec": 0.5,
+    "z_freq_a": 1.13,
+    "z_freq_b": 0.87
+  },
+  "_glow_hp_min": "El brillo emisivo acompania al casco (G§7.1): factor de emision a 0% de HP (1.0 a HP pleno).",
+  "glow_hp_min": 0.35,
+  "_hero_light": "La luz del heroe (G§7.2): altura sobre el cuerpo y radio, en unidades de mundo. Color y energia viven en AssetDefs (son del mundo).",
+  "hero_light": {
+    "height": 40.0,
+    "range": 450.0
+  },
+  "lava_shader_path": "res://game/shaders/lava_flujo.gdshader",
+  "_idle_turn": "NPCs parados: giro perezoso aleatorio cada `min_sec`..`max_sec` segundos (vida del original).",
+  "idle_turn": {
+    "min_sec": 2.0,
+    "max_sec": 7.0
+  },
+  "_motion": "`arrive_dist`: a menos de esto del destino la entidad cuenta como parada. `delta_clamp_hz`: el delta de un frame se recorta a 1/esto segundos (un frame trabado no teletransporta). `catchup_dist`: a este atraso de la sombra autoritativa el gas extra llega a +100%; `catchup_max`: tope del acelerador en multiplos de la velocidad. `correction_time`: ease en segundos con que se absorbe la correccion del reconcile. `snap_dist_ship/npc`: deriva a partir de la cual el reconcile es un salto en seco.",
+  "motion": {
+    "arrive_dist": 0.5,
+    "delta_clamp_hz": 15.0,
+    "catchup_dist": 150.0,
+    "catchup_max": 1.4,
+    "correction_time": 0.3,
+    "snap_dist_ship": 220.0,
+    "snap_dist_npc": 500.0
+  },
+  "_flame": "Llamas de motor: el thruster de PARTICULAS del original (thruster.awp) en unidades de su bola de `ball_size`. `idle`: empuje del jugador parado (NPC 0, en vuelo 1); el empuje sube a `thrust_rise_per_sec` y cae a `thrust_fall_per_sec`; bajo `visible_min` la llama se apaga y la escala nunca baja de `scale_min`. `amount` bolas (`low_quality_ratio` con `engine` < 2), vida `lifetime` y `preprocess` en segundos. `muzzle_ref_width`: ancho de boca del modelo de referencia; `muzzle_original_width`: la boca (~5) de la que salia la bola de 8 del original (k = boca / 5). `nozzle_lift`: la llama nace este alto por encima del marcador. `spread`, `ring_radius/height`, `velocity_*`, `accel_*` y `scale_end` son los del awp; `ramp` es la rampa de color (negro -> color*edge_gain en edge_at -> nucleo casi blanco (lerp a blanco core_white) en core_at, simetrica).",
+  "flame": {
+    "idle": 0.7,
+    "thrust_rise_per_sec": 3.0,
+    "thrust_fall_per_sec": 4.0,
+    "visible_min": 0.02,
+    "scale_min": 0.01,
+    "amount": 40,
+    "low_quality_ratio": 0.5,
+    "lifetime": 1.0,
+    "preprocess": 1.0,
+    "ball_size": 8.0,
+    "texture_path": "res://assets/fx/simple-gradient.png",
+    "muzzle_ref_width": 20.0,
+    "muzzle_original_width": 5.0,
+    "nozzle_lift": 1.0,
+    "spread": 4.0,
+    "ring_radius": 2.5,
+    "ring_height": 0.4,
+    "velocity_min": 5.0,
+    "velocity_max": 6.0,
+    "accel_min": 15.0,
+    "accel_max": 20.0,
+    "scale_end": 0.2,
+    "ramp": {
+      "edge_at": 0.2,
+      "core_at": 0.4,
+      "edge_gain": 0.8,
+      "core_white": 0.75
+    }
+  },
+  "_hud": "El HUD 2D (nombre + barras), en PIXELES de pantalla. `clearance`: aire fijo entre el medio-cuerpo de la nave y el nombre/las barras. `snap_hysteresis`: el HUD solo se re-snapea si la proyeccion se movio mas de esto (el temblor de 1 px del heroe). `name`: tamano de fuente, ancho minimo (se centra a -width/2) y contorno. `bar`: las dos barras (casco y escudo), su hueco y el fondo oscuro (`backdrop_pad` px de margen a cada lado).",
+  "hud": {
+    "clearance": 14.0,
+    "snap_hysteresis": 0.05,
+    "name": {
+      "size": 12,
+      "width": 140,
+      "outline_size": 4,
+      "outline_alpha": 0.85
+    },
+    "bar": {
+      "width": 60.0,
+      "height": 3.0,
+      "gap": 5.0,
+      "backdrop_alpha": 0.55,
+      "backdrop_pad": 1.0
+    }
+  },
+  "_marker": "Esquinas de mira de la seleccion local, en pixeles: `radius` a las esquinas, `arm` largo de cada trazo, `line_width`; al seleccionar entra cerrando de `enter_scale`x a 1x en `enter_sec` segundos.",
+  "marker": {
+    "radius": 44.0,
+    "arm": 14.0,
+    "line_width": 2.0,
+    "enter_scale": 1.5,
+    "enter_sec": 0.3
+  },
+  "_impacts": "FX de impacto (hojas de fotogramas como billboard 3D): `height` sobre el plano de vuelo; por hoja, `side` px del fotograma, `frames`, `duration` en segundos y `max` simultaneos (tope del original).",
+  "impacts": {
+    "height": 12.0,
+    "hull": {
+      "path": "res://assets/fx/hull-impact.png",
+      "side": 96,
+      "frames": 8,
+      "duration": 0.45,
+      "max": 5
+    },
+    "shield": {
+      "path": "res://assets/fx/shield-impact.png",
+      "side": 128,
+      "frames": 8,
+      "duration": 0.3,
+      "max": 9
+    }
+  },
+  "_rig": "`tail_bones`: cuantos huesos cola_1..N anima el cuerpo articulado.",
+  "rig": {
+    "tail_bones": 3
+  },
+  "_defaults": "Lo que se asume cuando el JSON de la especie (data/ships, data/npcs) no lo trae. Los de alas/cola se midieron con el Vexor. `screen_size` en unidades de juego (la escala 1:1 heredada: 141 px del sprite = 141 u del mundo).",
+  "defaults": {
+    "click_radius": 42.0,
+    "screen_size": 141.0,
+    "horns_axis": 1,
+    "engine_trail": {
+      "color": "00E5FF"
+    },
+    "lava": {
+      "amount": 1.5,
+      "scale": 4.0,
+      "speed": 0.25
+    },
+    "pulse": {
+      "min_intensity": 0.25,
+      "max_intensity": 2.6,
+      "sharpness": 2.4
+    },
+    "wings": {
+      "degrees": 34.0,
+      "cycle": 2.17,
+      "axis": 1
+    },
+    "tail": {
+      "degrees": 9.0,
+      "cycle": 1.5,
+      "phase_offset": 0.22,
+      "axis": 2
+    },
+    "arms": {
+      "cycle": 2.4,
+      "axis": 2
+    }
+  }
+}

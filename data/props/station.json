@@ -1,5 +1,5 @@
 {
-  "_comentario": "La estacion de la base. world_size es su diametro en unidades de mundo (el rango seguro que manda el server es 1500). El reactor late con la capa emisiva cian, mas lento y suave que el nucleo de un alien.",
+  "_comment": "La estacion de la base. world_size es su diametro en unidades de mundo (el rango seguro que manda el server es 1500). El reactor late con la capa emisiva cian, mas lento y suave que el nucleo de un alien.",
   "code": "station",
   "world_size": 1100,
   "pulse": {
@@ -13,14 +13,14 @@
     "alpha": 0.22,
     "width": 3.0
   },
-  "modelo": "res://assets/world/base.glb",
-  "_modelo": "Malla 3D para calidad ALTA, en su propio SubViewport alimentando el Sprite2D de siempre. Gana mas que en un bicho: la estacion se dibuja a 820 px y el atlas de video tenia celda de 632, o sea que se AMPLIABA 1,3 veces; un modelo no tiene resolucion. Y se ahorran los 40 MB del atlas, el asset mas caro del juego. NO rota, asi que el modelo se monta y se queda quieto: lo que late es su emision.",
-  "_camara": "OBLICUA (EST_ELEVACION en world.gd, 30 grados). Es el UNICO asset del juego que no se mira desde arriba, y es direccion de arte: la estacion es una torre, y una torre en cenital es un punto. El encuadre va con `extension_vista` y no con la huella — al bajar la camara la altura pasa a ocupar pantalla y con la huella la torre se sale por arriba.",
+  "model": "res://assets/world/base.glb",
+  "_model": "Malla 3D para calidad ALTA, en su propio SubViewport alimentando el Sprite2D de siempre. Gana mas que en un bicho: la estacion se dibuja a 820 px y el atlas de video tenia celda de 632, o sea que se AMPLIABA 1,3 veces; un modelo no tiene resolucion. Y se ahorran los 40 MB del atlas, el asset mas caro del juego. NO rota, asi que el modelo se monta y se queda quieto: lo que late es su emision.",
+  "_camera": "OBLICUA (EST_ELEVACION en world.gd, 30 grados). Es el UNICO asset del juego que no se mira desde arriba, y es direccion de arte: la estacion es una torre, y una torre en cenital es un punto. El encuadre va con `extension_vista` y no con la huella — al bajar la camara la altura pasa a ocupar pantalla y con la huella la torre se sale por arriba.",
   "glow": false,
   "_glow": "APAGADO. El glow del entorno reparte el brillo MAS ALLA de la geometria, y sus valores por defecto se calibraron con las vetas finas de un bicho, donde el problema era que no se leyeran como encendidas. El reactor de la estacion es una zona emisiva grande: con esos numeros salia un halo que se comia la estructura. Para subirlo un poco sin reventarlo, en vez de false va un diccionario con intensity, bloom y threshold.",
-  "emision": 3.0,
-  "_emision": "Ganancia de la emision del modelo, en 3. Parece mucho y no lo es: la textura emisiva del modelo es TENUE —el magenta promedia 0,143 sobre 1— asi que a ganancia 1 el latido oscilaba entre 0,079 y 0,257 de emision: se movia, y no se veia. Multiplicar poco por poco sigue siendo poco. Con 3, el recorrido va de 0,11 a 1,03 y los picos mas brillantes recortan a blanco, que es lo que se lee como caliente.",
-  "_medir_esto": "OJO al comparar capturas del autotest: el recuento de pixeles sobre la PANTALLA ENTERA no es comparable entre corridas, porque la nave se mueve y la estacion entra o sale del encuadre. Una medida que bajo un 94% resulto ser una captura donde la estacion casi no salia. Para comparar hay que recortar la estacion primero.",
+  "emission": 3.0,
+  "_emission": "Ganancia de la emision del modelo, en 3. Parece mucho y no lo es: la textura emisiva del modelo es TENUE —el magenta promedia 0,143 sobre 1— asi que a ganancia 1 el latido oscilaba entre 0,079 y 0,257 de emision: se movia, y no se veia. Multiplicar poco por poco sigue siendo poco. Con 3, el recorrido va de 0,11 a 1,03 y los picos mas brillantes recortan a blanco, que es lo que se lee como caliente.",
+  "_measure_this": "OJO al comparar capturas del autotest: el recuento de pixeles sobre la PANTALLA ENTERA no es comparable entre corridas, porque la nave se mueve y la estacion entra o sale del encuadre. Una medida que bajo un 94% resulto ser una captura donde la estacion casi no salia. Para comparar hay que recortar la estacion primero.",
   "_world_size": "HUELLA de la estacion en unidades de MUNDO. RECALIBRADO en F2 del cliente 3D: el 2460 (x3 del original de 820) se dimensiono para el sprite cenital, y en la escena unica con camara en perspectiva la torre (1,92 de alto sobre 1,05 de planta) subia a ~4500 de alto — a zoom cercano era una montania que se comia la pantalla. Con 1100 de huella la torre queda en ~2000 de alto, dentro de su anillo de zona segura (radio 1500) y con aire. Se calibra volando, como todo.",
   "_pulse": "El latido, con el recorrido ABIERTO respecto al que heredaba de la capa emisiva 2D (0,55-1,8). Aquel valia sobre un sprite aditivo, que ya satura de por si; sobre la emision de un material tenue no se notaba. Un valle mas bajo y un pico mas alto, y la dureza a 2,2 para que el valle dure y el pico sea un golpe — un seno puro se lee como respirar, no como parpadear."
 }

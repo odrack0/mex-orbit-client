@@ -12,39 +12,158 @@
 class_name EntityNode
 extends Node2D
 
+## Diales del script: data/config/entity.json (nada calibrable vive en el
+## codigo). Los sub-objetos se cachean una vez; cada dial es un `static var`.
+static var CFG: Dictionary = AssetDefs.config("entity")
+static var CFG_TURN: Dictionary = CFG.get("turn", {})
+static var CFG_BANK: Dictionary = CFG.get("bank", {})
+static var CFG_HOVER: Dictionary = CFG.get("hover", {})
+static var CFG_HERO_LIGHT: Dictionary = CFG.get("hero_light", {})
+static var CFG_IDLE_TURN: Dictionary = CFG.get("idle_turn", {})
+static var CFG_MOTION: Dictionary = CFG.get("motion", {})
+static var CFG_FLAME: Dictionary = CFG.get("flame", {})
+static var CFG_FLAME_RAMP: Dictionary = CFG_FLAME.get("ramp", {})
+static var CFG_HUD: Dictionary = CFG.get("hud", {})
+static var CFG_HUD_NAME: Dictionary = CFG_HUD.get("name", {})
+static var CFG_HUD_BAR: Dictionary = CFG_HUD.get("bar", {})
+static var CFG_MARKER: Dictionary = CFG.get("marker", {})
+static var CFG_IMPACTS: Dictionary = CFG.get("impacts", {})
+static var CFG_IMPACT_HULL: Dictionary = CFG_IMPACTS.get("hull", {})
+static var CFG_IMPACT_SHIELD: Dictionary = CFG_IMPACTS.get("shield", {})
+static var CFG_RIG: Dictionary = CFG.get("rig", {})
+## Defaults de las claves POR ESPECIE cuando el JSON de la nave/bicho no las trae.
+static var DEFAULTS: Dictionary = CFG.get("defaults", {})
+
 ## Giro del cliente 3D original (G§5.2): ease de ~0.2 s por el camino corto,
 ## CONTINUO — la cuantizacion de 32 pasos era el look del cliente 2D y murio
 ## con el. Zona muerta para no vibrar persiguiendo el cursor.
-const TURN_TIME := 0.2
-const DEAD_ZONE := 2.0
+static var TURN_TIME: float = AssetDefs.num(CFG_TURN, "time", 0.2)
+static var DEAD_ZONE: float = AssetDefs.num(CFG_TURN, "dead_zone", 2.0)
 
 ## Giro al EMPRENDER VUELO de los bichos: la proa va delante SIEMPRE (ver
 ## "La proa va delante" en el README).
-const TURN_FLIGHT_DEG_PER_SEC := 420.0
+static var TURN_FLIGHT_DEG_PER_SEC: float = AssetDefs.num(CFG_TURN, "flight_deg_per_sec", 420.0)
 
 ## BANKING (G§5.2): el alabeo ES el error angular pendiente del giro. Ahora es
 ## alabeo REAL del cuerpo 3D — con la camara a 45 grados se ve de verdad.
-const BANK_MAX := 20.0
-const BANK_EASE := 0.2
-const BANK_COMBAT_GAIN := -2.0
-const BANK_COMBAT_MAX := 10.0
-const BANK_COMBAT_EASE := 0.08
+static var BANK_MAX: float = AssetDefs.num(CFG_BANK, "max", 20.0)
+static var BANK_EASE: float = AssetDefs.num(CFG_BANK, "ease", 0.2)
+static var BANK_COMBAT_GAIN: float = AssetDefs.num(CFG_BANK, "combat_gain", -2.0)
+static var BANK_COMBAT_MAX: float = AssetDefs.num(CFG_BANK, "combat_max", 10.0)
+static var BANK_COMBAT_EASE: float = AssetDefs.num(CFG_BANK, "combat_ease", 0.08)
 
 ## FLOTACION idle (G§5.3): Lissajous del cuerpo, solo parada, fase propia,
-## fundido 0.5 s. En 3D la componente vertical es altura DE VERDAD.
-const HOVER_AMP := 5.0
-const HOVER_CYCLE := 2.0
+## fundido HOVER_FADE_SEC. En 3D la componente vertical es altura DE VERDAD.
+static var HOVER_AMP: float = AssetDefs.num(CFG_HOVER, "amp", 5.0)
+static var HOVER_CYCLE: float = AssetDefs.num(CFG_HOVER, "cycle", 2.0)
+static var HOVER_FADE_SEC: float = AssetDefs.num(CFG_HOVER, "fade_sec", 0.5)
+static var HOVER_Z_FREQ_A: float = AssetDefs.num(CFG_HOVER, "z_freq_a", 1.13)
+static var HOVER_Z_FREQ_B: float = AssetDefs.num(CFG_HOVER, "z_freq_b", 0.87)
 
-## Llama al ralenti (G§6.2): jugador parado 0.7, NPC 0, en vuelo 1.
-const FLAME_IDLE := 0.7
+## Llama al ralenti (G§6.2): jugador parado FLAME_IDLE, NPC 0, en vuelo 1.
+static var FLAME_IDLE: float = AssetDefs.num(CFG_FLAME, "idle", 0.7)
+## El empuje sube y cae a estas velocidades (por segundo); bajo VISIBLE_MIN la
+## llama se apaga y la escala del nodo nunca baja de SCALE_MIN.
+static var THRUST_RISE_PER_SEC: float = AssetDefs.num(CFG_FLAME, "thrust_rise_per_sec", 3.0)
+static var THRUST_FALL_PER_SEC: float = AssetDefs.num(CFG_FLAME, "thrust_fall_per_sec", 4.0)
+static var THRUST_VISIBLE_MIN: float = AssetDefs.num(CFG_FLAME, "visible_min", 0.02)
+static var THRUST_SCALE_MIN: float = AssetDefs.num(CFG_FLAME, "scale_min", 0.01)
+## El thruster.awp del original, en unidades de su bola (ver _create_flame_at).
+static var FLAME_AMOUNT: int = int(AssetDefs.num(CFG_FLAME, "amount", 40))
+static var FLAME_LOW_QUALITY_RATIO: float = AssetDefs.num(CFG_FLAME, "low_quality_ratio", 0.5)
+static var FLAME_LIFETIME: float = AssetDefs.num(CFG_FLAME, "lifetime", 1.0)
+static var FLAME_PREPROCESS: float = AssetDefs.num(CFG_FLAME, "preprocess", 1.0)
+static var FLAME_BALL_SIZE: float = AssetDefs.num(CFG_FLAME, "ball_size", 8.0)
+static var FLAME_TEXTURE_PATH: String = str(CFG_FLAME.get("texture_path", "res://assets/fx/simple-gradient.png"))
+static var FLAME_MUZZLE_REF_WIDTH: float = AssetDefs.num(CFG_FLAME, "muzzle_ref_width", 20.0)
+static var FLAME_MUZZLE_ORIGINAL_WIDTH: float = AssetDefs.num(CFG_FLAME, "muzzle_original_width", 5.0)
+static var FLAME_NOZZLE_LIFT: float = AssetDefs.num(CFG_FLAME, "nozzle_lift", 1.0)
+static var FLAME_SPREAD: float = AssetDefs.num(CFG_FLAME, "spread", 4.0)
+static var FLAME_RING_RADIUS: float = AssetDefs.num(CFG_FLAME, "ring_radius", 2.5)
+static var FLAME_RING_HEIGHT: float = AssetDefs.num(CFG_FLAME, "ring_height", 0.4)
+static var FLAME_VELOCITY_MIN: float = AssetDefs.num(CFG_FLAME, "velocity_min", 5.0)
+static var FLAME_VELOCITY_MAX: float = AssetDefs.num(CFG_FLAME, "velocity_max", 6.0)
+static var FLAME_ACCEL_MIN: float = AssetDefs.num(CFG_FLAME, "accel_min", 15.0)
+static var FLAME_ACCEL_MAX: float = AssetDefs.num(CFG_FLAME, "accel_max", 20.0)
+static var FLAME_SCALE_END: float = AssetDefs.num(CFG_FLAME, "scale_end", 0.2)
+static var FLAME_RAMP_EDGE_AT: float = AssetDefs.num(CFG_FLAME_RAMP, "edge_at", 0.2)
+static var FLAME_RAMP_CORE_AT: float = AssetDefs.num(CFG_FLAME_RAMP, "core_at", 0.4)
+static var FLAME_RAMP_EDGE_GAIN: float = AssetDefs.num(CFG_FLAME_RAMP, "edge_gain", 0.8)
+static var FLAME_RAMP_CORE_WHITE: float = AssetDefs.num(CFG_FLAME_RAMP, "core_white", 0.75)
 
 ## El brillo emisivo acompania al casco (G§7.1): suelo a 0% de HP.
-const GLOW_HP_MIN := 0.35
+static var GLOW_HP_MIN: float = AssetDefs.num(CFG, "glow_hp_min", 0.35)
+
+## La luz del heroe (G§7.2): altura y radio en unidades de mundo.
+static var HERO_LIGHT_HEIGHT: float = AssetDefs.num(CFG_HERO_LIGHT, "height", 40.0)
+static var HERO_LIGHT_RANGE: float = AssetDefs.num(CFG_HERO_LIGHT, "range", 450.0)
+static var LAVA_SHADER_PATH: String = str(CFG.get("lava_shader_path", "res://game/shaders/lava_flujo.gdshader"))
+
+## NPCs parados: giro perezoso aleatorio cada IDLE_TURN_MIN..IDLE_TURN_MAX s.
+static var IDLE_TURN_MIN_SEC: float = AssetDefs.num(CFG_IDLE_TURN, "min_sec", 2.0)
+static var IDLE_TURN_MAX_SEC: float = AssetDefs.num(CFG_IDLE_TURN, "max_sec", 7.0)
+
+## A menos de esto del destino la entidad cuenta como parada.
+static var ARRIVE_DIST: float = AssetDefs.num(CFG_MOTION, "arrive_dist", 0.5)
+## El delta de un frame se recorta a 1/esto segundos (ver _process).
+static var DELTA_CLAMP_HZ: float = AssetDefs.num(CFG_MOTION, "delta_clamp_hz", 15.0)
+## Deriva a partir de la cual el reconcile es un salto en seco (nave / bicho).
+static var SNAP_DIST_SHIP: float = AssetDefs.num(CFG_MOTION, "snap_dist_ship", 220.0)
+static var SNAP_DIST_NPC: float = AssetDefs.num(CFG_MOTION, "snap_dist_npc", 500.0)
 
 # barras de estado (dos: casco y escudo), en PIXELES de pantalla
-const BAR_WIDTH := 60.0
-const BAR_HEIGHT := 3.0
-const BAR_GAP := 5.0
+static var BAR_WIDTH: float = AssetDefs.num(CFG_HUD_BAR, "width", 60.0)
+static var BAR_HEIGHT: float = AssetDefs.num(CFG_HUD_BAR, "height", 3.0)
+static var BAR_GAP: float = AssetDefs.num(CFG_HUD_BAR, "gap", 5.0)
+static var BAR_BACKDROP_ALPHA: float = AssetDefs.num(CFG_HUD_BAR, "backdrop_alpha", 0.55)
+static var BAR_BACKDROP_PAD: float = AssetDefs.num(CFG_HUD_BAR, "backdrop_pad", 1.0)
+## Aire fijo entre el medio-cuerpo y el nombre/las barras (ver _build_hud).
+static var HUD_CLEARANCE: float = AssetDefs.num(CFG_HUD, "clearance", 14.0)
+## El HUD solo se re-snapea si la proyeccion se movio mas de esto (ver sync_hud).
+static var HUD_SNAP_HYSTERESIS: float = AssetDefs.num(CFG_HUD, "snap_hysteresis", 0.05)
+static var NAME_SIZE: int = int(AssetDefs.num(CFG_HUD_NAME, "size", 12))
+static var NAME_WIDTH: float = AssetDefs.num(CFG_HUD_NAME, "width", 140.0)
+static var NAME_OUTLINE_SIZE: int = int(AssetDefs.num(CFG_HUD_NAME, "outline_size", 4))
+static var NAME_OUTLINE_ALPHA: float = AssetDefs.num(CFG_HUD_NAME, "outline_alpha", 0.85)
+
+## Esquinas de mira de la seleccion, en pixeles (ver set_selected/_draw_marker).
+static var MARKER_RADIUS: float = AssetDefs.num(CFG_MARKER, "radius", 44.0)
+static var MARKER_ARM: float = AssetDefs.num(CFG_MARKER, "arm", 14.0)
+static var MARKER_LINE_WIDTH: float = AssetDefs.num(CFG_MARKER, "line_width", 2.0)
+static var MARKER_ENTER_SCALE: float = AssetDefs.num(CFG_MARKER, "enter_scale", 1.5)
+static var MARKER_ENTER_SEC: float = AssetDefs.num(CFG_MARKER, "enter_sec", 0.3)
+
+## FX de impacto: hojas de fotogramas y topes de simultaneos del original.
+static var IMPACT_HEIGHT: float = AssetDefs.num(CFG_IMPACTS, "height", 12.0)
+static var HULL_IMPACT_PATH: String = str(CFG_IMPACT_HULL.get("path", "res://assets/fx/hull-impact.png"))
+static var HULL_IMPACT_SIDE: int = int(AssetDefs.num(CFG_IMPACT_HULL, "side", 96))
+static var HULL_IMPACT_FRAMES: int = int(AssetDefs.num(CFG_IMPACT_HULL, "frames", 8))
+static var HULL_IMPACT_DURATION: float = AssetDefs.num(CFG_IMPACT_HULL, "duration", 0.45)
+static var HULL_IMPACTS_MAX: int = int(AssetDefs.num(CFG_IMPACT_HULL, "max", 5))
+static var SHIELD_IMPACT_PATH: String = str(CFG_IMPACT_SHIELD.get("path", "res://assets/fx/shield-impact.png"))
+static var SHIELD_IMPACT_SIDE: int = int(AssetDefs.num(CFG_IMPACT_SHIELD, "side", 128))
+static var SHIELD_IMPACT_FRAMES: int = int(AssetDefs.num(CFG_IMPACT_SHIELD, "frames", 8))
+static var SHIELD_IMPACT_DURATION: float = AssetDefs.num(CFG_IMPACT_SHIELD, "duration", 0.3)
+static var SHIELD_IMPACTS_MAX: int = int(AssetDefs.num(CFG_IMPACT_SHIELD, "max", 9))
+
+## Cuantos huesos cola_1..N anima el cuerpo articulado.
+static var TAIL_BONES: int = int(AssetDefs.num(CFG_RIG, "tail_bones", 3))
+
+## Defaults por especie que se leen en mas de un sitio.
+static var DEFAULT_CLICK_RADIUS: float = AssetDefs.num(DEFAULTS, "click_radius", 42.0)
+static var DEFAULT_SCREEN_SIZE: float = AssetDefs.num(DEFAULTS, "screen_size", 141.0)
+static var DEFAULT_HORNS_AXIS: int = int(AssetDefs.num(DEFAULTS, "horns_axis", 1))
+static var DEFAULT_TRAIL_COLOR: String = str(DEFAULTS.get("engine_trail", {}).get("color", "00E5FF"))
+
+
+## Un default por especie de un sub-objeto (`wings`, `tail`, `arms`, `pulse`, `lava`).
+static func _default(group: String, key: String, fallback: float) -> float:
+	return AssetDefs.num(DEFAULTS.get(group, {}), key, fallback)
+
+
+## El siguiente giro perezoso de un NPC parado, en segundos.
+static func _next_idle_turn() -> float:
+	return IDLE_TURN_MIN_SEC + randf() * (IDLE_TURN_MAX_SEC - IDLE_TURN_MIN_SEC)
 
 ## La capa 2D donde vive el HUD de las entidades (la fija el mundo al arrancar).
 static var hud_layer: Node2D
@@ -55,7 +174,7 @@ var speed := 0.0
 var goal := Vector2.ZERO
 var is_hero := false
 var is_npc := false
-var click_radius := 42.0
+var click_radius: float = DEFAULT_CLICK_RADIUS
 ## Giro: velocidad angular (>0 = bicho, giro continuo a su peso;
 ## 0 = nave, ease fijo TURN_TIME del original 3D).
 var turn_deg_per_sec := 0.0
@@ -74,10 +193,10 @@ var _correction := Vector2.ZERO
 ## visual la persigue; ver el comentario grande en _process.
 var _shadow := Vector2.ZERO
 ## A este atraso de la sombra, el gas extra llega a +100%; girando, el deficit
-## se estabiliza aqui. Bajo el snap de 220 de reconcile a proposito.
-const CATCHUP_DIST := 150.0
+## se estabiliza aqui. Bajo el snap SNAP_DIST_SHIP de reconcile a proposito.
+static var CATCHUP_DIST: float = AssetDefs.num(CFG_MOTION, "catchup_dist", 150.0)
 ## Tope del acelerador persiguiendo la sombra, en multiplos de la velocidad.
-const CATCHUP_MAX := 1.4
+static var CATCHUP_MAX: float = AssetDefs.num(CFG_MOTION, "catchup_max", 1.4)
 
 ## La definicion del JSON se guarda: al cambiar la calidad hay que rehacer la
 ## parte visual sin volver a pedirle nada al server.
@@ -137,29 +256,29 @@ static var _pm_flames := {}          # ParticleProcessMaterial por color de trai
 static var _flame_mesh_cache: QuadMesh
 
 ## Diales del cuerpo articulado (alas/cola/cuernos/brazos), POR ESPECIE via
-## JSON; los defaults se midieron con el Vexor. Sin cambios respecto a la era
-## de viewports: el esqueleto es el mismo, solo cambio DONDE vive la malla.
-var _wings_deg := 34.0
-var _wings_cycle := 2.17
-var _wings_axis := 1
-var _tail_deg := 9.0
-var _tail_cycle := 1.50
-var _tail_phase := 0.22
-var _tail_axis := 2
+## JSON; los defaults (`defaults` de entity.json) se midieron con el Vexor. Sin
+## cambios respecto a la era de viewports: el esqueleto es el mismo, solo cambio
+## DONDE vive la malla.
+var _wings_deg: float = _default("wings", "degrees", 34.0)
+var _wings_cycle: float = _default("wings", "cycle", 2.17)
+var _wings_axis: int = int(_default("wings", "axis", 1))
+var _tail_deg: float = _default("tail", "degrees", 9.0)
+var _tail_cycle: float = _default("tail", "cycle", 1.50)
+var _tail_phase: float = _default("tail", "phase_offset", 0.22)
+var _tail_axis: int = int(_default("tail", "axis", 2))
 var _arms_count := 0
 var _arms_deg := 0.0
-var _arms_cycle := 2.4
-var _arms_phase := 0.125
-var _arms_axis := 2
+var _arms_cycle: float = _default("arms", "cycle", 2.4)
+var _arms_phase := 0.0             # se calcula en _build_mesh_3d: 1/brazos salvo `phase_offset`
+var _arms_axis: int = int(_default("arms", "axis", 2))
 var _horns_min := 0.0
 var _horns_max := 0.0
-var _horns_axis := 1
+var _horns_axis: int = DEFAULT_HORNS_AXIS
 
-# pulso emisivo (materiales del GLB)
-var _pulse_min := 0.2
-var _pulse_max := 2.4
-var _pulse_speed := 2.6
-var _pulse_sharp := 2.8
+# pulso emisivo (materiales del GLB), defaults de `defaults.pulse`
+var _pulse_min: float = _default("pulse", "min_intensity", 0.25)
+var _pulse_max: float = _default("pulse", "max_intensity", 2.6)
+var _pulse_sharp: float = _default("pulse", "sharpness", 2.4)
 
 # bocas de canion (espacio LOCAL del cuerpo, unidades de mundo) y a cual toca
 var _cannons: Array[Vector2] = []
@@ -188,12 +307,12 @@ func setup(spawn, hero: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	position = Vector2(spawn.x, spawn.y)
 	_shadow = position
 	goal = position
-	_idle_timer = 2.0 + randf() * 5.0
+	_idle_timer = _next_idle_turn()
 	_hover_phase = randf() * TAU
 	_hp_pct = spawn.hp_pct
 
 	var d := AssetDefs.entity(spawn.type_id)
-	click_radius = float(d.get("click_radius", 42))
+	click_radius = AssetDefs.num(d, "click_radius", DEFAULT_CLICK_RADIUS)
 	turn_deg_per_sec = float(d.get("turn", {}).get("deg_per_sec", 0.0))
 
 	_def = d
@@ -217,7 +336,7 @@ func _build_visual() -> void:
 	_body.add_child(_spin3d)
 	Stage3D.instance.add_child(_body)
 	_body.position = Vector3(position.x, 0.0, position.y)
-	if str(d.get("modelo", "")) != "":
+	if str(d.get("model", "")) != "":
 		_build_mesh_3d(d)
 
 
@@ -225,7 +344,7 @@ func _build_visual() -> void:
 ## bicho: la luz, el encuadre y la perspectiva los pone la camara del mundo.
 ## Devuelve false si el GLB aun no esta (se pide en hilo; el cuerpo espera vacio).
 func _build_mesh_3d(d: Dictionary) -> bool:
-	var path := str(d["modelo"])
+	var path := str(d["model"])
 	var scene: PackedScene = _glb_cache.get(path)
 	if scene == null:
 		if not _glb_requested.has(path):
@@ -241,7 +360,7 @@ func _build_mesh_3d(d: Dictionary) -> bool:
 	# El modelo mide sus unidades; el mundo pide `screen_size` UNIDADES DE JUEGO
 	# (la escala 1:1 heredada: 141 px del sprite = 141 u del mundo).
 	var ext := AssetDefs.extent_3d(_model)
-	_body_scale = float(d.get("screen_size", 141)) / ext
+	_body_scale = AssetDefs.num(d, "screen_size", DEFAULT_SCREEN_SIZE) / ext
 	_model.scale = Vector3.ONE * _body_scale
 
 	_bones_3d = _map_bones(_model)
@@ -256,52 +375,52 @@ func _build_mesh_3d(d: Dictionary) -> bool:
 			if mat.emission_texture == null:
 				continue
 			var sm := ShaderMaterial.new()
-			sm.shader = load("res://game/shaders/lava_flujo.gdshader")
+			sm.shader = load(LAVA_SHADER_PATH)
 			sm.set_shader_parameter("emisiva", mat.emission_texture)
-			sm.set_shader_parameter("cantidad", float(lv.get("amount", 1.5)))
-			sm.set_shader_parameter("escala", float(lv.get("scale", 4.0)))
-			sm.set_shader_parameter("velocidad", float(lv.get("speed", 0.25)))
+			sm.set_shader_parameter("cantidad", AssetDefs.num(lv, "amount", _default("lava", "amount", 1.5)))
+			sm.set_shader_parameter("scale", AssetDefs.num(lv, "scale", _default("lava", "scale", 4.0)))
+			sm.set_shader_parameter("velocidad", AssetDefs.num(lv, "speed", _default("lava", "speed", 0.25)))
 			mat.next_pass = sm
 			_lava_3d.append(sm)
 	var pulse_def: Dictionary = d.get("pulse", {})
-	_pulse_min = float(pulse_def.get("min_intensity", 0.25))
-	_pulse_max = float(pulse_def.get("max_intensity", 2.6))
-	_pulse_sharp = float(pulse_def.get("sharpness", 2.4))
+	_pulse_min = AssetDefs.num(pulse_def, "min_intensity", _default("pulse", "min_intensity", 0.25))
+	_pulse_max = AssetDefs.num(pulse_def, "max_intensity", _default("pulse", "max_intensity", 2.6))
+	_pulse_sharp = AssetDefs.num(pulse_def, "sharpness", _default("pulse", "sharpness", 2.4))
 	if Quality.level("emissive") == 0:
 		_pulse_min = 1.0
 		_pulse_max = 1.0
-	var cg: Array = d.get("cuernos_grados", [])
+	var cg: Array = d.get("horns_deg", [])
 	if cg.size() == 2:
 		_horns_min = float(cg[0])
 		_horns_max = float(cg[1])
-	_horns_axis = int(d.get("cuernos_eje", 1))
+	_horns_axis = int(d.get("horns_axis", DEFAULT_HORNS_AXIS))
 	_arms_count = 0
 	while _bones_3d.has("brazo_%d" % (_arms_count + 1)):
 		_arms_count += 1
-	var br: Dictionary = d.get("brazos", {})
-	_arms_deg = float(br.get("grados", 0.0))
-	_arms_cycle = float(br.get("ciclo", _arms_cycle))
-	_arms_phase = float(br.get("desfase", 1.0 / maxf(float(_arms_count), 1.0)))
-	_arms_axis = int(br.get("eje", _arms_axis))
-	var wings_def: Dictionary = d.get("alas", {})
-	_wings_deg = float(wings_def.get("grados", _wings_deg))
-	_wings_cycle = float(wings_def.get("ciclo", _wings_cycle))
-	_wings_axis = int(wings_def.get("eje", _wings_axis))
-	var co_: Dictionary = d.get("cola", {})
-	_tail_deg = float(co_.get("grados", _tail_deg))
-	_tail_cycle = float(co_.get("ciclo", _tail_cycle))
-	_tail_phase = float(co_.get("desfase", _tail_phase))
-	_tail_axis = int(co_.get("eje", _tail_axis))
+	var br: Dictionary = d.get("arms", {})
+	_arms_deg = float(br.get("degrees", 0.0))
+	_arms_cycle = float(br.get("cycle", _arms_cycle))
+	_arms_phase = float(br.get("phase_offset", 1.0 / maxf(float(_arms_count), 1.0)))
+	_arms_axis = int(br.get("axis", _arms_axis))
+	var wings_def: Dictionary = d.get("wings", {})
+	_wings_deg = float(wings_def.get("degrees", _wings_deg))
+	_wings_cycle = float(wings_def.get("cycle", _wings_cycle))
+	_wings_axis = int(wings_def.get("axis", _wings_axis))
+	var co_: Dictionary = d.get("tail", {})
+	_tail_deg = float(co_.get("degrees", _tail_deg))
+	_tail_cycle = float(co_.get("cycle", _tail_cycle))
+	_tail_phase = float(co_.get("phase_offset", _tail_phase))
+	_tail_axis = int(co_.get("axis", _tail_axis))
 
 	# LUZ DEL HEROE (G§7.2): en la escena unica por fin DERRAMA sobre los
-	# vecinos, como el original — radio 450 unidades de mundo, tal cual.
+	# vecinos, como el original — radio HERO_LIGHT_RANGE unidades de mundo, tal cual.
 	# Solo con luces dinamicas encendidas (clave `luces` de la calidad, F2).
 	if is_hero and Quality.level("luces") >= 1:
 		var hero_light := OmniLight3D.new()
 		hero_light.light_color = AssetDefs.HERO_LIGHT_COLOR
 		hero_light.light_energy = AssetDefs.HERO_LIGHT_ENERGY
-		hero_light.position = Vector3(0.0, 40.0, 0.0)
-		hero_light.omni_range = 450.0
+		hero_light.position = Vector3(0.0, HERO_LIGHT_HEIGHT, 0.0)
+		hero_light.omni_range = HERO_LIGHT_RANGE
 		hero_light.shadow_enabled = false
 		_body.add_child(hero_light)
 
@@ -323,7 +442,7 @@ func _mount_anchors(d: Dictionary) -> void:
 			continue
 		var p := _position_in_model(n as Node3D) * _body_scale
 		if entry_name.begins_with("tobera"):
-			nozzles.append(Vector3(p.x, p.y + 1.0, p.z))
+			nozzles.append(Vector3(p.x, p.y + FLAME_NOZZLE_LIFT, p.z))
 			muzzle_width = maxf(muzzle_width, (n as Node3D).scale.x * _body_scale)
 		else:
 			cannons.append(Vector2(p.x, p.z))
@@ -334,7 +453,7 @@ func _mount_anchors(d: Dictionary) -> void:
 	# con 54 bichos (el original tambien lo reservaba a HIGH)
 	if not nozzles.is_empty() and (is_hero or Quality.level("engine") >= 1):
 		nozzles.sort_custom(func(a, b): return a.x < b.x)
-		var scale_factor := muzzle_width / 20.0 if muzzle_width > 0.0 else 1.0
+		var scale_factor := muzzle_width / FLAME_MUZZLE_REF_WIDTH if muzzle_width > 0.0 else 1.0
 		var trail: Dictionary = d.get("engine_trail", {})
 		for point in nozzles:
 			# el marcador esta en el FILO de salida y el disco de emision va
@@ -390,12 +509,12 @@ func _mount_cannons_json() -> void:
 ## la escala del nodo (k = boca/5), que con local_coords escala bola y
 ## velocidades a la vez.
 func _create_flame_at(point: Vector3, trail: Dictionary, scale_factor: float) -> void:
-	var c := AssetDefs.color(trail.get("color", "00E5FF"))
+	var c := AssetDefs.color(trail.get("color", DEFAULT_TRAIL_COLOR))
 	var key := c.to_html(false)
 	if not _pm_flames.has(key):
 		var pm := ParticleProcessMaterial.new()
 		pm.direction = Vector3(0, 0, 1)      # a popa (+Z del modelo)
-		pm.spread = 4.0                      # el jitter x/y +-1 del awp
+		pm.spread = FLAME_SPREAD             # el jitter x/y +-1 del awp
 		# nacen repartidas por el DISCO plano de la boca (anillo de radio
 		# interior 0), no en un punto ni en una esfera: con k = boca/5 el
 		# radio de la boca en unidades del emisor es 2.5, y el disco delgado
@@ -403,17 +522,17 @@ func _create_flame_at(point: Vector3, trail: Dictionary, scale_factor: float) ->
 		# encendido, no desde dentro de la campana
 		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
 		pm.emission_ring_axis = Vector3(0, 0, 1)
-		pm.emission_ring_radius = 2.5
+		pm.emission_ring_radius = FLAME_RING_RADIUS
 		pm.emission_ring_inner_radius = 0.0
-		pm.emission_ring_height = 0.4
-		pm.initial_velocity_min = 5.0
-		pm.initial_velocity_max = 6.0
-		pm.linear_accel_min = 15.0
-		pm.linear_accel_max = 20.0
+		pm.emission_ring_height = FLAME_RING_HEIGHT
+		pm.initial_velocity_min = FLAME_VELOCITY_MIN
+		pm.initial_velocity_max = FLAME_VELOCITY_MAX
+		pm.linear_accel_min = FLAME_ACCEL_MIN
+		pm.linear_accel_max = FLAME_ACCEL_MAX
 		pm.gravity = Vector3.ZERO
-		var curve_val := Curve.new()             # escala 1 -> 0.2 sobre la vida
+		var curve_val := Curve.new()             # escala 1 -> FLAME_SCALE_END sobre la vida
 		curve_val.add_point(Vector2(0.0, 1.0))
-		curve_val.add_point(Vector2(1.0, 0.2))
+		curve_val.add_point(Vector2(1.0, FLAME_SCALE_END))
 		var ct := CurveTexture.new()
 		ct.curve = curve_val
 		pm.scale_curve = ct
@@ -421,10 +540,10 @@ func _create_flame_at(point: Vector3, trail: Dictionary, scale_factor: float) ->
 		# casi blanco -> color -> negro (aditivo: negro = invisible)
 		var g := Gradient.new()
 		g.set_color(0, Color(0, 0, 0))
-		g.add_point(0.2, c * 0.8)
-		g.add_point(0.4, c.lerp(Color.WHITE, 0.75))
-		g.add_point(0.6, c.lerp(Color.WHITE, 0.75))
-		g.add_point(0.8, c * 0.8)
+		g.add_point(FLAME_RAMP_EDGE_AT, c * FLAME_RAMP_EDGE_GAIN)
+		g.add_point(FLAME_RAMP_CORE_AT, c.lerp(Color.WHITE, FLAME_RAMP_CORE_WHITE))
+		g.add_point(1.0 - FLAME_RAMP_CORE_AT, c.lerp(Color.WHITE, FLAME_RAMP_CORE_WHITE))
+		g.add_point(1.0 - FLAME_RAMP_EDGE_AT, c * FLAME_RAMP_EDGE_GAIN)
 		g.set_color(1, Color(0, 0, 0))
 		var gt := GradientTexture1D.new()
 		gt.gradient = g
@@ -432,28 +551,28 @@ func _create_flame_at(point: Vector3, trail: Dictionary, scale_factor: float) ->
 		_pm_flames[key] = pm
 	if _flame_mesh_cache == null:
 		_flame_mesh_cache = QuadMesh.new()
-		_flame_mesh_cache.size = Vector2(8.0, 8.0)
+		_flame_mesh_cache.size = Vector2(FLAME_BALL_SIZE, FLAME_BALL_SIZE)
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 		mat.vertex_color_use_as_albedo = true
 		mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		mat.albedo_texture = load("res://assets/fx/simple-gradient.png")
+		mat.albedo_texture = load(FLAME_TEXTURE_PATH)
 		_flame_mesh_cache.material = mat
 	var flame := GPUParticles3D.new()
-	flame.amount = 40
-	# `engine` < 2: la mitad de las bolas, mismo penacho (amount_ratio no reinicia)
-	flame.amount_ratio = 1.0 if Quality.level("engine") >= 2 else 0.5
-	flame.lifetime = 1.0
-	flame.preprocess = 1.0        # el penacho existe desde el primer frame
+	flame.amount = FLAME_AMOUNT
+	# `engine` < 2: menos bolas, mismo penacho (amount_ratio no reinicia)
+	flame.amount_ratio = 1.0 if Quality.level("engine") >= 2 else FLAME_LOW_QUALITY_RATIO
+	flame.lifetime = FLAME_LIFETIME
+	flame.preprocess = FLAME_PREPROCESS        # el penacho existe desde el primer frame
 	flame.local_coords = true     # sigue a la nave, como el follow del original
 	flame.process_material = _pm_flames[key]
 	flame.draw_pass_1 = _flame_mesh_cache
 	flame.position = point
 	# k por nave: la bola de 8 del original sale de una boca de ~5 (la
 	# cobertura de la boca la pone el emission_shape, no el tamano de bola)
-	flame.set_meta("k", scale_factor * 20.0 / 5.0)
+	flame.set_meta("k", scale_factor * FLAME_MUZZLE_REF_WIDTH / FLAME_MUZZLE_ORIGINAL_WIDTH)
 	_spin3d.add_child(flame)
 	_flames.append(flame)
 
@@ -502,27 +621,26 @@ func _build_hud(d: Dictionary, hero: bool, spawn) -> void:
 	# vaiven del banking, el borde del modelo) leyendose contra un vecino
 	# demasiado pegado. Proporcional al medio-cuerpo real de CADA nave/bicho
 	# mas un margen fijo de aire: nunca vuelve a caer dentro de la silueta,
-	# sea cual sea la especie.
-	const CLEARANCE := 14.0
-	var half_body := float(d.get("screen_size", 141)) * 0.5
-	_entry_name = NTheme.label(spawn.name, NTheme.exo2(), 12, color)
-	_entry_name.position = Vector2(-70, half_body + CLEARANCE)
-	_entry_name.custom_minimum_size = Vector2(140, 0)
+	# sea cual sea la especie (HUD_CLEARANCE).
+	var half_body := AssetDefs.num(d, "screen_size", DEFAULT_SCREEN_SIZE) * 0.5
+	_entry_name = NTheme.label(spawn.name, NTheme.exo2(), NAME_SIZE, color)
+	_entry_name.position = Vector2(-NAME_WIDTH * 0.5, half_body + HUD_CLEARANCE)
+	_entry_name.custom_minimum_size = Vector2(NAME_WIDTH, 0)
 	_entry_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_entry_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	_entry_name.add_theme_constant_override("outline_size", 4)
+	_entry_name.add_theme_color_override("font_outline_color", Color(0, 0, 0, NAME_OUTLINE_ALPHA))
+	_entry_name.add_theme_constant_override("outline_size", NAME_OUTLINE_SIZE)
 	_hud.add_child(_entry_name)
 	_shield_pct = clampf(spawn.shield_pct, 0.0, 1.0)
-	var bar_y := -(half_body + CLEARANCE)
+	var bar_y := -(half_body + HUD_CLEARANCE)
 	_shield = _create_bar(bar_y - BAR_GAP, NTheme.SHIELD, _shield_pct)
 	_hp = _create_bar(bar_y, NTheme.HP if not is_npc else NTheme.HOSTILE, _hp_pct)
 
 
 func _create_bar(y: float, color: Color, pct: float) -> ColorRect:
 	var hint := ColorRect.new()
-	hint.color = Color(0, 0, 0, 0.55)
-	hint.position = Vector2(-BAR_WIDTH * 0.5 - 1, y - 1)
-	hint.size = Vector2(BAR_WIDTH + 2, BAR_HEIGHT + 2)
+	hint.color = Color(0, 0, 0, BAR_BACKDROP_ALPHA)
+	hint.position = Vector2(-BAR_WIDTH * 0.5 - BAR_BACKDROP_PAD, y - BAR_BACKDROP_PAD)
+	hint.size = Vector2(BAR_WIDTH + BAR_BACKDROP_PAD * 2.0, BAR_HEIGHT + BAR_BACKDROP_PAD * 2.0)
 	_hud.add_child(hint)
 	var bar := ColorRect.new()
 	bar.color = color
@@ -545,27 +663,27 @@ func _process(delta: float) -> void:
 	# autoritativa avance de golpe y la posicion la persiga en un solo frame
 	# — se ve como un brinco, y como el HUD proyecta la MISMA `position`
 	# (linea 672), las barras brincan con el cuerpo. El recorte a 1/15 s
-	# (66 ms, tres frames a 45 fps) deja el movimiento en pausa esa fraccion
-	# de segundo en vez de teletransportarlo.
-	delta = minf(delta, 1.0 / 15.0)
+	# (66 ms, tres frames a 45 fps; DELTA_CLAMP_HZ) deja el movimiento en pausa
+	# esa fraccion de segundo en vez de teletransportarlo.
+	delta = minf(delta, 1.0 / DELTA_CLAMP_HZ)
 
-	var in_flight := position.distance_to(goal) > 0.5
+	var in_flight := position.distance_to(goal) > ARRIVE_DIST
 
 	# acelerador: el empuje sube en vuelo y cae al frenar; parada, la nave de
 	# jugador queda al RALENTI y el NPC apaga (G§6.2)
 	if not _flames.is_empty():
 		var thrust_goal := 1.0 if in_flight else (0.0 if is_npc else FLAME_IDLE)
 		if _thrust < thrust_goal:
-			_thrust = minf(_thrust + 3.0 * delta, thrust_goal)
+			_thrust = minf(_thrust + THRUST_RISE_PER_SEC * delta, thrust_goal)
 		else:
-			_thrust = maxf(_thrust - 4.0 * delta, thrust_goal)
+			_thrust = maxf(_thrust - THRUST_FALL_PER_SEC * delta, thrust_goal)
 		# el original escala el thruster entero 0/0.7/1 (lerp por frame): con
 		# local_coords la escala del nodo encoge bola Y velocidades a la vez
 		for flame in _flames:
-			flame.visible = _thrust > 0.02
+			flame.visible = _thrust > THRUST_VISIBLE_MIN
 			flame.emitting = flame.visible
 			var k: float = flame.get_meta("k", 1.0)
-			flame.scale = Vector3.ONE * maxf(_thrust, 0.01) * k
+			flame.scale = Vector3.ONE * maxf(_thrust, THRUST_SCALE_MIN) * k
 
 	# ---- el cuerpo articulado (malla): aleteo, cola, brazos, destello ----
 	if not _bones_3d.is_empty():
@@ -586,7 +704,7 @@ func _process(delta: float) -> void:
 				_set_bone("brazo_%d" % (k + 1), _arms_axis,
 					deg_to_rad(_arms_deg) * sin(TAU * (tb - k * _arms_phase)))
 		var tc := clock / _tail_cycle + phase
-		for k in 3:
+		for k in TAIL_BONES:
 			_set_bone("cola_%d" % (k + 1), _tail_axis,
 				deg_to_rad(_tail_deg) * sin(TAU * (tc - k * _tail_phase)))
 		if not _mats_3d.is_empty():
@@ -625,7 +743,7 @@ func _process(delta: float) -> void:
 		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
 		_idle_timer -= delta
 		if _idle_timer <= 0.0:
-			_idle_timer = 2.0 + randf() * 5.0
+			_idle_timer = _next_idle_turn()
 			_turn_to(_visual_angle + (randf() - 0.5) * 360.0)
 
 	# ---- sincronia del cuerpo 3D (el HUD se proyecta aparte, ver abajo) ----
@@ -658,7 +776,7 @@ func sync_hud() -> void:
 		# (los NPC nunca se quedan en una frontera) y que aparecia incluso
 		# parado, con la rueda del zoom. Solo se re-snapea si la proyeccion se
 		# movio DE VERDAD; el ruido ya no cruza la frontera.
-		if _hud_sp == Vector2.INF or sp.distance_to(_hud_sp) > 0.05:
+		if _hud_sp == Vector2.INF or sp.distance_to(_hud_sp) > HUD_SNAP_HYSTERESIS:
 			_hud_sp = sp
 			_hud.position = sp.floor()
 
@@ -701,7 +819,7 @@ func _process_banking(delta: float, in_flight: bool) -> void:
 ## FLOTACION idle: en 3D la componente vertical es altura de verdad (el
 ## original flotaba 0..5 unidades hacia arriba, G§5.3).
 func _process_hover(delta: float, in_flight: bool) -> void:
-	_hover_gain = move_toward(_hover_gain, 0.0 if in_flight else 1.0, 2.0 * delta)
+	_hover_gain = move_toward(_hover_gain, 0.0 if in_flight else 1.0, delta / HOVER_FADE_SEC)
 	if _spin3d == null:
 		return
 	if _hover_gain <= 0.0:
@@ -710,7 +828,7 @@ func _process_hover(delta: float, in_flight: bool) -> void:
 	_hover_phase += delta / HOVER_CYCLE
 	var a := _hover_phase
 	_spin3d.position = Vector3(sin(a) * cos(a), pow(sin(a), 2.0),
-		sin(a * 1.13) * cos(a * 0.87)) * (HOVER_AMP * _hover_gain)
+		sin(a * HOVER_Z_FREQ_A) * cos(a * HOVER_Z_FREQ_B)) * (HOVER_AMP * _hover_gain)
 
 
 ## Rumbo + alabeo compuestos sobre el cuerpo: primero la guiniada, luego el
@@ -754,7 +872,7 @@ func _bow_error(point: Vector2) -> float:
 
 
 func set_goal(dest: Vector2) -> void:
-	var in_flight := position.distance_to(goal) > 0.5
+	var in_flight := position.distance_to(goal) > ARRIVE_DIST
 	if in_flight and absf(dest.x - position.x) <= DEAD_ZONE \
 			and absf(dest.y - position.y) <= DEAD_ZONE:
 		goal = dest
@@ -788,7 +906,7 @@ func set_goal(dest: Vector2) -> void:
 ## combate cuerpo a cuerpo ese ruido se recalcula 60 veces por segundo.
 ## Reportado 31-ago: "brinco" solo en clics/combate cerca de la nave, nunca
 ## lejos. Si el rumbo nuevo esta a menos de esto del YA comandado, se ignora.
-const HEADING_NOISE_DEG := 1.5
+static var HEADING_NOISE_DEG: float = AssetDefs.num(CFG_TURN, "heading_noise_deg", 1.5)
 
 func _turn_to(degrees: float, dps := 0.0) -> void:
 	var dest_angle := fposmod(degrees, 360.0)
@@ -852,7 +970,7 @@ func hull_only(is_active: bool) -> void:
 	if _hud != null:
 		_hud.visible = not is_active
 	for flame in _flames:
-		flame.visible = not is_active and _thrust > 0.02
+		flame.visible = not is_active and _thrust > THRUST_VISIBLE_MIN
 
 
 ## Eco autoritativo del server: correccion suave si la deriva es chica, snap si es grande.
@@ -872,10 +990,10 @@ func reconcile(x: float, y: float, tx: float, ty: float, new_vel: float, telepor
 	var server_pos := Vector2(x, y)
 	if turn_deg_per_sec > 0.0:
 		_shadow = server_pos
-		if teleport or position.distance_to(server_pos) > 500.0:
+		if teleport or position.distance_to(server_pos) > SNAP_DIST_NPC:
 			position = server_pos
 			_correction = Vector2.ZERO
-	elif teleport or position.distance_to(server_pos) > 220.0:
+	elif teleport or position.distance_to(server_pos) > SNAP_DIST_SHIP:
 		position = server_pos
 		_correction = Vector2.ZERO
 	else:
@@ -891,7 +1009,7 @@ func reconcile(x: float, y: float, tx: float, ty: float, new_vel: float, telepor
 		# drift es irrelevante — el proximo objetivo lo absorbe gratis. Solo
 		# importa aplicarlo cuando la nave esta quieta o a punto de estarlo:
 		# ahi si hay que llegar EXACTO a donde dice el server.
-		if position.distance_to(goal) <= 0.5:
+		if position.distance_to(goal) <= ARRIVE_DIST:
 			_correction += server_pos - position
 	set_goal(Vector2(tx, ty))
 
@@ -899,7 +1017,7 @@ func reconcile(x: float, y: float, tx: float, ty: float, new_vel: float, telepor
 ## Un frame de correccion: absorbe `_correccion` con la misma ease incremental
 ## del giro y el banking — nunca de golpe, y un reconcile nuevo a medio
 ## camino solo suma al vector pendiente en vez de reiniciar nada.
-const CORRECTION_TIME := 0.3
+static var CORRECTION_TIME: float = AssetDefs.num(CFG_MOTION, "correction_time", 0.3)
 func _process_correction(delta: float) -> void:
 	if _correction.is_zero_approx():
 		return
@@ -939,14 +1057,15 @@ func next_local_cannon() -> Vector2:
 ## Chispazo en el casco: billboard suelto en el mundo, punto aleatorio del
 ## disco de click (la receta del original, intacta).
 func hull_impact() -> void:
-	if _hull_impacts >= 5:
+	if _hull_impacts >= HULL_IMPACTS_MAX:
 		return
 	_hull_impacts += 1
 	var rnd := randf()
 	var offset := Vector2.from_angle(rnd * TAU) * (click_radius * 0.5 * rnd)
-	var anim := _sheet_anim3d("res://assets/fx/hull-impact.png", 96, 8, 0.45)
+	var anim := _sheet_anim3d(HULL_IMPACT_PATH, HULL_IMPACT_SIDE, HULL_IMPACT_FRAMES,
+		HULL_IMPACT_DURATION)
 	var p := position + offset
-	anim.position = Vector3(p.x, 12.0, p.y)
+	anim.position = Vector3(p.x, IMPACT_HEIGHT, p.y)
 	Stage3D.instance.add_child(anim)
 	anim.tree_exited.connect(func(): _hull_impacts -= 1)
 
@@ -954,12 +1073,13 @@ func hull_impact() -> void:
 ## Onda en el escudo: sobre la circunferencia, del lado del atacante; sigue a
 ## la nave (hija del cuerpo).
 func shield_impact(start_at: Vector2) -> void:
-	if _shield_impacts >= 9:
+	if _shield_impacts >= SHIELD_IMPACTS_MAX:
 		return
 	_shield_impacts += 1
 	var dir := (start_at - position).normalized()
-	var anim := _sheet_anim3d("res://assets/fx/shield-impact.png", 128, 8, 0.3)
-	anim.position = Vector3(dir.x * click_radius, 12.0, dir.y * click_radius)
+	var anim := _sheet_anim3d(SHIELD_IMPACT_PATH, SHIELD_IMPACT_SIDE, SHIELD_IMPACT_FRAMES,
+		SHIELD_IMPACT_DURATION)
+	anim.position = Vector3(dir.x * click_radius, IMPACT_HEIGHT, dir.y * click_radius)
 	anim.modulate = NTheme.SHIELD
 	_body.add_child(anim)
 	anim.tree_exited.connect(func(): _shield_impacts -= 1)
@@ -992,13 +1112,14 @@ static func _sheet_anim3d(path: String, side: int, frames: int, duration: float)
 
 
 ## Seleccion local: esquinas de mira en el HUD (pixeles de pantalla, tamanio
-## constante). El marcador ENTRA cerrando sobre el blanco: 1.5x -> 1x en 0.3 s.
+## constante). El marcador ENTRA cerrando sobre el blanco: MARKER_ENTER_SCALE x
+## -> 1x en MARKER_ENTER_SEC.
 func set_selected(sel: bool) -> void:
 	_selected = sel
 	if sel:
-		_sel_k = 1.5
+		_sel_k = MARKER_ENTER_SCALE
 		var tw := create_tween()
-		tw.tween_method(_sel_step, 1.5, 1.0, 0.3) \
+		tw.tween_method(_sel_step, MARKER_ENTER_SCALE, 1.0, MARKER_ENTER_SEC) \
 			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	if _hud != null:
 		_hud.queue_redraw()
@@ -1013,11 +1134,11 @@ func _sel_step(k: float) -> void:
 func _draw_marker() -> void:
 	if not _selected or _hud == null:
 		return
-	var r := 44.0 * _sel_k
-	var l := 14.0
+	var r := MARKER_RADIUS * _sel_k
+	var l := MARKER_ARM
 	var c := NTheme.HOSTILE if not is_hero else NTheme.CYAN
 	for corner in [Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)]:
 		var dx := -l if corner.x > 0 else l
 		var dy := -l if corner.y > 0 else l
-		_hud.draw_line(corner, corner + Vector2(dx, 0), c, 2.0)
-		_hud.draw_line(corner, corner + Vector2(0, dy), c, 2.0)
+		_hud.draw_line(corner, corner + Vector2(dx, 0), c, MARKER_LINE_WIDTH)
+		_hud.draw_line(corner, corner + Vector2(0, dy), c, MARKER_LINE_WIDTH)

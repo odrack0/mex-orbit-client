@@ -2,6 +2,16 @@
 # dev_login.cfg (NO versionado) permite precargar credenciales de dev.
 extends Node
 
+## Diales de data/config/net.json (sub-objeto `session`). AssetDefs no depende
+## de Session, asi que leerlo desde este autoload no cierra ningun ciclo.
+static var CFG: Dictionary = AssetDefs.config("net").get("session", {})
+## A donde llama el cliente en escritorio si project.godot no lo dice.
+static var API_BASE_DEFAULT: String = str(CFG.get("api_base_default", "http://127.0.0.1:5100"))
+## Ruta de la api dentro del mismo origen, en web, si project.godot no la dice.
+static var API_PATH_DEFAULT: String = str(CFG.get("api_path_default", "/api"))
+## Credenciales de dev (fuera del repo).
+static var DEV_LOGIN_PATH: String = str(CFG.get("dev_login_path", "res://dev_login.cfg"))
+
 var api_base := ""            # se resuelve en _ready(): ver project.godot [mexorbit]
 var game_host := ""
 var game_ticket := ""
@@ -56,13 +66,13 @@ func _ready() -> void:
 func _resolve_api() -> String:
 	if OS.has_feature("web"):
 		var origin := str(JavaScriptBridge.eval("location.origin", true))
-		var path := str(ProjectSettings.get_setting("mexorbit/api_path", "/api"))
+		var path := str(ProjectSettings.get_setting("mexorbit/api_path", API_PATH_DEFAULT))
 		# Si el origen no se puede leer se devuelve la ruta a secas, que fallara
 		# nombrandola — y eso es informacion. Caer aqui al valor de escritorio
 		# seria volver a 127.0.0.1, o sea el fallo que esto viene a arreglar
 		# disfrazado de respaldo.
 		return (origin + path) if origin != "" else path
-	return str(ProjectSettings.get_setting("mexorbit/api_base", "http://127.0.0.1:5100"))
+	return str(ProjectSettings.get_setting("mexorbit/api_base", API_BASE_DEFAULT))
 
 
 ## Credenciales de dev desde dev_login.cfg (fuera del repo).
@@ -71,10 +81,9 @@ func _resolve_api() -> String:
 ## con esos bytes invisibles delante y el login salia vacio.
 func dev_credentials() -> Dictionary:
 	var output := {"username": "", "password": ""}
-	const PATH := "res://dev_login.cfg"
-	if not FileAccess.file_exists(PATH):
+	if not FileAccess.file_exists(DEV_LOGIN_PATH):
 		return output
-	var txt := FileAccess.get_file_as_string(PATH)
+	var txt := FileAccess.get_file_as_string(DEV_LOGIN_PATH)
 	for line in txt.split("\n"):
 		var l := line.strip_edges()
 		if l.is_empty() or l.begins_with(";") or l.begins_with("#") or l.begins_with("["):

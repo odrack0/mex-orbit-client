@@ -1,9 +1,8 @@
 {
-  "_comentario": "Color heredado del original (MCB-25 = azul #0079f9).",
+  "_comment": "Color heredado del original (MCB-25 = azul #0079f9).",
   "code": "cel-2",
   "loot_id": "ammo_cel_2",
   "display_name": "CEL-2",
-
   "beam": {
     "texture": "res://assets/fx/beam.png",
     "color": "0079F9",

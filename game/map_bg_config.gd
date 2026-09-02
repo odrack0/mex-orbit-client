@@ -2,6 +2,19 @@
 # al formato que consume Fondo3D (F3). Si el mapa no tiene JSON, solo el cielo.
 class_name MapBgConfig
 
+## Defaults de los campos del JSON de cada mapa: data/config/backdrop.json
+## (`map_defaults`). Fondo3D los reutiliza cuando el mapa no trae JSON.
+static var CFG: Dictionary = AssetDefs.config("backdrop")
+static var _DEFAULTS: Dictionary = CFG.get("map_defaults", {})
+static var PLANET_P_FACTOR: float = AssetDefs.num(_DEFAULTS, "planet_p_factor", 5.0)
+static var SUN_P_FACTOR: float = AssetDefs.num(_DEFAULTS, "sun_p_factor", 10.0)
+static var SUN_SCALE: float = AssetDefs.num(_DEFAULTS, "sun_scale", 0.9)
+static var SUN_SPIN: float = AssetDefs.num(_DEFAULTS, "sun_spin_deg_per_sec", -9.0)
+static var STARFIELD_TINT: Color = AssetDefs.color(_DEFAULTS.get("starfield_tint", ""), Color("66F2FF"))
+static var STARFIELD_TINT_RATIO: float = AssetDefs.num(_DEFAULTS, "starfield_tint_ratio", 0.35)
+static var TILE_P_FACTOR: float = AssetDefs.num(_DEFAULTS, "tile_p_factor", 6.0)
+static var TILE_GRID: int = int(AssetDefs.num(_DEFAULTS, "tile_grid", 2.0))
+
 
 static func for_whom(map_code: String, world: Vector2) -> Dictionary:
 	var d := AssetDefs.map_data(map_code)
@@ -20,7 +33,7 @@ static func for_whom(map_code: String, world: Vector2) -> Dictionary:
 		planets.append({
 			"tex": load(path) if ResourceLoader.exists(path) else null,
 			"pos": Vector2(float(p.get("x", 0)), float(p.get("y", 0))),
-			"p_factor": float(p.get("p_factor", 5.0)),
+			"p_factor": float(p.get("p_factor", PLANET_P_FACTOR)),
 			"scale": float(p.get("scale", 1.0)),
 		})
 	cfg["planets"] = planets
@@ -29,12 +42,12 @@ static func for_whom(map_code: String, world: Vector2) -> Dictionary:
 		var s: Dictionary = d.sun
 		cfg["sun"] = {
 			"pos": Vector2(float(s.get("x", 0)), float(s.get("y", 0))),
-			"p_factor": float(s.get("p_factor", 10.0)),
-			"scale": float(s.get("scale", 0.9)),
-			"spin": float(s.get("spin_deg_per_sec", -9.0)),
+			"p_factor": float(s.get("p_factor", SUN_P_FACTOR)),
+			"scale": float(s.get("scale", SUN_SCALE)),
+			"spin": float(s.get("spin_deg_per_sec", SUN_SPIN)),
 		}
-	cfg["starfield_tint"] = AssetDefs.color(d.get("starfield_tint", "66F2FF"))
-	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", 0.35))
+	cfg["starfield_tint"] = AssetDefs.color(d.get("starfield_tint", ""), STARFIELD_TINT)
+	cfg["starfield_tint_ratio"] = float(d.get("starfield_tint_ratio", STARFIELD_TINT_RATIO))
 	cfg["props"] = d.get("props", [])   # mallas y planos del fondo (F3+)
 	# pan de camara en mapas con fondo 3D. El signo va INVERTIDO respecto al
 	# original (nuestro mundo espeja su z y eso voltea la quiralidad del giro)
@@ -56,12 +69,12 @@ static func _tiles(items: Array) -> Array:
 	for t in items:
 		var e := {
 			"tex": load(t.tex),
-			"p_factor": float(t.get("p_factor", 6.0)),
+			"p_factor": float(t.get("p_factor", TILE_P_FACTOR)),
 			"scale": float(t.get("scale", 1.0)),
 			"alpha": float(t.get("alpha", 1.0)),
 			# atlas de variantes (F3): rejilla grid x grid con `celdas` nubes
-			"celdas": int(t.get("celdas", 1)),
-			"grid": int(t.get("grid", 2)),
+			"cells": int(t.get("cells", 1)),
+			"grid": int(t.get("grid", TILE_GRID)),
 		}
 		# el tilemap del display3D original: cota absoluta, lado del tile en
 		# unidades de mundo, mapScale y mascara de agujeros (blanco = nube)

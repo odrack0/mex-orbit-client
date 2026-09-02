@@ -6,8 +6,30 @@ extends Node2D
 ##
 ##   godot --path . res://pruebas/ver_anclajes.tscn -- --modelo=ships/phoenix.glb
 
-const SIDE := 512
-var _path := "res://assets/ships/phoenix.glb"
+## Diales de data/config/tests.json (`view_anchors` + `common`).
+static var CFG: Dictionary = AssetDefs.config("tests").get("view_anchors", {})
+static var CFG_COMMON: Dictionary = AssetDefs.config("tests").get("common", {})
+static var FRAME_MARGIN: float = AssetDefs.num(CFG_COMMON, "frame_margin", 1.15)
+static var CAMERA_HEIGHT: float = AssetDefs.num(CFG_COMMON, "camera_height", 8.0)
+static var OUTPUT_DIR: String = str(CFG_COMMON.get("output_dir", "C:/Tools"))
+static var SIDE: int = int(AssetDefs.num(CFG, "render_size", 512))
+static var DEFAULT_MODEL: String = str(CFG.get("default_model", "res://assets/ships/phoenix.glb"))
+static var SETTLE_FRAMES: int = int(AssetDefs.num(CFG, "settle_frames", 4))
+## Marcadores pintados sobre el render.
+static var CROSS_RADIUS_PX: int = int(AssetDefs.num(CFG, "cross_radius_px", 6))
+static var WIDTH_BAR_OFFSET_PX: int = int(AssetDefs.num(CFG, "width_bar_offset_px", 8))
+static var THRUSTER_COLOR: Color = AssetDefs.color(CFG.get("thruster_color"), Color("00ffff"))
+static var CANNON_COLOR: Color = AssetDefs.color(CFG.get("cannon_color"), Color("ff6600"))
+static var WIDTH_BAR_COLOR: Color = AssetDefs.color(CFG.get("width_bar_color"), Color("ffff00"))
+## Medida de las bocas en la imagen.
+static var ALPHA_THRESHOLD: float = AssetDefs.num(CFG, "alpha_threshold", 0.3)
+static var RECOIL_MAX_PX: int = int(AssetDefs.num(CFG, "recoil_max_px", 60))
+static var RECOIL_STEP_PX: int = int(AssetDefs.num(CFG, "recoil_step_px", 2))
+static var MIN_MUZZLES: int = int(AssetDefs.num(CFG, "min_muzzles", 4))
+static var MIN_MUZZLE_WIDTH_PX: int = int(AssetDefs.num(CFG, "min_muzzle_width_px", 4))
+static var BAND_HEIGHT_PX: int = int(AssetDefs.num(CFG, "band_height_px", 6))
+
+var _path := DEFAULT_MODEL
 var _vp: SubViewport
 var _model: Node3D
 var _scale_factor := 1.0
@@ -27,7 +49,7 @@ func _ready() -> void:
 		first = false
 	var ext: float = maxf(box.size.x, box.size.z)
 	# Mismo contrato que el juego: el lado mayor ocupa el ancho util del render.
-	_scale_factor = float(SIDE) / (ext * 1.15)
+	_scale_factor = float(SIDE) / (ext * FRAME_MARGIN)
 
 	_vp = SubViewport.new()
 	_vp.size = Vector2i(SIDE, SIDE)
@@ -44,14 +66,14 @@ func _ready() -> void:
 	_vp.add_child(AssetDefs.world_sun())
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = ext * 1.15
+	cam.size = ext * FRAME_MARGIN
 	_vp.add_child(cam)
-	cam.look_at_from_position(Vector3(0.0, 8.0, 0.0), Vector3.ZERO, Vector3.FORWARD)
+	cam.look_at_from_position(Vector3(0.0, CAMERA_HEIGHT, 0.0), Vector3.ZERO, Vector3.FORWARD)
 	cam.current = true
 
 func _process(_delta: float) -> void:
 	_waits += 1
-	if _waits < 4:
+	if _waits < SETTLE_FRAMES:
 		return
 	var img := _vp.get_texture().get_image()
 	img.convert(Image.FORMAT_RGBA8)
@@ -63,17 +85,18 @@ func _process(_delta: float) -> void:
 		var p: Vector3 = (n as Node3D).position
 		var q := center + Vector2(p.x, p.z) * _scale_factor
 		var wdt: float = (n as Node3D).scale.x * _scale_factor
-		var col := Color(0, 1, 1) if nm.begins_with("tobera") else Color(1, 0.4, 0)
+		var col := THRUSTER_COLOR if nm.begins_with("tobera") else CANNON_COLOR
 		# cruz en el punto y una barra del ANCHO declarado, para ver si cubre la boca
-		for k in range(-6, 7):
+		for k in range(-CROSS_RADIUS_PX, CROSS_RADIUS_PX + 1):
 			_paints(img, q + Vector2(k, 0), col)
 			_paints(img, q + Vector2(0, k), col)
 		for k in range(int(-wdt * 0.5), int(wdt * 0.5) + 1):
-			_paints(img, q + Vector2(k, 8), Color(1, 1, 0))
+			_paints(img, q + Vector2(k, WIDTH_BAR_OFFSET_PX), WIDTH_BAR_COLOR)
 		print("%-10s en (%.0f, %.0f)  ancho %.1f px" % [nm, q.x, q.y, wdt])
 	_measure_muzzles(img)
-	img.save_png("C:/Tools/anclajes.png")
-	print("guardado C:/Tools/anclajes.png")
+	var out_path := "%s/anclajes.png" % OUTPUT_DIR
+	img.save_png(out_path)
+	print("guardado %s" % out_path)
 	get_tree().quit()
 
 func _paints(img: Image, q: Vector2, c: Color) -> void:
@@ -93,7 +116,7 @@ func _measure_muzzles(img: Image) -> void:
 	for y in range(img.get_height() - 1, -1, -1):
 		var found := false
 		for x in img.get_width():
-			if img.get_pixel(x, y).a > 0.3:
+			if img.get_pixel(x, y).a > ALPHA_THRESHOLD:
 				found = true
 				break
 		if found:
@@ -104,17 +127,17 @@ func _measure_muzzles(img: Image) -> void:
 	# Se sube por las filas hasta encontrar una donde las bocas esten SEPARADAS: al
 	# ras del todo las campanas se tocan de dos en dos —que es exactamente lo que se
 	# veia en el juego— y ahi no se pueden contar.
-	for recoil in range(0, 60, 2):
-		if _muzzles_at(img, latest - recoil) >= 4:
+	for recoil in range(0, RECOIL_MAX_PX, RECOIL_STEP_PX):
+		if _muzzles_at(img, latest - recoil) >= MIN_MUZZLES:
 			latest -= recoil
 			break
-	var hgt := 6
+	var hgt := BAND_HEIGHT_PX
 	var col := PackedInt32Array()
 	col.resize(img.get_width())
 	for x in img.get_width():
 		var n := 0
 		for y in range(maxi(0, latest - hgt), latest + 1):
-			if img.get_pixel(x, y).a > 0.3:
+			if img.get_pixel(x, y).a > ALPHA_THRESHOLD:
 				n += 1
 		col[x] = n
 
@@ -126,7 +149,7 @@ func _measure_muzzles(img: Image) -> void:
 		if full and start < 0:
 			start = x
 		elif not full and start >= 0:
-			if x - start >= 4:
+			if x - start >= MIN_MUZZLE_WIDTH_PX:
 				var c := 0.5 * float(start + x - 1)
 				print("  centro %.1f px -> modelo %+.4f   ancho %d px -> %.4f"
 					% [c, (c - center) / _scale_factor, x - start, float(x - start) / _scale_factor])
@@ -141,15 +164,15 @@ func _muzzles_at(img: Image, y: int) -> int:
 	var inside := false
 	var wdt := 0
 	for x in img.get_width():
-		var full := img.get_pixel(x, y).a > 0.3
+		var full := img.get_pixel(x, y).a > ALPHA_THRESHOLD
 		if full:
 			wdt += 1
 			inside = true
 		elif inside:
-			if wdt >= 4:
+			if wdt >= MIN_MUZZLE_WIDTH_PX:
 				n += 1
 			wdt = 0
 			inside = false
-	if inside and wdt >= 4:
+	if inside and wdt >= MIN_MUZZLE_WIDTH_PX:
 		n += 1
 	return n

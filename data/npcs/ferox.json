@@ -1,24 +1,24 @@
 {
-  "_comentario": "Ferox: tercera especie, cazador oseo. Es el primer bicho CLARO del catalogo (hueso marfil frente a la quitina y el basalto oscuros): se distingue por valor, no solo por silueta. Su pulso es rapido y nervioso, de depredador.",
+  "_comment": "Ferox: tercera especie, cazador oseo. Es el primer bicho CLARO del catalogo (hueso marfil frente a la quitina y el basalto oscuros): se distingue por valor, no solo por silueta. Su pulso es rapido y nervioso, de depredador.",
   "code": "ferox",
-  "_modelo": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Los ojos y las vetas encienden por el pulso sobre la emision del material (canal r del albedo), sin capa aparte.",
-  "modelo": "res://assets/npcs/ferox.glb",
-  "_alas": "Las CUCHILLAS de los brazos. Eje 1 medido con repro_eje_hueso: a +30 se pliegan al cuerpo y a -30 se abren en abanico, sin cruzarse en ningun extremo; a 190 px cada extremo cambia la silueta un 30%. Ciclo mas corto que el Vexor (2.17): es el cazador nervioso del catalogo.",
-  "alas": {
-    "grados": 30.0,
-    "ciclo": 1.6,
-    "eje": 1
+  "_model": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Los ojos y las vetas encienden por el pulso sobre la emision del material (canal r del albedo), sin capa aparte.",
+  "model": "res://assets/npcs/ferox.glb",
+  "_wings": "Las CUCHILLAS de los brazos. Eje 1 medido con repro_eje_hueso: a +30 se pliegan al cuerpo y a -30 se abren en abanico, sin cruzarse en ningun extremo; a 190 px cada extremo cambia la silueta un 30%. Ciclo mas corto que el Vexor (2.17): es el cazador nervioso del catalogo.",
+  "wings": {
+    "degrees": 30.0,
+    "cycle": 1.6,
+    "axis": 1
   },
-  "_cola": "Latigo lateral. Eje 2 medido: el 1 apenas la mueve en cenital y el 0 nada (0.4% de silueta). La cola es el 30% trasero del bicho (bisagra medida: el perfil salta de 0.116 a 0.500 entre frac 0.30 y 0.34), asi que la onda de tres segmentos se ve entera.",
-  "cola": {
-    "grados": 12.0,
-    "ciclo": 1.2,
-    "desfase": 0.22,
-    "eje": 2
+  "_tail": "Latigo lateral. Eje 2 medido: el 1 apenas la mueve en cenital y el 0 nada (0.4% de silueta). La cola es el 30% trasero del bicho (bisagra medida: el perfil salta de 0.116 a 0.500 entre frac 0.30 y 0.34), asi que la onda de tres segmentos se ve entera.",
+  "tail": {
+    "degrees": 12.0,
+    "cycle": 1.2,
+    "phase_offset": 0.22,
+    "axis": 2
   },
   "screen_size": 190,
   "click_radius": 54,
-  "_giro": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. cazador: el que mas rapido encara, acorde a sus 420 de velocidad",
+  "_spin": "steps 0 = giro continuo. Los bichos NO usan la cuantizacion de 32 pasos de las naves: girando despacio se veria a tirones. cazador: el que mas rapido encara, acorde a sus 420 de velocidad",
   "turn": {
     "steps": 0,
     "deg_per_sec": 240
