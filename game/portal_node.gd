@@ -10,8 +10,9 @@
 # no hay suelo que lo apoye. Con el balanceo de +-3 grados
 # y el pulso de 5 s del original (G: `<floating rotation 3>`, `<glow
 # duration="5">`). El encendido son los 2,1 s que cubren la latencia del
-# salto: las luces suben en rampa, el aro gira sobre su eje (una sola pieza:
-# girar el anillo entero se lee como que gira el centro) y un destello del pool
+# salto: las luces suben en rampa, GIRA EL CENTRO (el vortice, pieza aparte del
+# GLB llamada `centro` — la parte `tools/partir-centro.py` del repo de arte por
+# radio; el aro se queda quieto) y un destello del pool
 # de luces; al final queda ABIERTO y avisa. La etiqueta del sector vive en la
 # capa HUD del mundo, proyectada.
 class_name PortalNode
@@ -34,6 +35,7 @@ const RANGO_SALTO := 600.0
 var _datos = null                 # MexProtocol.MapPortal, para poder reconstruir
 var _cuerpo: Node3D               # el cuerpo en la escena unica
 var _modelo: Node3D               # la malla (null si el JSON no trae `modelo`)
+var _centro: Node3D               # la pieza `centro` del GLB: lo unico que gira
 var _mats: Array[BaseMaterial3D] = []
 var _etiqueta: Label              # en la capa HUD del mundo, proyectada
 var _escala := 1.0
@@ -85,6 +87,7 @@ func _limpiar() -> void:
 		_etiqueta.queue_free()
 	_cuerpo = null
 	_modelo = null
+	_centro = null
 	_mats.clear()
 	_etiqueta = null
 	_encendiendo = false
@@ -119,6 +122,9 @@ func _construir() -> void:
 			# del aro, como en el original. La caja del modelo ya viene centrada
 			# por el normalizador (pivote al centro).
 			_mats = AssetDefs.materiales_3d(_modelo)
+			# el vortice: si el GLB viene partido, solo esa pieza gira; si no
+			# (un GLB de una pieza), gira el aro entero, que es el respaldo
+			_centro = _modelo.find_child("centro", true, false) as Node3D
 
 	var ori: Dictionary = d.get("orientacion", {})
 	_pan = float(ori.get("pan", 0.0))
@@ -147,9 +153,9 @@ func _construir() -> void:
 	_montar_etiqueta(d)
 
 
-## La pose del aro: la cara a camara, el balanceo lento del original y el giro
-## sobre su propio eje (Z del modelo: la normal del anillo, que queda mirando
-## a la camara, asi que el giro se ve como un circulo que rota).
+## La pose del aro: la cara a camara y el balanceo lento del original. El giro
+## del encendido va SOLO al centro, sobre su propio eje (Z del modelo: la normal
+## del anillo, que queda mirando a la camara — un circulo que rota).
 ## Se compone entera cada frame — la base lleva tambien la escala, y asignar
 ## una base nueva la pisaria.
 func _aplicar_pose() -> void:
@@ -159,8 +165,11 @@ func _aplicar_pose() -> void:
 	var bal := deg_to_rad(_flotar_grados)
 	var rot := _base \
 		* Basis(Vector3.RIGHT, sin(t) * bal) \
-		* Basis(Vector3.UP, cos(t * 0.8) * bal) \
-		* Basis(Vector3.BACK, deg_to_rad(_giro))
+		* Basis(Vector3.UP, cos(t * 0.8) * bal)
+	if _centro != null:
+		_centro.rotation = Vector3(0.0, 0.0, deg_to_rad(_giro))
+	else:
+		rot = rot * Basis(Vector3.BACK, deg_to_rad(_giro))
 	_modelo.basis = rot.scaled(Vector3.ONE * _escala)
 
 
