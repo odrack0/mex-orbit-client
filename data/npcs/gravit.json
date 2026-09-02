@@ -13,5 +13,7 @@
     "max_intensity": 2.2,
     "speed": 1.4,
     "sharpness": 3.0
-  }
+  },
+  "_modelo": "Malla 3D del 1-sep-2026, el unico cuerpo de la entidad. Rig y diales de animacion: ver README de arte.",
+  "modelo": "res://assets/npcs/gravit.glb"
 }

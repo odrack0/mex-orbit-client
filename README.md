@@ -625,10 +625,13 @@ NPC (DO las reservaba a HIGH por lo mismo). BAJA se ve *borrosa*, no *pobre* —
 `Sprite3D` tumbado, el atlas/PNG de caja, portal y estación, los shaders de sprite (`undulate`,
 `peristalsis`, `rings`, `relieve`), `pruebas/medir_emision.tscn` (homologaba media contra alta:
 ya no hay media que homologar) y el horno de `mex-orbit-art`. **Una entidad sin `modelo` en su
-JSON no se dibuja** — existe (HUD, click, combate, minimapa) pero no tiene cuerpo. El 1-sep eso
-son Gravit, Gravon, Mordax, Skarn, la caja y el portal: la decisión fue no dejar el PNG de respaldo,
-porque un respaldo que nadie mira es la forma de que seis especies se queden sin malla para siempre.
-Sus GLB son la primera prioridad de arte (`plan-cliente-3d.md`, «una especie por ronda»).
+JSON no se dibuja** — existe (HUD, click, combate, minimapa) pero no tiene cuerpo. La mañana del
+1-sep eso fueron Gravit, Gravon, Mordax, Skarn, la caja y el portal: la decisión fue no dejar el PNG
+de respaldo, porque un respaldo que nadie mira es la forma de que seis especies se queden sin malla
+para siempre — y esa misma tarde llegaron sus once GLB (los seis nuevos y los cinco reemplazos), así
+que hoy **todo el catálogo tiene cuerpo**. Los diales de cada uno están en el README de
+`mex-orbit-art`; siete vienen sin remesh (Skarn y Mordax a 104 k tris, la caja a 50 k), deuda
+aceptada a sabiendas — si el fps baja, ahí está el primer sospechoso.
 
 **La auto-calidad** (`AQ_ESCALERA`) recorta en este orden: antialias → resolución → fondo y
 partículas → luces → explosiones y pulso. Los dos primeros peldaños no se ven; los mide el fps.
