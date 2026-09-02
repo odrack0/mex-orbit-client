@@ -12,9 +12,10 @@
 # duration="5">`). El encendido son los 2,1 s que cubren la latencia del
 # salto: las luces del aro suben en rampa PARPADEANDO, el CENTRO (el vortice,
 # pieza aparte del GLB llamada `centro` — la parte `tools/partir-centro.py` del
-# repo de arte por radio) que en reposo NO ESTA aparece creciendo y girando, y
-# un destello del pool de luces; al final queda ABIERTO (vortice pleno, luces
-# fijas) y avisa. El aro no gira nunca. La etiqueta del sector vive en la capa
+# repo de arte) que en reposo NO ESTA puede aparecer creciendo y girando —
+# solo con `encendido.vortice` en el JSON; desde el 2-sep va apagado porque
+# en vivo no gusto—, y un destello del pool de luces; al final queda ABIERTO
+# (luces fijas) y avisa. El aro no gira nunca. La etiqueta del sector vive en la capa
 # HUD del mundo, proyectada.
 class_name PortalNode
 extends Node2D
@@ -63,6 +64,7 @@ var _enc_giro_dps := 240.0
 var _enc_destello := 6.0
 var _enc_parpadeo_hz := 6.0       # las luces del aro van y vienen mientras carga
 var _enc_parpadeo_min := 0.15     # a cuanto bajan en el "apagado" del parpadeo
+var _enc_vortice := false         # si el centro (el vortice) aparece al encender
 var _encendiendo := false
 var _abierto := false
 var _anim_t := 0.0
@@ -164,6 +166,7 @@ func _construir() -> void:
 	_enc_destello = float(enc.get("destello", 6.0))
 	_enc_parpadeo_hz = float(enc.get("parpadeo_hz", 6.0))
 	_enc_parpadeo_min = float(enc.get("parpadeo_min", 0.15))
+	_enc_vortice = bool(enc.get("vortice", false))
 	_fase = randf() * TAU
 	_aplicar_pose()
 	_montar_etiqueta(d)
@@ -265,7 +268,8 @@ func _process(delta: float) -> void:
 		_giro = fmod(_giro + lerpf(0.0, _enc_giro_dps, k) * delta, 360.0)
 		e_centro = lerpf(0.0, _enc_glow, k)
 		if _centro != null:
-			_centro.visible = true
+			# el vortice solo si el JSON lo pide (2-sep: apagado, no gusto en vivo)
+			_centro.visible = _enc_vortice
 			_centro.scale = Vector3.ONE * maxf(k, 0.02)
 		if _encendiendo:
 			_anim_t += delta

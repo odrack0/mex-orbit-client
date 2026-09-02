@@ -303,8 +303,10 @@ solo pone el arte, y ese arte sale de `data/props/`.
   pulsar **J** al alcance arranca el **encendido de 2,1 s** —los que cubren la latencia del
   salto—: las luces del aro suben en rampa hasta `encendido.glow` **parpadeando** (onda a
   `parpadeo_hz`, 6 Hz, que baja a `parpadeo_min`, 0,15, en cada apagado; abierto = fijas), y
-  **el centro** (el vórtice), que **en reposo no está**, aparece creciendo con la rampa y acelera
-  hasta `giro_dps` sobre la normal del aro; el anillo se queda quieto — el GLB viene partido
+  **el centro** (el vórtice), que **en reposo no está**, solo aparece si `encendido.vortice` es
+  `true` (creciendo con la rampa y girando a `giro_dps`; desde el 2-sep va en `false`: la
+  animación no gustó en vivo y el encendido es solo luces + destello); el anillo se queda quieto
+  — el GLB viene partido
   en dos piezas, `aro` y `centro`, por `mex-orbit-art/tools/partir-centro.py` (cinco criterios
   medidos en la malla: islas por radio, losa del disco, astillas, firma del disco dentro de las
   islas mixtas y largo del triángulo — cortar por un círculo dejaba el borde del aro dentado,

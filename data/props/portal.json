@@ -34,13 +34,14 @@
     "ciclo": 6.0
   },
   "_pulse": "El `<glow duration=5>` del original: seno con fase propia sobre la emision del material. speed en rad/s (0,9 ~ 7 s), sharpness marca el destello.",
-  "_encendido": "Los 2,1 s que cubren la latencia del salto. En reposo el CENTRO (el vortice, pieza `centro` del GLB) no esta; al activar aparece creciendo con la rampa y acelera hasta `giro_dps` sobre la normal del aro, las luces del aro suben hasta `glow` PARPADEANDO a `parpadeo_hz` (bajan a `parpadeo_min` en cada apagado) y una luz del pool destella a `destello`. Abierto = vortice pleno y luces fijas.",
+  "_encendido": "Los 2,1 s que cubren la latencia del salto. Las luces del aro suben hasta `glow` PARPADEANDO a `parpadeo_hz` (bajan a `parpadeo_min` en cada apagado) y una luz del pool destella a `destello`. El CENTRO (el vortice, pieza `centro` del GLB) no esta en reposo; con `vortice: true` aparece creciendo con la rampa y girando a `giro_dps` — desde el 2-sep va en false (no gusto en vivo). Abierto = luces fijas.",
   "encendido": {
     "segundos": 2.1,
     "glow": 4.0,
     "giro_dps": 240.0,
     "destello": 6.0,
     "parpadeo_hz": 6.0,
-    "parpadeo_min": 0.15
+    "parpadeo_min": 0.15,
+    "vortice": false
   }
 }
