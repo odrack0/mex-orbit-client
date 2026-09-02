@@ -70,11 +70,11 @@ static func glass_panel() -> StyleBoxFlat:
 	return sb
 
 
-static func label(texto: String, fuente: Font, tam: int, color: Color) -> Label:
+static func label(txt: String, font: Font, size_px: int, color: Color) -> Label:
 	var l := Label.new()
-	l.text = texto
-	l.add_theme_font_override("font", fuente)
-	l.add_theme_font_size_override("font_size", tam)
+	l.text = txt
+	l.add_theme_font_override("font", font)
+	l.add_theme_font_size_override("font_size", size_px)
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -85,9 +85,9 @@ static func label(texto: String, fuente: Font, tam: int, color: Color) -> Label:
 ## Vive aqui y no en la ventana de Ajustes porque ya son dos los sitios que lo
 ## usan —la calidad grafica y el modo de la pantalla de entrada— y una copia por
 ## sitio es una copia que se queda atras. Misma leccion que el recorte del croma.
-static func segmento(texto: String) -> Button:
+static func segment(txt: String) -> Button:
 	var b := Button.new()
-	b.text = texto
+	b.text = txt
 	b.custom_minimum_size = Vector2(0, 22)
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_override("font", michroma())
@@ -98,16 +98,16 @@ static func segmento(texto: String) -> Button:
 ## El elegido va en CIAN, no en ambar. El ambar del §1.3 significa "esta ventana
 ## esta abierta" y ese codigo no se comparte: un segmento elegido es una pestania
 ## activa. Mezclarlos deja al jugador sin saber que le dice el color.
-static func marcar_segmento(b: Button, activo: bool) -> void:
-	b.add_theme_color_override("font_color", CYAN if activo else MUTED)
+static func mark_segment(b: Button, is_active: bool) -> void:
+	b.add_theme_color_override("font_color", CYAN if is_active else MUTED)
 	b.add_theme_color_override("font_hover_color", CYAN)
-	var caja := StyleBoxFlat.new()
-	caja.bg_color = Color(CYAN, 0.12 if activo else 0.04)
-	caja.border_color = EDGE if activo else EDGE_SOFT
-	caja.set_border_width_all(1)
-	caja.content_margin_left = 10
-	caja.content_margin_right = 10
-	b.add_theme_stylebox_override("normal", caja)
-	var hover := caja.duplicate()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(CYAN, 0.12 if is_active else 0.04)
+	box.border_color = EDGE if is_active else EDGE_SOFT
+	box.set_border_width_all(1)
+	box.content_margin_left = 10
+	box.content_margin_right = 10
+	b.add_theme_stylebox_override("normal", box)
+	var hover := box.duplicate()
 	hover.bg_color = Color(CYAN, 0.16)
 	b.add_theme_stylebox_override("hover", hover)

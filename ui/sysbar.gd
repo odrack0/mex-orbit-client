@@ -19,12 +19,12 @@
 class_name SysBar
 extends HBoxContainer
 
-const LADO := 36
-const HUECO := 5
-const MARGEN := 8
-const ICONO := 16
+const SIDE := 36
+const GAP := 5
+const MARGIN := 8
+const ICON := 16
 
-var _botones := {}
+var _buttons := {}
 
 
 func _ready() -> void:
@@ -40,40 +40,40 @@ func _ready() -> void:
 	anchor_bottom = 0.0
 	# ancho y alto CERO: el crecimiento hace el resto, y por eso la barra se
 	# reajusta sola al agregar un boton sin volver a medir nada
-	offset_left = -MARGEN
-	offset_right = -MARGEN
-	offset_top = MARGEN
-	offset_bottom = MARGEN
+	offset_left = -MARGIN
+	offset_right = -MARGIN
+	offset_top = MARGIN
+	offset_bottom = MARGIN
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	grow_vertical = Control.GROW_DIRECTION_END
-	add_theme_constant_override("separation", HUECO)
+	add_theme_constant_override("separation", GAP)
 
 
 ## `tooltip` es la UNICA cadena localizable del boton: §1.4 prohibe texto fijo en
 ## barras de iconos, para que un idioma largo no pueda romper el ancho.
-func agregar(clave: String, icono: String, tooltip: String, al_pulsar: Callable) -> Button:
+func add_entry(key: String, icon: String, tooltip: String, on_press: Callable) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(LADO, LADO)
+	b.custom_minimum_size = Vector2(SIDE, SIDE)
 	b.focus_mode = Control.FOCUS_NONE
 	b.tooltip_text = tooltip
-	b.add_theme_stylebox_override("normal", _caja(NTheme.EDGE_SOFT, false))
-	b.add_theme_stylebox_override("hover", _caja(NTheme.EDGE, true))
-	b.add_theme_stylebox_override("pressed", _caja(NTheme.EDGE, true))
-	b.pressed.connect(al_pulsar)
+	b.add_theme_stylebox_override("normal", _box(NTheme.EDGE_SOFT, false))
+	b.add_theme_stylebox_override("hover", _box(NTheme.EDGE, true))
+	b.add_theme_stylebox_override("pressed", _box(NTheme.EDGE, true))
+	b.pressed.connect(on_press)
 
-	var glifo := TextureRect.new()
-	glifo.texture = load(icono)
-	glifo.custom_minimum_size = Vector2(ICONO, ICONO)
-	glifo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	glifo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	glifo.modulate = NTheme.MUTED
-	glifo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glifo.set_anchors_preset(Control.PRESET_FULL_RECT)
-	b.add_child(glifo)
+	var glyph := TextureRect.new()
+	glyph.texture = load(icon)
+	glyph.custom_minimum_size = Vector2(ICON, ICON)
+	glyph.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	glyph.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	glyph.modulate = NTheme.MUTED
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glyph.set_anchors_preset(Control.PRESET_FULL_RECT)
+	b.add_child(glyph)
 
-	b.mouse_entered.connect(func(): _tenir(clave, true))
-	b.mouse_exited.connect(func(): _tenir(clave, false))
-	_botones[clave] = {"boton": b, "glifo": glifo, "abierta": false}
+	b.mouse_entered.connect(func(): _tint(key, true))
+	b.mouse_exited.connect(func(): _tint(key, false))
+	_buttons[key] = {"boton": b, "glifo": glyph, "abierta": false}
 	add_child(b)
 	return b
 
@@ -81,35 +81,35 @@ func agregar(clave: String, icono: String, tooltip: String, al_pulsar: Callable)
 ## §1.3: UN SOLO codigo de estado. Ambar = su ventana esta abierta, neutro =
 ## cerrada. Sin cian para estados — el cian es hover y seleccion, y mezclarlos
 ## deja al jugador sin saber que le esta diciendo el color.
-func marcar(clave: String, abierta: bool) -> void:
-	if not _botones.has(clave):
+func mark(key: String, opened: bool) -> void:
+	if not _buttons.has(key):
 		return
-	_botones[clave]["abierta"] = abierta
-	var b: Button = _botones[clave]["boton"]
-	var borde := Color(NTheme.WARN, 0.55) if abierta else NTheme.EDGE_SOFT
-	b.add_theme_stylebox_override("normal", _caja(borde, abierta, NTheme.WARN))
-	_tenir(clave, false)
+	_buttons[key]["abierta"] = opened
+	var b: Button = _buttons[key]["boton"]
+	var border := Color(NTheme.WARN, 0.55) if opened else NTheme.EDGE_SOFT
+	b.add_theme_stylebox_override("normal", _box(border, opened, NTheme.WARN))
+	_tint(key, false)
 
 
 ## Para que el autotest pueda comprobar el estado del icono, no solo el de la
 ## ventana: el codigo de color del §1.3 es parte del contrato, no decoracion.
-func esta_marcado(clave: String) -> bool:
-	return _botones.has(clave) and _botones[clave]["abierta"]
+func is_marked(key: String) -> bool:
+	return _buttons.has(key) and _buttons[key]["abierta"]
 
 
-func _tenir(clave: String, hover: bool) -> void:
-	var d: Dictionary = _botones[clave]
-	var glifo: TextureRect = d["glifo"]
+func _tint(key: String, hover: bool) -> void:
+	var d: Dictionary = _buttons[key]
+	var glyph: TextureRect = d["glifo"]
 	if d["abierta"]:
-		glifo.modulate = NTheme.WARN
+		glyph.modulate = NTheme.WARN
 	else:
-		glifo.modulate = NTheme.CYAN if hover else NTheme.MUTED
+		glyph.modulate = NTheme.CYAN if hover else NTheme.MUTED
 
 
-func _caja(borde: Color, glow: bool, color_glow := NTheme.CYAN) -> StyleBoxFlat:
+func _box(border: Color, glow: bool, color_glow := NTheme.CYAN) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = NTheme.GLASS_2
-	sb.border_color = borde
+	sb.border_color = border
 	sb.set_border_width_all(1)
 	if glow:
 		sb.shadow_color = Color(color_glow, 0.22)

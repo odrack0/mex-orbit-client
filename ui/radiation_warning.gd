@@ -16,18 +16,18 @@ class_name RadiationWarning
 extends Control
 
 const PANEL_TOP := 88.0            # el toast del prototipo vive a 88 px
-const FUNDIDO := 0.25              # la transicion del toast (.25 s)
-const PULSO_PERIODO := 1.2         # s por latido
-const PULSO_MIN := 0.55            # el rotulo nunca baja de esto mientras hay peligro
-const VINETA_ALFA := 0.18          # hostil al 18 % en el borde, 0 al centro
+const FADE := 0.25              # la transicion del toast (.25 s)
+const PULSE_PERIOD := 1.2         # s por latido
+const PULSE_MIN := 0.55            # el rotulo nunca baja de esto mientras hay peligro
+const VIGNETTE_ALPHA := 0.18          # hostil al 18 % en el borde, 0 al centro
 
 var _panel: PanelContainer
-var _vineta: TextureRect
-var _fase := 0.0
-var _alfa := 0.0                   # 0 = oculto, 1 = plena presencia
+var _vignette: TextureRect
+var _phase := 0.0
+var _alpha := 0.0                   # 0 = oculto, 1 = plena presencia
 
 
-static func crear() -> RadiationWarning:
+static func create() -> RadiationWarning:
 	var w := RadiationWarning.new()
 	w.set_anchors_preset(Control.PRESET_FULL_RECT)
 	w.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -47,29 +47,29 @@ static func crear() -> RadiationWarning:
 	tex.fill_to = Vector2(0.5, 1.0)
 	tex.width = 256
 	tex.height = 256
-	w._vineta = TextureRect.new()
-	w._vineta.texture = tex
-	w._vineta.stretch_mode = TextureRect.STRETCH_SCALE
-	w._vineta.set_anchors_preset(Control.PRESET_FULL_RECT)
-	w._vineta.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	w.add_child(w._vineta)
+	w._vignette = TextureRect.new()
+	w._vignette.texture = tex
+	w._vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	w._vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	w._vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	w.add_child(w._vignette)
 
 	# el rotulo: el toast, en hostil
 	w._panel = PanelContainer.new()
-	var caja := StyleBoxFlat.new()
-	caja.bg_color = Color(7.0 / 255, 10.0 / 255, 18.0 / 255, 0.85)
-	caja.border_color = Color(NTheme.HOSTILE, 0.35)    # el `--edge` del toast, en hostil
-	caja.set_border_width_all(1)
-	caja.content_margin_left = 18
-	caja.content_margin_right = 18
-	caja.content_margin_top = 9
-	caja.content_margin_bottom = 9
-	w._panel.add_theme_stylebox_override("panel", caja)
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(7.0 / 255, 10.0 / 255, 18.0 / 255, 0.85)
+	box.border_color = Color(NTheme.HOSTILE, 0.35)    # el `--edge` del toast, en hostil
+	box.set_border_width_all(1)
+	box.content_margin_left = 18
+	box.content_margin_right = 18
+	box.content_margin_top = 9
+	box.content_margin_bottom = 9
+	w._panel.add_theme_stylebox_override("panel", box)
 	w._panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# Michroma 10 px con .14em de tracking (~1,4 px a ese cuerpo), mayusculas
-	var rotulo := NTheme.label("ZONA RADIACTIVA", NTheme.michroma_track(1), 10, NTheme.HOSTILE)
-	rotulo.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	w._panel.add_child(rotulo)
+	var caption := NTheme.label("ZONA RADIACTIVA", NTheme.michroma_track(1), 10, NTheme.HOSTILE)
+	caption.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	w._panel.add_child(caption)
 	w._panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	w._panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	w._panel.position.y = PANEL_TOP
@@ -79,14 +79,14 @@ static func crear() -> RadiationWarning:
 
 ## Un frame. `activo` es la condicion viva; el aviso entra y sale con el
 ## fundido del toast y, mientras esta, late.
-func actualizar(activo: bool, delta: float) -> void:
-	_alfa = move_toward(_alfa, 1.0 if activo else 0.0, delta / FUNDIDO)
-	if _alfa <= 0.0:
+func refresh(is_active: bool, delta: float) -> void:
+	_alpha = move_toward(_alpha, 1.0 if is_active else 0.0, delta / FADE)
+	if _alpha <= 0.0:
 		visible = false
 		return
 	visible = true
-	_fase = fmod(_fase + delta / PULSO_PERIODO, 1.0)
+	_phase = fmod(_phase + delta / PULSE_PERIOD, 1.0)
 	# latido: seno entre PULSO_MIN y 1, suave en los dos extremos
-	var latido := PULSO_MIN + (1.0 - PULSO_MIN) * (0.5 + 0.5 * sin(_fase * TAU))
-	_panel.modulate = Color(1, 1, 1, _alfa * latido)
-	_vineta.modulate = Color(1, 1, 1, _alfa * VINETA_ALFA * latido)
+	var heartbeat := PULSE_MIN + (1.0 - PULSE_MIN) * (0.5 + 0.5 * sin(_phase * TAU))
+	_panel.modulate = Color(1, 1, 1, _alpha * heartbeat)
+	_vignette.modulate = Color(1, 1, 1, _alpha * VIGNETTE_ALPHA * heartbeat)

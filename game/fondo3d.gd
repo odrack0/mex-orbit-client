@@ -16,36 +16,36 @@
 # Todo sale del MISMO data/maps/<code>.json de siempre (via MapBgConfig): los
 # p_factor del 2D se reinterpretan como profundidad. Determinista por mapa:
 # mismas semillas, mismo cielo.
-class_name Fondo3D
+class_name Backdrop3D
 extends Node3D
 
 ## Cotas del original: capas de nebulosa desde -3500 subiendo 550 por capa,
 ## jitter por tile entre -500 y -200 (G§10.2).
-const CAPA_BASE := -3500.0
-const CAPA_PASO := 550.0
+const LAYER_BASE := -3500.0
+const LAYER_STEP := 550.0
 const JITTER_MIN := -500.0
 const JITTER_MAX := -200.0
-const TELON_Y := -4200.0
+const BACKDROP_Y := -4200.0
 ## Tamanio del tile en mundo = ancho_textura * scale * este factor (el original
 ## usaba 5 sobre tiles de ~256; nuestro arte es de 1024).
 const TILE_FACTOR := 1.5
 ## Fraccion de celdas VACIAS del mosaico (rompe la repeticion, como la mascara
 ## de agujeros del original).
-const TILE_HUECOS := 0.25
+const TILE_GAPS := 0.25
 ## Cuanto cubre el mosaico mas alla del mapa.
-const MARGEN := 1.5
+const MARGIN := 1.5
 
 ## El polvo estelar (G§10.4): volumen alrededor del foco, anclado al mundo.
-const POLVO_N := 1500
-const POLVO_CAJA := Vector3(4200.0, 300.0, 4200.0)
-const POLVO_Y := -160.0
-const POLVO_VIDA := 25.0
+const DUST_COUNT := 1500
+const DUST_BOX := Vector3(4200.0, 300.0, 4200.0)
+const DUST_Y := -160.0
+const DUST_LIFE := 25.0
 
-var _limites := Vector2.ONE
-var _polvo: GPUParticles3D
-var _sol: MeshInstance3D
-var _sol_spin := -9.0
-var _sol_pos := Vector2.ZERO
+var _bounds := Vector2.ONE
+var _dust: GPUParticles3D
+var _sun: MeshInstance3D
+var _sun_spin := -9.0
+var _sun_pos := Vector2.ZERO
 var _ghosts: Array[Sprite2D] = []
 
 ## fantasmas de la cadena de lentes: fraccion del eje sol->centro, escala y tinte
@@ -58,55 +58,55 @@ const GHOSTS := [
 
 
 ## Monta el fondo del mapa. `config` es el de MapBgConfig.para().
-func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
-	_limites = limites
-	var nivel := Quality.nivel("background")
-	var tinte: Color = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
-	Mundo3D.instancia.poner_cielo(tinte)
-	if nivel < 1:
+func build(config: Dictionary, bounds: Vector2, rng_seed: int) -> void:
+	_bounds = bounds
+	var level := Quality.level("background")
+	var tint: Color = config.get("starfield_tint", Color(0.4, 0.95, 1.0))
+	Stage3D.instance.set_sky(tint)
+	if level < 1:
 		return                    # baja: solo el cielo
 
 	# el telon: el arte del mapa como la capa mas profunda
 	if config.has("main"):
 		var tex: Texture2D = config.main
-		var telon := MeshInstance3D.new()
+		var backdrop_plane := MeshInstance3D.new()
 		var q := QuadMesh.new()
-		var alto := limites.y * 1.8
-		q.size = Vector2(alto * float(tex.get_width()) / float(tex.get_height()), alto)
+		var hgt := bounds.y * 1.8
+		q.size = Vector2(hgt * float(tex.get_width()) / float(tex.get_height()), hgt)
 		var mat := StandardMaterial3D.new()
 		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 		mat.albedo_texture = tex
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		q.material = mat
-		telon.mesh = q
-		telon.rotation.x = -PI / 2
-		telon.position = Vector3(limites.x * 0.5, TELON_Y, limites.y * 0.5)
-		add_child(telon)
+		backdrop_plane.mesh = q
+		backdrop_plane.rotation.x = -PI / 2
+		backdrop_plane.position = Vector3(bounds.x * 0.5, BACKDROP_Y, bounds.y * 0.5)
+		add_child(backdrop_plane)
 
 	# planetas y sol, a la cota que dicta su p_factor (mas factor = mas hondo)
 	for p: Dictionary in config.get("planets", []):
 		if p.tex == null:
 			continue
-		var prof: float = float(p.p_factor) * 250.0
+		var depth: float = float(p.p_factor) * 250.0
 		var pos: Vector2 = (p.pos as Vector2) * 10.0
 		# a mas hondo, mas grande, para que EN PANTALLA mida como su arte pedia
-		var aparente := (1740.0 + prof) / 1740.0
-		var s := Mundo3D.sprite_plano(p.tex,
-			float((p.tex as Texture2D).get_height()) * float(p.get("scale", 1.0)) * aparente)
-		s.position = Vector3(pos.x, -prof, pos.y)
+		var apparent := (1740.0 + depth) / 1740.0
+		var s := Stage3D.flat_sprite(p.tex,
+			float((p.tex as Texture2D).get_height()) * float(p.get("scale", 1.0)) * apparent)
+		s.position = Vector3(pos.x, -depth, pos.y)
 		add_child(s)
 	if config.has("sun"):
-		var tex_sol: Texture2D = load("res://assets/world/layers/sun.png")
-		var prof_sol: float = float(config.sun.get("p_factor", 10.0)) * 250.0
-		var pos_sol: Vector2 = (config.sun.pos as Vector2) * 10.0
-		_sol_pos = pos_sol
-		var aparente_sol := (1740.0 + prof_sol) / 1740.0
-		_sol = Mundo3D.quad_aditivo(tex_sol,
-			float(tex_sol.get_width()) * float(config.sun.get("scale", 0.9)) * aparente_sol, false)
-		_sol.position = Vector3(pos_sol.x, -prof_sol, pos_sol.y)
-		add_child(_sol)
-		_sol_spin = float(config.sun.get("spin", -9.0))
-		_montar_flares()
+		var sun_tex: Texture2D = load("res://assets/world/layers/sun.png")
+		var sun_depth: float = float(config.sun.get("p_factor", 10.0)) * 250.0
+		var sun_pos: Vector2 = (config.sun.pos as Vector2) * 10.0
+		_sun_pos = sun_pos
+		var apparent_sun := (1740.0 + sun_depth) / 1740.0
+		_sun = Stage3D.additive_quad(sun_tex,
+			float(sun_tex.get_width()) * float(config.sun.get("scale", 0.9)) * apparent_sun, false)
+		_sun.position = Vector3(sun_pos.x, -sun_depth, sun_pos.y)
+		add_child(_sun)
+		_sun_spin = float(config.sun.get("spin", -9.0))
+		_mount_flares()
 
 	# PROPS de fondo (F3+): las mallas y planos que habitan el mapa — lunas,
 	# estaciones mineras, satelites — a su cota, con giro lento. Es la pieza que
@@ -114,123 +114,123 @@ func build(config: Dictionary, limites: Vector2, semilla: int) -> void:
 	# del JSON del mapa tal cual.
 	for prop: Dictionary in config.get("props", []):
 		if prop.has("lensflare"):
-			_montar_flare_do(Vector3(float(prop.get("x", 0)), float(prop.get("y", 0)),
+			_mount_flare_do(Vector3(float(prop.get("x", 0)), float(prop.get("y", 0)),
 				float(prop.get("z", 0))))
 		else:
-			_montar_prop(prop)
+			_mount_prop(prop)
 
 	# el polvo estelar que vende el vuelo
-	_montar_polvo(tinte, float(config.get("starfield_tint_ratio", 0.35)))
+	_mount_dust(tint, float(config.get("starfield_tint_ratio", 0.35)))
 
-	if nivel < 2:
+	if level < 2:
 		return                    # media: sin mosaicos de nebulosa
 
 	# los mosaicos de profundidad: far abajo, near arriba (orden = su lista)
-	var capas: Array = []
+	var layer_list: Array = []
 	for t in config.get("tiles_far", []):
-		capas.append(t)
+		layer_list.append(t)
 	for t in config.get("tiles_near", []):
-		capas.append(t)
+		layer_list.append(t)
 	var rng := RandomNumberGenerator.new()
-	rng.seed = semilla
-	for i in capas.size():
+	rng.seed = rng_seed
+	for i in layer_list.size():
 		# `y` (cota absoluta) viene del tilemap del display3D original:
 		# y = -3500 + layer*550 lo trae ya calculado el JSON del mapa
-		_montar_mosaico(capas[i], float(capas[i].get("y", CAPA_BASE + float(i) * CAPA_PASO)), rng)
+		_mount_tilemap(layer_list[i], float(layer_list[i].get("y", LAYER_BASE + float(i) * LAYER_STEP)), rng)
 
 
 ## Un mosaico de quads con el MISMO arte, roto con las armas del original:
 ## celdas vacias, giros de 90 y el jitter vertical POR TILE que convierte la
 ## capa en profundidad de verdad.
-func _montar_mosaico(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -> void:
+func _mount_tilemap(t: Dictionary, y_base: float, rng: RandomNumberGenerator) -> void:
 	var tex: Texture2D = t.tex
 	if tex == null:
 		return
 	# ATLAS DE VARIANTES (el arma del original contra la repeticion): si el JSON
 	# declara `celdas`, la textura es una rejilla `grid`x`grid` de nubes y cada
 	# tile del mosaico sortea la suya — como la seleccion de tiles del original.
-	var celdas := int(t.get("celdas", 1))
-	var grid := int(t.get("grid", 1 if celdas <= 1 else 2))
-	var lado_px := float(tex.get_width()) / float(grid)
+	var cells := int(t.get("celdas", 1))
+	var grid := int(t.get("grid", 1 if cells <= 1 else 2))
+	var side_px := float(tex.get_width()) / float(grid)
 	# `lado` explicito = tamano del tile en unidades de mundo (el tilemap del
 	# original: tileWidth * tileScale); si no, se deriva del arte
-	var lado := float(t.get("lado", lado_px * float(t.get("scale", 1.0)) * TILE_FACTOR))
-	var alfa := float(t.get("alpha", 1.0))
-	var margen := float(t.get("margen", MARGEN))
-	var span := _limites * margen
-	var origen := -_limites * (margen - 1.0) * 0.5
-	var nx := maxi(int(ceil(span.x / lado)), 1)
-	var ny := maxi(int(ceil(span.y / lado)), 1)
+	var side := float(t.get("side", side_px * float(t.get("scale", 1.0)) * TILE_FACTOR))
+	var alpha := float(t.get("alpha", 1.0))
+	var margin := float(t.get("margin", MARGIN))
+	var span := _bounds * margin
+	var origin := -_bounds * (margin - 1.0) * 0.5
+	var nx := maxi(int(ceil(span.x / side)), 1)
+	var ny := maxi(int(ceil(span.y / side)), 1)
 	# la MASCARA de agujeros del original (blanco = nube, negro/alfa 0 = vacio),
 	# estirada sobre el span entero; sin mascara, huecos aleatorios
-	var mascara: Image = null
+	var mask_tex: Image = null
 	if t.has("mask"):
-		mascara = (t.mask as Texture2D).get_image()
+		mask_tex = (t.mask as Texture2D).get_image()
 	for cx in nx:
 		for cy in ny:
-			if mascara != null:
-				var mp := mascara.get_pixel(
-					clampi(int((float(cx) + 0.5) / float(nx) * mascara.get_width()), 0, mascara.get_width() - 1),
-					clampi(int((float(cy) + 0.5) / float(ny) * mascara.get_height()), 0, mascara.get_height() - 1))
+			if mask_tex != null:
+				var mp := mask_tex.get_pixel(
+					clampi(int((float(cx) + 0.5) / float(nx) * mask_tex.get_width()), 0, mask_tex.get_width() - 1),
+					clampi(int((float(cy) + 0.5) / float(ny) * mask_tex.get_height()), 0, mask_tex.get_height() - 1))
 				if mp.r < 0.5 or mp.a < 0.5:
 					continue
-			elif rng.randf() < TILE_HUECOS:
+			elif rng.randf() < TILE_GAPS:
 				continue
-			var s := Mundo3D.sprite_plano(tex, lado, grid)
-			if celdas > 1:
+			var s := Stage3D.flat_sprite(tex, side, grid)
+			if cells > 1:
 				s.hframes = grid
 				s.vframes = grid
-				s.frame = rng.randi_range(0, celdas - 1)
-			s.position = Vector3(origen.x + (float(cx) + 0.5) * lado,
+				s.frame = rng.randi_range(0, cells - 1)
+			s.position = Vector3(origin.x + (float(cx) + 0.5) * side,
 				y_base + rng.randf_range(JITTER_MIN, JITTER_MAX),
-				origen.y + (float(cy) + 0.5) * lado)
+				origin.y + (float(cy) + 0.5) * side)
 			s.rotation.y = float(rng.randi_range(0, 3)) * PI * 0.5
-			s.modulate.a = alfa * rng.randf_range(0.7, 1.0)
+			s.modulate.a = alpha * rng.randf_range(0.7, 1.0)
 			add_child(s)
 
 
-var _girando: Array = []          # [{nodo, spin (grados/s por eje)}]
+var _turning: Array = []          # [{nodo, spin (grados/s por eje)}]
 
 
 ## Un prop del fondo: malla OBJ con su textura (iluminada por el sol del mundo)
 ## o un plano gigante. Campos del JSON: malla|plano, tex, x/y/z (unidades de
 ## mundo; y negativo = hondo), escala, rot_x/rot_y/rot_z (grados) y spin
 ## {x,y,z} en grados/segundo — el "append" del background_animation original.
-func _montar_prop(p: Dictionary) -> void:
-	var nodo: Node3D = null
+func _mount_prop(p: Dictionary) -> void:
+	var node: Node3D = null
 	var tex: Texture2D = null
-	var ruta_tex := str(p.get("tex", ""))
-	if ruta_tex != "" and ResourceLoader.exists(ruta_tex):
-		tex = load(ruta_tex)
+	var tex_path := str(p.get("tex", ""))
+	if tex_path != "" and ResourceLoader.exists(tex_path):
+		tex = load(tex_path)
 	# `modulate` atenua (o tine) el prop: en un plano aditivo es LA palanca de
 	# intensidad — un techo de nebulosa a plena potencia lava el cielo entero.
 	var mod := AssetDefs.color(p.get("modulate", "FFFFFF"))
-	if p.has("malla"):
-		var ruta := str(p.malla)
-		if not ResourceLoader.exists(ruta):
-			push_warning("fondo: falta la malla %s" % ruta)
+	if p.has("mesh"):
+		var path := str(p.mesh)
+		if not ResourceLoader.exists(path):
+			push_warning("fondo: falta la malla %s" % path)
 			return
 		var mi := MeshInstance3D.new()
-		mi.mesh = load(ruta)
+		mi.mesh = load(path)
 		var mat := StandardMaterial3D.new()
 		mat.albedo_texture = tex
 		mat.albedo_color = mod
 		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		mat.roughness = 0.8
 		mi.material_override = mat
-		nodo = mi
+		node = mi
 	elif p.has("plano"):
-		var lado := float(p.get("escala", 1000.0))
+		var side := float(p.get("escala", 1000.0))
 		if bool(p.get("aditivo", false)):
-			var mi := Mundo3D.quad_aditivo(tex, lado, false)
+			var mi := Stage3D.additive_quad(tex, side, false)
 			(mi.material_override as StandardMaterial3D).albedo_color = mod
 			(mi.material_override as StandardMaterial3D).render_priority = int(p.get("prioridad", 0))
 			mi.rotation.x = 0.0          # el JSON manda la orientacion completa
-			nodo = mi
+			node = mi
 		else:
 			var mi := MeshInstance3D.new()
 			var q := QuadMesh.new()
-			q.size = Vector2(lado, lado)
+			q.size = Vector2(side, side)
 			var mat := StandardMaterial3D.new()
 			mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 			mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -242,34 +242,34 @@ func _montar_prop(p: Dictionary) -> void:
 			mat.render_priority = int(p.get("prioridad", 0))
 			q.material = mat
 			mi.mesh = q
-			nodo = mi
+			node = mi
 	else:
 		return
-	nodo.position = Vector3(float(p.get("x", 0)), float(p.get("y", -2000)), float(p.get("z", 0)))
-	if p.has("malla"):
-		nodo.scale = Vector3.ONE * float(p.get("escala", 1.0))
-	nodo.rotation_degrees = Vector3(float(p.get("rot_x", 0)), float(p.get("rot_y", 0)),
+	node.position = Vector3(float(p.get("x", 0)), float(p.get("y", -2000)), float(p.get("z", 0)))
+	if p.has("mesh"):
+		node.scale = Vector3.ONE * float(p.get("escala", 1.0))
+	node.rotation_degrees = Vector3(float(p.get("rot_x", 0)), float(p.get("rot_y", 0)),
 		float(p.get("rot_z", 0)))
-	add_child(nodo)
+	add_child(node)
 	var spin: Dictionary = p.get("spin", {})
 	if not spin.is_empty():
-		_girando.append({"nodo": nodo, "spin": Vector3(float(spin.get("x", 0)),
+		_turning.append({"node": node, "spin": Vector3(float(spin.get("x", 0)),
 			float(spin.get("y", 0)), float(spin.get("z", 0)))})
 
 
 ## El polvo (G§10.4): particulas en un volumen alrededor del foco, SUELTAS AL
 ## MUNDO (local_coords off) con deriva lenta; el emisor SIGUE al foco cada
 ## frame y las particulas viejas se quedan donde nacieron.
-func _montar_polvo(tinte: Color, tinte_ratio: float) -> void:
-	_polvo = GPUParticles3D.new()
-	_polvo.amount = POLVO_N
-	_polvo.lifetime = POLVO_VIDA
-	_polvo.preprocess = POLVO_VIDA
-	_polvo.local_coords = false
-	_polvo.explosiveness = 0.0
+func _mount_dust(tint: Color, tint_ratio: float) -> void:
+	_dust = GPUParticles3D.new()
+	_dust.amount = DUST_COUNT
+	_dust.lifetime = DUST_LIFE
+	_dust.preprocess = DUST_LIFE
+	_dust.local_coords = false
+	_dust.explosiveness = 0.0
 	var pm := ParticleProcessMaterial.new()
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	pm.emission_box_extents = POLVO_CAJA * 0.5
+	pm.emission_box_extents = DUST_BOX * 0.5
 	pm.direction = Vector3(1, 0, 0)
 	pm.spread = 180.0
 	pm.initial_velocity_min = 2.0
@@ -282,12 +282,12 @@ func _montar_polvo(tinte: Color, tinte_ratio: float) -> void:
 	# mapa" en vez de polvo — deben leerse solo en movimiento, no quietas.
 	var g := Gradient.new()
 	g.set_color(0, Color(0.28, 0.28, 0.28))
-	g.add_point(1.0 - tinte_ratio, Color(0.52, 0.52, 0.52))
-	g.set_color(1, tinte.darkened(0.4))
+	g.add_point(1.0 - tint_ratio, Color(0.52, 0.52, 0.52))
+	g.set_color(1, tint.darkened(0.4))
 	var gt := GradientTexture1D.new()
 	gt.gradient = g
 	pm.color_initial_ramp = gt
-	_polvo.process_material = pm
+	_dust.process_material = pm
 
 	var q := QuadMesh.new()
 	q.size = Vector2(2.4, 2.4)
@@ -297,36 +297,36 @@ func _montar_polvo(tinte: Color, tinte_ratio: float) -> void:
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	mat.vertex_color_use_as_albedo = true
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.albedo_texture = _tex_mota()
+	mat.albedo_texture = _mote_tex()
 	q.material = mat
-	_polvo.draw_pass_1 = q
-	add_child(_polvo)
+	_dust.draw_pass_1 = q
+	add_child(_dust)
 
 
-static var _tex_mota_cache: GradientTexture2D
+static var _mote_tex_cache: GradientTexture2D
 
 
-static func _tex_mota() -> GradientTexture2D:
-	if _tex_mota_cache == null:
+static func _mote_tex() -> GradientTexture2D:
+	if _mote_tex_cache == null:
 		var g := Gradient.new()
 		g.set_color(0, Color.WHITE)
 		g.set_color(1, Color(1, 1, 1, 0))
-		_tex_mota_cache = GradientTexture2D.new()
-		_tex_mota_cache.gradient = g
-		_tex_mota_cache.width = 16
-		_tex_mota_cache.height = 16
-		_tex_mota_cache.fill = GradientTexture2D.FILL_RADIAL
-		_tex_mota_cache.fill_from = Vector2(0.5, 0.5)
-		_tex_mota_cache.fill_to = Vector2(0.5, 0.0)
-	return _tex_mota_cache
+		_mote_tex_cache = GradientTexture2D.new()
+		_mote_tex_cache.gradient = g
+		_mote_tex_cache.width = 16
+		_mote_tex_cache.height = 16
+		_mote_tex_cache.fill = GradientTexture2D.FILL_RADIAL
+		_mote_tex_cache.fill_from = Vector2(0.5, 0.5)
+		_mote_tex_cache.fill_to = Vector2(0.5, 0.0)
+	return _mote_tex_cache
 
 
 ## La cadena de lentes del sol, proyectada al HUD: N sprites sobre la recta
 ## sol->centro extendida al lado opuesto (la formula x3 del original). Sin
 ## oclusion todavia — F4, con el raycast.
-func _montar_flares() -> void:
+func _mount_flares() -> void:
 	var tex: Texture2D = load("res://assets/world/layers/flare-ghost.png")
-	if tex == null or EntityNode.capa_hud == null:
+	if tex == null or EntityNode.hud_layer == null:
 		return
 	for g: Array in GHOSTS:
 		var ghost := Sprite2D.new()
@@ -337,7 +337,7 @@ func _montar_flares() -> void:
 		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		ghost.material = m
 		ghost.z_index = -1        # bajo las barras y nombres
-		EntityNode.capa_hud.add_child(ghost)
+		EntityNode.hud_layer.add_child(ghost)
 		_ghosts.append(ghost)
 
 
@@ -349,23 +349,23 @@ var _flare_do_pos := Vector3.ZERO
 ## sol_px + i * (-(sol_px - centro) * 3 / N) — la cadena cruza el centro y se
 ## extiende x3 al lado opuesto. Se oculta entero si el sol proyecta fuera del
 ## viewport (la regla del original; oclusion por HUD pendiente F4).
-func _montar_flare_do(pos: Vector3) -> void:
-	if EntityNode.capa_hud == null:
+func _mount_flare_do(pos: Vector3) -> void:
+	if EntityNode.hud_layer == null:
 		return
 	_flare_do_pos = pos
 	for i in 11:
-		var ruta := "res://assets/do-ref/flare/lens%d.png" % i
-		if not ResourceLoader.exists(ruta):
+		var path := "res://assets/do-ref/flare/lens%d.png" % i
+		if not ResourceLoader.exists(path):
 			continue
-		var lente := Sprite2D.new()
-		lente.texture = load(ruta)
+		var lens := Sprite2D.new()
+		lens.texture = load(path)
 		var m := CanvasItemMaterial.new()
 		m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-		lente.material = m
-		lente.z_index = -1
-		lente.visible = false
-		EntityNode.capa_hud.add_child(lente)
-		_flare_do.append(lente)
+		lens.material = m
+		lens.z_index = -1
+		lens.visible = false
+		EntityNode.hud_layer.add_child(lens)
+		_flare_do.append(lens)
 
 
 func _exit_tree() -> void:
@@ -373,21 +373,21 @@ func _exit_tree() -> void:
 		if is_instance_valid(ghost):
 			ghost.queue_free()
 	_ghosts.clear()
-	for lente in _flare_do:
-		if is_instance_valid(lente):
-			lente.queue_free()
+	for lens in _flare_do:
+		if is_instance_valid(lens):
+			lens.queue_free()
 	_flare_do.clear()
 
 
 ## Por frame: el sol gira, el polvo se recentra a saltos y los flares siguen la
 ## proyeccion del sol.
-func update(foco: Vector2, delta: float) -> void:
-	if _sol != null:
-		_sol.rotation.y += deg_to_rad(_sol_spin) * delta
+func update(focus: Vector2, delta: float) -> void:
+	if _sun != null:
+		_sun.rotation.y += deg_to_rad(_sun_spin) * delta
 	# el giro perezoso de los props (el "append" del original)
-	for g: Dictionary in _girando:
-		(g.nodo as Node3D).rotation_degrees += (g.spin as Vector3) * delta
-	if _polvo != null:
+	for g: Dictionary in _turning:
+		(g.node as Node3D).rotation_degrees += (g.spin as Vector3) * delta
+	if _dust != null:
 		# ANTES saltaba a la rejilla mas cercana solo al alejarse 1000 unidades:
 		# el reposicionamiento en un salto de golpe (no gradual) se sentia como
 		# un atoron/parpadeo del polvo (y del juego en general) cada pocos
@@ -397,26 +397,26 @@ func update(foco: Vector2, delta: float) -> void:
 		# les afecta mover el emisor (local_coords=false, quedan donde nacieron
 		# en espacio de mundo); seguir el foco cada frame no cambia el
 		# comportamiento del rastro, solo quita el salto.
-		_polvo.position = Vector3(foco.x, POLVO_Y, foco.y)
+		_dust.position = Vector3(focus.x, DUST_Y, focus.y)
 	if not _ghosts.is_empty():
-		var px := Mundo3D.instancia.a_pantalla(_sol_pos, _sol.position.y)
+		var px := Stage3D.instance.to_screen(_sun_pos, _sun.position.y)
 		var viewport := get_viewport().get_visible_rect().size
-		var dentro: bool = px.x > -100.0 and px.y > -100.0 \
+		var inside: bool = px.x > -100.0 and px.y > -100.0 \
 			and px.x < viewport.x + 100.0 and px.y < viewport.y + 100.0
-		var eje := viewport * 0.5 - px
+		var axis := viewport * 0.5 - px
 		for i in _ghosts.size():
-			_ghosts[i].visible = dentro
-			_ghosts[i].position = px + eje * (GHOSTS[i][0] as float)
+			_ghosts[i].visible = inside
+			_ghosts[i].position = px + axis * (GHOSTS[i][0] as float)
 	if not _flare_do.is_empty():
-		var cam := Mundo3D.instancia.camara
+		var cam := Stage3D.instance.cam_node
 		var vp := get_viewport().get_visible_rect().size
-		var tras: bool = cam.is_position_behind(_flare_do_pos)
-		var sol_px := Vector2.ZERO if tras \
-			else Mundo3D.instancia.a_pantalla(Vector2(_flare_do_pos.x, _flare_do_pos.z),
+		var after: bool = cam.is_position_behind(_flare_do_pos)
+		var sun_px := Vector2.ZERO if after \
+			else Stage3D.instance.to_screen(Vector2(_flare_do_pos.x, _flare_do_pos.z),
 				_flare_do_pos.y)
-		var visible_sol: bool = (not tras) and sol_px.x >= 0.0 and sol_px.y >= 0.0 \
-			and sol_px.x <= vp.x and sol_px.y <= vp.y
-		var paso := -(sol_px - vp * 0.5) * 3.0 / float(_flare_do.size())
+		var sun_visible: bool = (not after) and sun_px.x >= 0.0 and sun_px.y >= 0.0 \
+			and sun_px.x <= vp.x and sun_px.y <= vp.y
+		var step := -(sun_px - vp * 0.5) * 3.0 / float(_flare_do.size())
 		for i in _flare_do.size():
-			_flare_do[i].visible = visible_sol
-			_flare_do[i].position = sol_px + paso * float(i)
+			_flare_do[i].visible = sun_visible
+			_flare_do[i].position = sun_px + step * float(i)

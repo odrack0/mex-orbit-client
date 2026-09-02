@@ -22,87 +22,87 @@ extends NWindow
 signal unload_pressed
 signal sell_pressed(material_id: String, amount: int)
 
-const ICONO := "res://assets/ui/icons/hangar.svg"
-const ANCHO := 268
+const ICON := "res://assets/ui/icons/hangar.svg"
+const WIDTH := 268
 
-var _lista: VBoxContainer
-var _aviso: Label
-var _descargar: Button
-var _precios := {}          # loot_id -> precio
-var _almacen := {}          # loot_id -> cantidad
-var _en_rango := false
-var _cerrada_a_mano := false
+var _list: VBoxContainer
+var _warning: Label
+var _unload: Button
+var _prices := {}          # loot_id -> precio
+var _storage := {}          # loot_id -> cantidad
+var _in_range := false
+var _closed_by_hand := false
 
 
-static func crear() -> StationWindow:
+static func create() -> StationWindow:
 	var v := StationWindow.new()
-	v.clave = "estacion"
-	v._construir("Estación", ICONO)
-	v._cuerpo()
+	v.key = "estacion"
+	v._build("Estación", ICON)
+	v._body()
 	return v
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(ANCHO, 0)
+	custom_minimum_size = Vector2(WIDTH, 0)
 	visible = false
 	# si la cierra el jugador, que no se le vuelva a abrir sola hasta salir y volver
-	cerrada.connect(func(): _cerrada_a_mano = _en_rango)
+	closed.connect(func(): _closed_by_hand = _in_range)
 
 
-func _cuerpo() -> void:
-	_descargar = _boton("DESCARGAR BODEGA")
-	_descargar.pressed.connect(func(): unload_pressed.emit())
-	contenido.add_child(_descargar)
+func _body() -> void:
+	_unload = _button("DESCARGAR BODEGA")
+	_unload.pressed.connect(func(): unload_pressed.emit())
+	content.add_child(_unload)
 
-	_aviso = NTheme.label("", NTheme.exo2(), 11, NTheme.WARN)
-	_aviso.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_aviso.custom_minimum_size = Vector2(ANCHO - 20, 0)
-	contenido.add_child(_aviso)
+	_warning = NTheme.label("", NTheme.exo2(), 11, NTheme.WARN)
+	_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_warning.custom_minimum_size = Vector2(WIDTH - 20, 0)
+	content.add_child(_warning)
 
-	contenido.add_child(NTheme.label("Almacén — venta al NPC", NTheme.exo2(), 11, NTheme.MUTED))
-	_lista = VBoxContainer.new()
-	_lista.add_theme_constant_override("separation", 3)
-	contenido.add_child(_lista)
-	_refrescar()
+	content.add_child(NTheme.label("Almacén — venta al NPC", NTheme.exo2(), 11, NTheme.MUTED))
+	_list = VBoxContainer.new()
+	_list.add_theme_constant_override("separation", 3)
+	content.add_child(_list)
+	_refresh()
 
 
 ## El server manda si estamos en rango (`in_range`). Aqui eso decide que se puede
 ## HACER, y solo la primera vez decide tambien que se vea.
-func en_rango(dentro: bool) -> void:
-	if dentro and not _en_rango and not _cerrada_a_mano:
+func within_range(inside: bool) -> void:
+	if inside and not _in_range and not _closed_by_hand:
 		visible = true
-		if not cargar_posicion():
-			_colocar()
-	if not dentro:
-		_cerrada_a_mano = false      # al salir se olvida: la proxima vez vuelve a abrirse
-	_en_rango = dentro
-	_refrescar()
+		if not load_position():
+			_place()
+	if not inside:
+		_closed_by_hand = false      # al salir se olvida: la proxima vez vuelve a abrirse
+	_in_range = inside
+	_refresh()
 
 
 ## Para que el autotest pueda afirmar el contrato nuevo: la cercania condiciona
 ## las ACCIONES. Que la ventana se vea no dice nada de si se puede vender.
-func acciones_activas() -> bool:
-	return _descargar != null and not _descargar.disabled
+func active_actions() -> bool:
+	return _unload != null and not _unload.disabled
 
 
 ## El primer material que el almacen TIENE y el NPC compra, o "" si no hay
 ## ninguno. Lo usa el autotest: vender un material fijo a ciegas se cuelga la
 ## tarde que el bicho no suelta ese material.
-func primer_vendible() -> String:
-	for id in _almacen:
-		if _almacen[id] > 0 and _precios.has(id):
+func first_sellable() -> String:
+	for id in _storage:
+		if _storage[id] > 0 and _prices.has(id):
 			return str(id)
 	return ""
 
 
-func _colocar() -> void:
+func _place() -> void:
 	await get_tree().process_frame
 	position = Vector2(12, get_viewport_rect().size.y * 0.5 - size.y * 0.5)
 
 
-func _boton(texto: String) -> Button:
+func _button(txt: String) -> Button:
 	var b := Button.new()
-	b.text = texto
+	b.text = txt
 	b.add_theme_font_override("font", NTheme.michroma())
 	b.add_theme_font_size_override("font_size", 7)
 	b.add_theme_color_override("font_color", NTheme.CYAN)
@@ -114,63 +114,63 @@ func _boton(texto: String) -> Button:
 
 ## §6: bloqueado = 45% de opacidad. El boton sigue ahi, apagado, diciendo que la
 ## accion existe y que falta algo para poder usarla.
-func _bloquear(b: Button, bloqueado: bool) -> void:
-	b.disabled = bloqueado
-	b.modulate = Color(1, 1, 1, 0.45 if bloqueado else 1.0)
+func _lock(b: Button, locked: bool) -> void:
+	b.disabled = locked
+	b.modulate = Color(1, 1, 1, 0.45 if locked else 1.0)
 
 
 func set_prices(prices: Array) -> void:
-	_precios.clear()
+	_prices.clear()
 	for p in prices:
-		_precios[p.material_id] = p.price_credits
-	_refrescar()
+		_prices[p.material_id] = p.price_credits
+	_refresh()
 
 
 func set_storage(materials: Array) -> void:
-	_almacen.clear()
+	_storage.clear()
 	for m in materials:
-		_almacen[m.material_id] = m.amount
-	_refrescar()
+		_storage[m.material_id] = m.amount
+	_refresh()
 
 
-func _refrescar() -> void:
-	if _lista == null:
+func _refresh() -> void:
+	if _list == null:
 		return
-	_bloquear(_descargar, not _en_rango)
-	_aviso.text = "" if _en_rango else "Fuera de rango de la base · vuela hasta la estación para descargar y vender"
-	_aviso.visible = not _en_rango
+	_lock(_unload, not _in_range)
+	_warning.text = "" if _in_range else "Fuera de rango de la base · vuela hasta la estación para descargar y vender"
+	_warning.visible = not _in_range
 
-	for hijo in _lista.get_children():
-		hijo.queue_free()
-	if _almacen.is_empty():
-		_lista.add_child(NTheme.label("(almacén vacío)", NTheme.exo2(), 11, NTheme.FAINT))
+	for child in _list.get_children():
+		child.queue_free()
+	if _storage.is_empty():
+		_list.add_child(NTheme.label("(almacén vacío)", NTheme.exo2(), 11, NTheme.FAINT))
 		return
-	for loot_id in _almacen:
-		var fila := HBoxContainer.new()
-		fila.add_theme_constant_override("separation", 6)
-		var nombre: String = str(loot_id).trim_prefix("material_").capitalize()
-		var etiqueta := NTheme.label("%s  %s" % [nombre, _miles(_almacen[loot_id])],
+	for loot_id in _storage:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var entry_name: String = str(loot_id).trim_prefix("material_").capitalize()
+		var tag := NTheme.label("%s  %s" % [entry_name, _thousands(_storage[loot_id])],
 			NTheme.mono(), 11, NTheme.WARN)
-		etiqueta.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		etiqueta.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		fila.add_child(etiqueta)
-		if _precios.has(loot_id):
-			var b := _boton("VENDER  %d C" % _precios[loot_id])
+		tag.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(tag)
+		if _prices.has(loot_id):
+			var b := _button("VENDER  %d C" % _prices[loot_id])
 			b.custom_minimum_size = Vector2(96, 22)
 			var id: String = loot_id
 			b.pressed.connect(func(): sell_pressed.emit(id, 0))   # 0 = todo
-			_bloquear(b, not _en_rango)
-			fila.add_child(b)
-		_lista.add_child(fila)
+			_lock(b, not _in_range)
+			row.add_child(b)
+		_list.add_child(row)
 
 
-static func _miles(n) -> String:
+static func _thousands(n) -> String:
 	var s := str(int(n))
-	var salida := ""
-	var cuenta := 0
+	var output := ""
+	var tally := 0
 	for i in range(s.length() - 1, -1, -1):
-		salida = s[i] + salida
-		cuenta += 1
-		if cuenta % 3 == 0 and i > 0:
-			salida = "." + salida
-	return salida
+		output = s[i] + output
+		tally += 1
+		if tally % 3 == 0 and i > 0:
+			output = "." + output
+	return output

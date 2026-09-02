@@ -11,117 +11,117 @@
 class_name SettingsWindow
 extends NWindow
 
-signal preset_elegido(nombre: String)
+signal preset_chosen(entry_name: String)
 
-const ICONO := "res://assets/ui/icons/gear.svg"
-const ANCHO := 344                # el ancho del `#w-cfg` del prototipo
-const ORDEN := ["baja", "media", "alta"]
-const DETALLE := {
+const ICON := "res://assets/ui/icons/gear.svg"
+const WIDTH := 344                # el ancho del `#w-cfg` del prototipo
+const ORDER := ["baja", "media", "alta"]
+const DETAIL := {
 	"baja": "Render a 0,65× · sin antialias · solo el sol · llamas solo en tu nave",
 	"media": "Render a 0,85× · antialias 2× · luz de tu nave · polvo estelar",
 	"alta": "Resolución completa · antialias 4× · todas las luces · nebulosas y planetas",
 }
 
-var _segmentos := {}
-var _detalle: Label
+var _segments := {}
+var _detail: Label
 var _fps: Label
 var _vram: Label
 
 
-static func crear() -> SettingsWindow:
+static func create() -> SettingsWindow:
 	var v := SettingsWindow.new()
-	v.clave = "ajustes"
-	v._construir("Ajustes", ICONO)
-	v._cuerpo()
+	v.key = "ajustes"
+	v._build("Ajustes", ICON)
+	v._body()
 	return v
 
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(ANCHO, 0)
+	custom_minimum_size = Vector2(WIDTH, 0)
 	visible = false
 
 
-func _cuerpo() -> void:
-	contenido.add_child(_fila_calidad())
+func _body() -> void:
+	content.add_child(_quality_row())
 
-	_detalle = NTheme.label("", NTheme.exo2(), 11, NTheme.FAINT)
-	_detalle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detalle.custom_minimum_size = Vector2(ANCHO - 20, 0)
-	contenido.add_child(_detalle)
+	_detail = NTheme.label("", NTheme.exo2(), 11, NTheme.FAINT)
+	_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_detail.custom_minimum_size = Vector2(WIDTH - 20, 0)
+	content.add_child(_detail)
 
 	var sep := HSeparator.new()
-	var linea := StyleBoxLine.new()
-	linea.color = NTheme.EDGE_SOFT
-	sep.add_theme_stylebox_override("separator", linea)
-	contenido.add_child(sep)
+	var line := StyleBoxLine.new()
+	line.color = NTheme.EDGE_SOFT
+	sep.add_theme_stylebox_override("separator", line)
+	content.add_child(sep)
 
 	# Los dos numeros que hacen falta para ELEGIR un preajuste, no para adornar:
 	# cuantos fotogramas da la maquina y cuanta textura hay cargada. Desde que
 	# todo es 3D la textura casi no cambia con el nivel (lo que baja es la
 	# resolucion del render y el antialias), asi que el numero que responde al
 	# ajuste es el de fotogramas.
-	_fps = _fila_numero("Fotogramas por segundo")
-	_vram = _fila_numero("Memoria de textura")
+	_fps = _number_row("Fotogramas por segundo")
+	_vram = _number_row("Memoria de textura")
 
-	contenido.add_child(NTheme.label("El cambio se aplica al instante",
+	content.add_child(NTheme.label("El cambio se aplica al instante",
 		NTheme.exo2(), 11, NTheme.MUTED))
-	_refrescar()
+	_refresh()
 
 
 ## §7: fila de `.r` — etiqueta fria a la izquierda, valor a la derecha.
-func _fila_calidad() -> Control:
-	var fila := HBoxContainer.new()
-	fila.add_theme_constant_override("separation", 7)
+func _quality_row() -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
 	var k := NTheme.label("Calidad", NTheme.exo2(), 11, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	k.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	fila.add_child(k)
+	row.add_child(k)
 	var seg := HBoxContainer.new()
 	seg.add_theme_constant_override("separation", 3)
-	for nombre in ORDEN:
-		var b := _segmento(nombre)
-		_segmentos[nombre] = b
+	for entry_name in ORDER:
+		var b := _segment(entry_name)
+		_segments[entry_name] = b
 		seg.add_child(b)
-	fila.add_child(seg)
-	return fila
+	row.add_child(seg)
+	return row
 
 
-func _fila_numero(etiqueta: String) -> Label:
-	var fila := HBoxContainer.new()
-	fila.add_theme_constant_override("separation", 7)
-	var k := NTheme.label(etiqueta, NTheme.exo2(), 11, NTheme.MUTED)
+func _number_row(tag: String) -> Label:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	var k := NTheme.label(tag, NTheme.exo2(), 11, NTheme.MUTED)
 	k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fila.add_child(k)
+	row.add_child(k)
 	# la firma del sistema: etiqueta fria + numero ambar en JetBrains Mono
 	var v := NTheme.label("—", NTheme.mono(), 10, NTheme.WARN)
-	fila.add_child(v)
-	contenido.add_child(fila)
+	row.add_child(v)
+	content.add_child(row)
 	return v
 
 
 ## El segmento lo construye NTheme (§7): vivia aqui y ahora lo comparten esta
 ## ventana y la pantalla de entrada.
-func _segmento(nombre: String) -> Button:
-	var b := NTheme.segmento(Quality.ETIQUETAS[nombre])
+func _segment(entry_name: String) -> Button:
+	var b := NTheme.segment(Quality.LABELS[entry_name])
 	b.pressed.connect(func():
-		preset_elegido.emit(nombre)
-		_refrescar())
+		preset_chosen.emit(entry_name)
+		_refresh())
 	return b
 
 
-func _refrescar() -> void:
-	for nombre in _segmentos:
-		NTheme.marcar_segmento(_segmentos[nombre], Quality.preset == nombre)
-	if _detalle != null:
-		_detalle.text = DETALLE.get(Quality.preset, "")
+func _refresh() -> void:
+	for entry_name in _segments:
+		NTheme.mark_segment(_segments[entry_name], Quality.preset == entry_name)
+	if _detail != null:
+		_detail.text = DETAIL.get(Quality.preset, "")
 
 
-func alternar() -> void:
+func toggle() -> void:
 	visible = not visible
 	if visible:
-		_refrescar()
-		if not cargar_posicion():
-			centrar()
+		_refresh()
+		if not load_position():
+			center_on()
 
 
 func _process(_delta: float) -> void:
@@ -129,10 +129,10 @@ func _process(_delta: float) -> void:
 		return
 	_fps.text = str(int(Engine.get_frames_per_second()))
 	var bytes := Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED)
-	_vram.text = "%s MB" % _con_coma(bytes / 1048576.0)
+	_vram.text = "%s MB" % _with_comma(bytes / 1048576.0)
 
 
 ## Decimal con COMA, como se escribe en espaniol. El separador de miles con punto
 ## del §3 no aplica aqui porque el numero no llega a mil.
-static func _con_coma(v: float) -> String:
+static func _with_comma(v: float) -> String:
 	return ("%.1f" % v).replace(".", ",")

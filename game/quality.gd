@@ -22,9 +22,9 @@
 extends Node
 
 ## Claves que cambiaron; quien dibuje algo afectado se reconstruye.
-signal cambiada(claves: Array)
+signal changed(keys: Array)
 
-const RUTA := "user://quality.cfg"
+const PATH := "user://quality.cfg"
 
 ## Que controla cada clave:
 ##  - render:      escala del render 3D (Viewport.scaling_3d_scale): 0 = 0,65x ·
@@ -46,7 +46,7 @@ const RUTA := "user://quality.cfg"
 ##  - explosion:   0 sin animacion de explosion · 1 con ella. Existe en los
 ##                 tres presets; solo la auto-calidad llega a apagarla.
 ##  - emissive:    0 emision fija (sin pulso ni lava) · 1 pulsando. Idem.
-var niveles := {
+var levels := {
 	"render": 2, "aa": 2, "luces": 2, "engine": 2,
 	"background": 2, "collectable": 1, "explosion": 1, "emissive": 1,
 }
@@ -64,10 +64,10 @@ const PRESETS := {
 			  "background": 2, "collectable": 1, "explosion": 1, "emissive": 1},
 }
 
-const ETIQUETAS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
+const LABELS := {"baja": "BAJA", "media": "MEDIA", "alta": "ALTA"}
 
 var preset := "alta"
-var _cuenta := 0
+var _count := 0
 
 ## ---- Auto-calidad por FPS (guideline 3D, §12.2 del original) ----
 ## Promedia el FPS en ventanas de 20 s: por debajo de 10 sube UN escalon de
@@ -76,24 +76,24 @@ var _cuenta := 0
 ## no se persiste — el preset por cuenta no se toca, que es la leccion del
 ## autotest que dejaba residuo. Sin foco no se mide (una ventana de fondo con
 ## los fps capados no es una maquina lenta), y en autotest no corre.
-const AQ_VENTANA_SEC := 20.0
-const AQ_FPS_BAJA := 10.0
+const AQ_WINDOW_SEC := 20.0
+const AQ_FPS_LOW := 10.0
 ## El original recuperaba "por encima de 60" — era un SWF sin VSync. Aqui el
 ## VSync (default de Godot) clava el tope al refresco del monitor, asi que la
 ## media NUNCA pasa de 60 y la escalera podia bajar pero jamas volver a subir
 ## (1-sep). Se recupera al 90 % del refresco real: holgura de verdad, no un
 ## numero que el VSync hace inalcanzable.
-const AQ_SUBE_FRACCION := 0.9
+const AQ_RAISE_FRACTION := 0.9
 
 
-func _umbral_sube() -> float:
+func _raise_threshold() -> float:
 	var hz := DisplayServer.screen_get_refresh_rate()
-	return (hz if hz > 0.0 else 60.0) * AQ_SUBE_FRACCION
+	return (hz if hz > 0.0 else 60.0) * AQ_RAISE_FRACTION
 ## La escalera de recortes, del mas barato al mas doloroso. Cada peldanio es un
 ## mapa de TOPES por clave; lo que no aparece no se toca. Los dos primeros
 ## (antialias, resolucion) no se ven; el ultimo es el que el original tambien
 ## reservaba para el final: sin explosiones ni pulso.
-const AQ_ESCALERA := [
+const AQ_LADDER := [
 	{},
 	{"aa": 0},
 	{"aa": 0, "render": 1},
@@ -102,92 +102,92 @@ const AQ_ESCALERA := [
 	{"aa": 0, "render": 0, "background": 0, "engine": 0, "luces": 0,
 	 "collectable": 0, "explosion": 0, "emissive": 0},
 ]
-var auto_reduccion := 0
-var _aq_acum := 0.0
-var _aq_suma := 0.0
-var _aq_muestras := 0
+var auto_reduction := 0
+var _aq_accum := 0.0
+var _aq_sum := 0.0
+var _aq_samples := 0
 
 
-func nivel(clave: String) -> int:
-	var base := int(niveles.get(clave, 2))
-	if auto_reduccion <= 0:
+func level(key: String) -> int:
+	var base := int(levels.get(key, 2))
+	if auto_reduction <= 0:
 		return base
-	var topes: Dictionary = AQ_ESCALERA[auto_reduccion]
-	return mini(base, int(topes.get(clave, base)))
+	var limits: Dictionary = AQ_LADDER[auto_reduction]
+	return mini(base, int(limits.get(key, base)))
 
 
 func _process(delta: float) -> void:
 	# medir en autotest o con calidad forzada contaminaria justo lo que prueban
-	if Session.autotest_modo != "" or Session.calidad_forzada != "":
+	if Session.autotest_mode != "" or Session.forced_quality != "":
 		return
 	if not get_window().has_focus():
 		return
-	_aq_acum += delta
-	if _aq_acum < 1.0:
+	_aq_accum += delta
+	if _aq_accum < 1.0:
 		return                      # una muestra por segundo basta
-	_aq_acum = 0.0
-	_aq_suma += Engine.get_frames_per_second()
-	_aq_muestras += 1
-	if float(_aq_muestras) < AQ_VENTANA_SEC:
+	_aq_accum = 0.0
+	_aq_sum += Engine.get_frames_per_second()
+	_aq_samples += 1
+	if float(_aq_samples) < AQ_WINDOW_SEC:
 		return
-	var media := _aq_suma / float(_aq_muestras)
-	_aq_suma = 0.0
-	_aq_muestras = 0
-	if media < AQ_FPS_BAJA and auto_reduccion < AQ_ESCALERA.size() - 1:
-		_reduccion_a(auto_reduccion + 1, media)
-	elif media > _umbral_sube() and auto_reduccion > 0:
-		_reduccion_a(auto_reduccion - 1, media)
+	var medium := _aq_sum / float(_aq_samples)
+	_aq_sum = 0.0
+	_aq_samples = 0
+	if medium < AQ_FPS_LOW and auto_reduction < AQ_LADDER.size() - 1:
+		_reduction_at(auto_reduction + 1, medium)
+	elif medium > _raise_threshold() and auto_reduction > 0:
+		_reduction_at(auto_reduction - 1, medium)
 
 
-func _reduccion_a(nuevo: int, media: float) -> void:
+func _reduction_at(fresh: int, medium: float) -> void:
 	# se avisa con las claves cuyo nivel EFECTIVO cambio, para que el mundo
 	# reconstruya exactamente lo que toca — el mismo cable que el cambio manual
-	var antes := {}
-	for k in niveles:
-		antes[k] = nivel(k)
-	auto_reduccion = nuevo
-	var claves := []
-	for k in niveles:
-		if nivel(k) != int(antes[k]):
-			claves.append(k)
-	print("AutoCalidad: reduccion %d (media %.0f fps)" % [auto_reduccion, media])
-	if not claves.is_empty():
-		cambiada.emit(claves)
+	var before := {}
+	for k in levels:
+		before[k] = level(k)
+	auto_reduction = fresh
+	var keys := []
+	for k in levels:
+		if level(k) != int(before[k]):
+			keys.append(k)
+	print("AutoCalidad: reduccion %d (media %.0f fps)" % [auto_reduction, medium])
+	if not keys.is_empty():
+		changed.emit(keys)
 
 
 ## Carga los ajustes de esta cuenta. Se llama al entrar al mundo, no en _ready:
 ## antes del login no se sabe de quien son.
-func cargar(cuenta: int) -> void:
-	_cuenta = cuenta
+func load_data(tally: int) -> void:
+	_count = tally
 	var cfg := ConfigFile.new()
-	if cfg.load(RUTA) != OK:
+	if cfg.load(PATH) != OK:
 		return
-	var guardado: Variant = cfg.get_value(str(cuenta), "preset", "")
-	if guardado is String and PRESETS.has(guardado):
-		preset = guardado
-		niveles = PRESETS[guardado].duplicate()
+	var saved: Variant = cfg.get_value(str(tally), "preset", "")
+	if saved is String and PRESETS.has(saved):
+		preset = saved
+		levels = PRESETS[saved].duplicate()
 
 
 ## Aplica un preajuste y avisa de las claves que cambiaron. Devuelve esa lista
 ## para que quien llame sepa si hace falta reconstruir algo.
-func aplicar(nombre: String) -> Array:
-	if not PRESETS.has(nombre):
+func apply(entry_name: String) -> Array:
+	if not PRESETS.has(entry_name):
 		return []
-	var nuevos: Dictionary = PRESETS[nombre]
-	var claves := []
-	for k in nuevos:
-		if int(niveles.get(k, -1)) != int(nuevos[k]):
-			claves.append(k)
-	niveles = nuevos.duplicate()
-	preset = nombre
-	_guardar()
-	if not claves.is_empty():
-		cambiada.emit(claves)
-	return claves
+	var new_ones: Dictionary = PRESETS[entry_name]
+	var keys := []
+	for k in new_ones:
+		if int(levels.get(k, -1)) != int(new_ones[k]):
+			keys.append(k)
+	levels = new_ones.duplicate()
+	preset = entry_name
+	_save_file()
+	if not keys.is_empty():
+		changed.emit(keys)
+	return keys
 
 
-func _guardar() -> void:
+func _save_file() -> void:
 	var cfg := ConfigFile.new()
-	cfg.load(RUTA)                       # conserva los ajustes de otras cuentas
-	cfg.set_value(str(_cuenta), "preset", preset)
-	cfg.save(RUTA)
+	cfg.load(PATH)                       # conserva los ajustes de otras cuentas
+	cfg.set_value(str(_count), "preset", preset)
+	cfg.save(PATH)

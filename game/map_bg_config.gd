@@ -3,8 +3,8 @@
 class_name MapBgConfig
 
 
-static func para(map_code: String, world: Vector2) -> Dictionary:
-	var d := AssetDefs.mapa(map_code)
+static func for_whom(map_code: String, world: Vector2) -> Dictionary:
+	var d := AssetDefs.map_data(map_code)
 	if d.is_empty():
 		return {"world": world}
 
@@ -14,16 +14,16 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	cfg["tiles_far"] = _tiles(d.get("tiles_far", []))
 	cfg["tiles_near"] = _tiles(d.get("tiles_near", []))
 
-	var planetas := []
+	var planets := []
 	for p in d.get("planets", []):
-		var ruta: String = p.get("tex", "")
-		planetas.append({
-			"tex": load(ruta) if ResourceLoader.exists(ruta) else null,
+		var path: String = p.get("tex", "")
+		planets.append({
+			"tex": load(path) if ResourceLoader.exists(path) else null,
 			"pos": Vector2(float(p.get("x", 0)), float(p.get("y", 0))),
 			"p_factor": float(p.get("p_factor", 5.0)),
 			"scale": float(p.get("scale", 1.0)),
 		})
-	cfg["planets"] = planetas
+	cfg["planets"] = planets
 
 	if d.has("sun"):
 		var s: Dictionary = d.sun
@@ -51,9 +51,9 @@ static func para(map_code: String, world: Vector2) -> Dictionary:
 	return cfg
 
 
-static func _tiles(lista: Array) -> Array:
-	var salida := []
-	for t in lista:
+static func _tiles(items: Array) -> Array:
+	var output := []
+	for t in items:
 		var e := {
 			"tex": load(t.tex),
 			"p_factor": float(t.get("p_factor", 6.0)),
@@ -67,11 +67,11 @@ static func _tiles(lista: Array) -> Array:
 		# unidades de mundo, mapScale y mascara de agujeros (blanco = nube)
 		if t.has("y"):
 			e["y"] = float(t.y)
-		if t.has("lado"):
-			e["lado"] = float(t.lado)
-		if t.has("margen"):
-			e["margen"] = float(t.margen)
+		if t.has("side"):
+			e["side"] = float(t.side)
+		if t.has("margin"):
+			e["margin"] = float(t.margin)
 		if t.has("mask") and ResourceLoader.exists(str(t.mask)):
 			e["mask"] = load(str(t.mask))
-		salida.append(e)
-	return salida
+		output.append(e)
+	return output

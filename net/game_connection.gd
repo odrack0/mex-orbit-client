@@ -29,24 +29,24 @@ signal session_replaced
 signal disconnected
 
 var _ws := WebSocketPeer.new()
-var _abierto := false
-var _ticket_pendiente := ""
+var _open := false
+var _pending_ticket := ""
 var _url := ""
 ## Token de reconexion (lo entrega Welcome): con el se vuelve a la misma nave
 ## dentro de la ventana de gracia, sin pasar por la api.
 var reconnect_token := ""
-var _reanudando := false
-var _reteniendo := false
-var _buzon: Array[PackedByteArray] = []
-var _reten_t0 := 0
-var _reten_listo := -1
+var _resuming := false
+var _holding := false
+var _mailbox: Array[PackedByteArray] = []
+var _hold_t0 := 0
+var _hold_ready := -1
 
 
 func connect_to(url: String, ticket: String) -> void:
 	_url = url
-	_ticket_pendiente = ticket
-	_reanudando = false
-	_abierto = false
+	_pending_ticket = ticket
+	_resuming = false
+	_open = false
 	_ws = WebSocketPeer.new()
 	_ws.connect_to_url(url)
 	set_process(true)
@@ -56,8 +56,8 @@ func connect_to(url: String, ticket: String) -> void:
 func reconnect() -> void:
 	if reconnect_token == "":
 		return
-	_reanudando = true
-	_abierto = false
+	_resuming = true
+	_open = false
 	_ws = WebSocketPeer.new()
 	_ws.connect_to_url(_url)
 	set_process(true)
@@ -70,7 +70,7 @@ func reconnect() -> void:
 ## memoria de un proceso—, y el estado de la nave ya quedo persistido EN EL MAPA
 ## DESTINO antes de que el server cerrara el socket. Reconectar, por tanto,
 ## aterriza donde toca sin que el cliente tenga que decir a donde va.
-func saltar_a(url: String) -> void:
+func jump_to(url: String) -> void:
 	if reconnect_token == "":
 		return
 	_url = url
@@ -78,7 +78,7 @@ func saltar_a(url: String) -> void:
 
 
 ## Corta el socket como si se cayera la red (autotest de reconexion).
-func simular_caida() -> void:
+func simulate_drop() -> void:
 	_ws.close(4000, "prueba de reconexion")
 
 
@@ -86,9 +86,9 @@ func _process(_delta: float) -> void:
 	_ws.poll()
 	match _ws.get_ready_state():
 		WebSocketPeer.STATE_OPEN:
-			if not _abierto:
-				_abierto = true
-				if _reanudando:
+			if not _open:
+				_open = true
+				if _resuming:
 					var resume := MexProtocol.Resume.new()
 					resume.protocol_version = 1
 					resume.reconnect_token = reconnect_token
@@ -96,13 +96,13 @@ func _process(_delta: float) -> void:
 				else:
 					var hello := MexProtocol.Hello.new()
 					hello.protocol_version = 1
-					hello.game_ticket = _ticket_pendiente
+					hello.game_ticket = _pending_ticket
 					_ws.put_packet(hello.encode())
 			while _ws.get_available_packet_count() > 0:
-				_despachar(_ws.get_packet())
+				_dispatch(_ws.get_packet())
 		WebSocketPeer.STATE_CLOSED:
-			if _abierto:
-				_abierto = false
+			if _open:
+				_open = false
 				disconnected.emit()
 			set_process(false)
 
@@ -121,40 +121,40 @@ func send(frame: PackedByteArray) -> void:
 ## cuanto el mapa destino viva en otra maquina, abrir el socket y hacer el
 ## handshake son cientos de milisegundos que se pagarian DESPUES, sumados en vez
 ## de solapados.
-func retener() -> void:
-	_reteniendo = true
-	_buzon.clear()
-	_reten_t0 = Time.get_ticks_msec()
-	_reten_listo = -1
+func hold() -> void:
+	_holding = true
+	_mailbox.clear()
+	_hold_t0 = Time.get_ticks_msec()
+	_hold_ready = -1
 
 
 ## Y soltarla de golpe, en orden. Quien llama decide cuando: normalmente al
 ## terminar el encendido del portal.
-func soltar() -> void:
-	if not _reteniendo:
+func release() -> void:
+	if not _holding:
 		return
-	_reteniendo = false
-	if _reten_listo >= 0:
+	_holding = false
+	if _hold_ready >= 0:
 		print("SALTO conexion nueva lista en %d ms · se suelta a los %d ms · holgura %d ms"
-			% [_reten_listo, Time.get_ticks_msec() - _reten_t0,
-			   Time.get_ticks_msec() - _reten_t0 - _reten_listo])
-	var pendientes := _buzon.duplicate()
-	_buzon.clear()
-	for frame: PackedByteArray in pendientes:
-		_despachar(frame)
+			% [_hold_ready, Time.get_ticks_msec() - _hold_t0,
+			   Time.get_ticks_msec() - _hold_t0 - _hold_ready])
+	var pending := _mailbox.duplicate()
+	_mailbox.clear()
+	for frame: PackedByteArray in pending:
+		_dispatch(frame)
 
 
-func _despachar(frame: PackedByteArray) -> void:
+func _dispatch(frame: PackedByteArray) -> void:
 	var id := _msg_id(frame)
 	# El Ping se contesta SIEMPRE, retenidos o no: es del transporte, no del
 	# mundo. Guardarlo dos segundos seria dejar que el server nos diera por
 	# muertos justo mientras llegamos.
-	if _reteniendo and id != MexProtocol.Ping.MSG_ID:
+	if _holding and id != MexProtocol.Ping.MSG_ID:
 		# el EnterMap es la senial de que el mapa destino ya esta sincronizado:
 		# con eso se mide cuanta HOLGURA deja la animacion
-		if id == MexProtocol.EnterMap.MSG_ID and _reten_listo < 0:
-			_reten_listo = Time.get_ticks_msec() - _reten_t0
-		_buzon.append(frame)
+		if id == MexProtocol.EnterMap.MSG_ID and _hold_ready < 0:
+			_hold_ready = Time.get_ticks_msec() - _hold_t0
+		_mailbox.append(frame)
 		return
 	match id:
 		MexProtocol.Welcome.MSG_ID: welcome.emit(MexProtocol.Welcome.decode(frame))
