@@ -3,7 +3,7 @@
   "code": "ferox",
   "_model": "Malla 3D con esqueleto: el unico cuerpo de la entidad, en todos los niveles de calidad (1-sep-2026). Los ojos y las vetas encienden por el pulso sobre la emision del material (canal r del albedo), sin capa aparte.",
   "model": "res://assets/npcs/ferox.glb",
-  "_wings": "Las CUCHILLAS de los brazos. Eje 1 medido con repro_eje_hueso: a +30 se pliegan al cuerpo y a -30 se abren en abanico, sin cruzarse en ningun extremo; a 190 px cada extremo cambia la silueta un 30%. Ciclo mas corto que el Vexor (2.17): es el cazador nervioso del catalogo.",
+  "_wings": "Las CUCHILLAS de los brazos. Eje 1 medido con repro_bone_axis: a +30 se pliegan al cuerpo y a -30 se abren en abanico, sin cruzarse en ningun extremo; a 190 px cada extremo cambia la silueta un 30%. Ciclo mas corto que el Vexor (2.17): es el cazador nervioso del catalogo.",
   "wings": {
     "degrees": 30.0,
     "cycle": 1.6,

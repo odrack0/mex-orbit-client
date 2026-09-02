@@ -9,7 +9,7 @@
     0.0
   ],
   "horns_axis": 2,
-  "_wings": "Aleteo. HEREDADO del Vexor y SIN MEDIR en este bicho: sus alas son mas estrechas y barridas, asi que estos grados son un punto de partida, no un valor calibrado. Se mide con repro_eje_hueso.tscn.",
+  "_wings": "Aleteo. HEREDADO del Vexor y SIN MEDIR en este bicho: sus alas son mas estrechas y barridas, asi que estos grados son un punto de partida, no un valor calibrado. Se mide con repro_bone_axis.tscn.",
   "wings": {
     "degrees": 34.0,
     "cycle": 2.17,

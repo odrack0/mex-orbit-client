@@ -1,5 +1,5 @@
 {
-  "_comment": "Diales de los bancos y repros de pruebas/. Un sub-objeto por escena, mas `common` para lo que comparten todas (el contrato de encuadre del juego y la carpeta de sus PNG). Los argumentos de linea de comandos siguen mandando: aqui viven solo sus valores por defecto y las constantes.",
+  "_comment": "Diales de los bancos y repros de tests/. Un sub-objeto por escena, mas `common` para lo que comparten todas (el contrato de encuadre del juego y la carpeta de sus PNG). Los argumentos de linea de comandos siguen mandando: aqui viven solo sus valores por defecto y las constantes.",
   "common": {
     "_frame_margin": "Holgura del encuadre: el lado mayor del modelo ocupa 1/1.15 del ancho del render. Es el mismo contrato que usa el juego para encajar un asset en su hueco.",
     "frame_margin": 1.15,
@@ -9,8 +9,8 @@
     "output_dir": "C:/Tools"
   },
   "bench_3d": {
-    "_comment": "banco_3d.gd: cuantos bichos vivos aguanta el cliente. Los default_* son lo que valen los argumentos --n, --elev, --segundos, --calentamiento, --giro, --anim, --pulso y --modelo si no se pasan.",
-    "default_model": "res://pruebas/vexor.glb",
+    "_comment": "bench_3d.gd: cuantos bichos vivos aguanta el cliente. Los default_* son lo que valen los argumentos --n, --elev, --seconds, --warmup, --spin, --anim, --pulse y --model si no se pasan.",
+    "default_model": "res://tests/vexor.glb",
     "default_count": 15,
     "default_elevation_deg": 70.0,
     "_default_seconds": "Cuanto mide antes de cerrarse; 0 = no se cierra (modo mirarlo).",
@@ -41,11 +41,11 @@
     "spin_variation_base": 0.6,
     "spin_variation_step": 0.4,
     "spin_variation_groups": 3,
-    "_wings_deg": "Cuanto se pliegan las alas, en grados (--alas-grados=).",
+    "_wings_deg": "Cuanto se pliegan las alas, en grados (--wings-deg=).",
     "wings_deg": 34.0,
     "_wings_cycle": "Segundos por ciclo de alas: 26 fotogramas a 12 fps, el atlas del Vexor.",
     "wings_cycle": 2.17,
-    "_tail_deg": "Grados POR SEGMENTO de cola; se acumulan por la cadena (--cola-grados=).",
+    "_tail_deg": "Grados POR SEGMENTO de cola; se acumulan por la cadena (--tail-deg=).",
     "tail_deg": 9.0,
     "_tail_cycle": "Un ciclo de cola cada 1,5 s: el speed 4.2 de undulate en vexor.json (2*PI/4,2).",
     "tail_cycle": 1.5,
@@ -71,13 +71,13 @@
     "percentile_min_samples": 100,
     "_percentile_interval_s": "Cada cuanto se recalcula el percentil (ordenar miles de muestras por fotograma seria medir el coste de medir).",
     "percentile_interval_s": 0.5,
-    "_trace_interval_s": "Cada cuanto imprime la traza del primer bicho con --traza.",
+    "_trace_interval_s": "Cada cuanto imprime la traza del primer bicho con --trace.",
     "trace_interval_s": 0.4,
     "_diag_tracks_max": "Cuantas pistas de la animacion se listan en el diagnostico.",
     "diag_tracks_max": 4
   },
   "repro_bone_axis": {
-    "_comment": "repro_eje_hueso.gd: sobre que eje hay que rotar un hueso. Defaults de --hueso, --grados y --modelo.",
+    "_comment": "repro_bone_axis.gd: sobre que eje hay que rotar un hueso. Defaults de --bone, --degrees y --model.",
     "default_bone": "cuerno_izq",
     "default_model": "res://assets/npcs/vexor.glb",
     "default_degrees": 30.0,
@@ -88,7 +88,7 @@
     "settle_frames": 3
   },
   "repro_orientation": {
-    "_comment": "repro_orientacion.gd: hacia donde mira el modelo para cada giro sobre Y.",
+    "_comment": "repro_orientation.gd: hacia donde mira el modelo para cada giro sobre Y.",
     "default_model": "res://assets/npcs/vexor.glb",
     "angles_deg": [0, 90, 180, 270],
     "render_size": 410,
@@ -115,7 +115,7 @@
     "spin_step": 0.25
   },
   "view_anchors": {
-    "_comment": "ver_anclajes.gd: marcadores tobera_*/canon_* pintados sobre el render y medida de las bocas en la imagen.",
+    "_comment": "view_anchors.gd: marcadores tobera_*/canon_* pintados sobre el render y medida de las bocas en la imagen.",
     "default_model": "res://assets/ships/phoenix.glb",
     "render_size": 512,
     "settle_frames": 4,
@@ -139,7 +139,7 @@
     "band_height_px": 6
   },
   "view_markers": {
-    "_comment": "ver_marcadores.gd (godot -s): lista los marcadores tal y como los ve Godot tras importar el GLB.",
+    "_comment": "view_markers.gd (godot -s): lista los marcadores tal y como los ve Godot tras importar el GLB.",
     "model": "res://assets/ships/phoenix.glb",
     "_target_px": "Pixeles que ocupa en pantalla el lado mayor del modelo; de ahi sale la escala px/unidad.",
     "target_px": 141.0

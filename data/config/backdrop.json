@@ -1,5 +1,5 @@
 {
-  "_comment": "Diales del fondo 3D (game/fondo3d.gd, Backdrop3D) y los DEFAULTS de los campos del JSON de cada mapa (game/map_bg_config.gd, MapBgConfig; data/maps/*.json). Cotas del display3D del original (G§10); y negativo = hondo.",
+  "_comment": "Diales del fondo 3D (game/backdrop3d.gd, Backdrop3D) y los DEFAULTS de los campos del JSON de cada mapa (game/map_bg_config.gd, MapBgConfig; data/maps/*.json). Cotas del display3D del original (G§10); y negativo = hondo.",
   "layers": {
     "layer_base": -3500.0,
     "layer_step": 550.0,

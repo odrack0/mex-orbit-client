@@ -97,7 +97,7 @@ static var GLOW_HP_MIN: float = AssetDefs.num(CFG, "glow_hp_min", 0.35)
 ## La luz del heroe (G§7.2): altura y radio en unidades de mundo.
 static var HERO_LIGHT_HEIGHT: float = AssetDefs.num(CFG_HERO_LIGHT, "height", 40.0)
 static var HERO_LIGHT_RANGE: float = AssetDefs.num(CFG_HERO_LIGHT, "range", 450.0)
-static var LAVA_SHADER_PATH: String = str(CFG.get("lava_shader_path", "res://game/shaders/lava_flujo.gdshader"))
+static var LAVA_SHADER_PATH: String = str(CFG.get("lava_shader_path", "res://game/shaders/lava_flow.gdshader"))
 
 ## NPCs parados: giro perezoso aleatorio cada IDLE_TURN_MIN..IDLE_TURN_MAX s.
 static var IDLE_TURN_MIN_SEC: float = AssetDefs.num(CFG_IDLE_TURN, "min_sec", 2.0)

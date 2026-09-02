@@ -34,8 +34,8 @@ static func _ints(v: Variant, fallback: Array[int]) -> Array[int]:
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--modelo="):
-			var m := arg.trim_prefix("--modelo=")
+		if arg.begins_with("--model="):
+			var m := arg.trim_prefix("--model=")
 			# con barra, la ruta es dentro de assets/ (naves, props...); sin ella, npcs
 			_path = "res://assets/%s" % m if "/" in m else "res://assets/npcs/%s" % m
 	_vp = SubViewport.new()

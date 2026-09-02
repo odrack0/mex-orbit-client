@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://da8aviadl5ruf"
-path="res://.godot/imported/vexor_Baked_BaseColor.png-8774114964857d78f4b4fca59c08dd37.ctex"
+uid="uid://ddacotcs12xvn"
+path="res://.godot/imported/vexor-cola_metallic_roughness.jpg-bf919e5b064084f9fa08ec078525a669.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "7c4bbedbff4e3ffc67cf15b2d7cb7aa7"
+"md5": "cfd574a82b771a819616a5af6196719d"
 }
 
 [deps]
 
-source_file="res://pruebas/vexor_Baked_BaseColor.png"
-dest_files=["res://.godot/imported/vexor_Baked_BaseColor.png-8774114964857d78f4b4fca59c08dd37.ctex"]
+source_file="res://tests/vexor-cola_metallic_roughness.jpg"
+dest_files=["res://.godot/imported/vexor-cola_metallic_roughness.jpg-bf919e5b064084f9fa08ec078525a669.ctex"]
 
 [params]
 

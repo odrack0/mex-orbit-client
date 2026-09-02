@@ -1,5 +1,5 @@
 {
-  "_comment": "Calidad grafica por subsistema (game/quality.gd, autoload Quality) y las palancas de GPU que aplica la escena 3D (game/mundo3d.gd, `render`). Claves de nivel: render (escala del render 3D), aa (MSAA), luces (dinamicas del mundo 3D), engine (llamas), background (capas del fondo), collectable (props animados), explosion, emissive (pulso).",
+  "_comment": "Calidad grafica por subsistema (game/quality.gd, autoload Quality) y las palancas de GPU que aplica la escena 3D (game/stage3d.gd, `render`). Claves de nivel: render (escala del render 3D), aa (MSAA), luces (dinamicas del mundo 3D), engine (llamas), background (capas del fondo), collectable (props animados), explosion, emissive (pulso).",
   "default_preset": "alta",
   "_default_preset": "Preajuste con el que arranca una cuenta sin ajustes guardados.",
   "presets": {

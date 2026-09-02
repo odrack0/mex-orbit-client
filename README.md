@@ -189,12 +189,29 @@ siguen valiendo como historia y como valor calibrado, pero **la fuente de verdad
 | `props/portal.json` | (ampliado) `jump_range`, `body_height`, `label`, `ignition.*`, `inactive_glow` | Lo que `PortalNode` aún tenía suelto: rango de salto 600, etiqueta, destello, umbrales del parpadeo, escala mínima del vórtice, brillo de un portal apagado |
 | `net.json` | `session`, `game_connection` | `Session`: API por defecto en escritorio y ruta en web, archivo de credenciales de dev. La conexión no tiene diales propios hoy (el protocolo va como constantes con nombre) |
 | `ui.json` | `theme`, `window`, `chat`, `minimap`, `ship`, `station`, `settings`, `sysbar`, `taskbar`, `login`, `respawn`, `radiation_warning` | Todo el sistema N: paleta (con `{"rgb","alpha"}` para los cristales), fuentes y tamaños, paddings/gaps/márgenes compartidos, chrome de ventana (cabecera, L, banda, grip, botones), y cada ventana con sus anchos, alturas, radios, alphas, pulsos y guiones. `NWindow` lee `WINDOW_CFG` (un `static var CFG` en la base y otro en las subclases es «member already exists in parent class») |
-| `tests.json` | `common`, `bench_3d`, `repro_bone_axis`, `repro_orientation`, `repro_viewport`, `view_anchors`, `view_markers` | Los bancos de `pruebas/`: encuadre 1.15 y cámara cenital compartidos, y por banco sus defaults de línea de comandos, tamaños de render, colores de marcadores, umbrales de silueta, cadencias de traza y percentiles |
+| `tests.json` | `common`, `bench_3d`, `repro_bone_axis`, `repro_orientation`, `repro_viewport`, `view_anchors`, `view_markers` | Los bancos de `tests/`: encuadre 1.15 y cámara cenital compartidos, y por banco sus defaults de línea de comandos, tamaños de render, colores de marcadores, umbrales de silueta, cadencias de traza y percentiles |
 
 Dos decisiones de esa mudanza: los colores con decimales que no caben en 8 bits (polvo, fantasmas,
 degradados de la explosión) van como arrays `[r, g, b, a]` y no como hex; y las claves del JSON de
 datos se renombraron a inglés a la vez (`orientacion`→`orientation`, `encendido`→`ignition`,
 `alas`→`wings`, `modelo`→`model`, `malla`→`mesh`, `lado`→`side`…), con sus claves-comentario.
+
+### Código en inglés, comentarios en español (2-sep-2026)
+
+El mismo día el código pasó entero a inglés en tres fases con gate (autotest + bestiario) cada una:
+**identificadores y clases** (~1 200 nombres por un mapa aplicado solo a tokens de código; `Mundo3D`→
+`Stage3D` porque `World3D` es clase de Godot, `Fondo3D`→`Backdrop3D`), **claves JSON y diales** (la
+sección de arriba) y **archivos y carpetas**: `mundo3d.gd`→`stage3d.gd`, `fondo3d.gd`→`backdrop3d.gd`,
+`shaders/lava_flujo`→`lava_flow`, `shaders/cielo`→`sky`, y `pruebas/`→`tests/` con `banco_3d`→
+`bench_3d`, `repro_eje_hueso`→`repro_bone_axis`, `repro_orientacion`→`repro_orientation`,
+`ver_anclajes`→`view_anchors`, `ver_marcadores`→`view_markers`. Los argumentos de línea de comandos
+también (`--modelo`→`--model`, `--hueso`→`--bone`, `--grados`→`--degrees`, `--modo`→`--mode` con
+valores `loop`/`bestiary`/`jump`, `--calidad`→`--quality`…); los **switches de `dev-run.ps1`**
+(`-Autotest`, `-Bestiario`, `-Salto`, `-Calidad`, `-SoloServicios`, `-Detener`) se quedan como están:
+son la interfaz de quien lo usa, no el código del juego. Los comentarios siguen en español a propósito,
+igual que los textos que ve el jugador y los mensajes de log. `net/wire/messages_g.gd` es generado por
+el repo del protocolo y no entra en nada de esto. Este README conserva los nombres viejos en los
+párrafos históricos que cuentan cómo se calibró cada cosa: son historia, no referencia.
 
 | Dial | Dónde | Valor | Qué hace |
 |---|---|---|---|
@@ -202,14 +219,14 @@ datos se renombraron a inglés a la vez (`orientacion`→`orientation`, `encendi
 | `DEAD_ZONE` | `game/entity_node.gd` | 2 px | Destino encima de la nave en vuelo no re-orienta (anti-trompos) |
 | `HOLD_RESEND_SEC` | `game/world.gd` | 0.25 s | Cadencia del reenvío con click sostenido (tope real: rate limit 10/s del contrato) |
 | `HOLD_MIN_DELTA` | `game/world.gd` | 60 px | El destino debe moverse al menos esto para reenviar |
-| `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, CONSTANTE en pantalla (× `unidades_por_pixel` de la cámara 3D) |
+| `CLICK_RADIUS` | `game/world.gd` | 34 px | Radio de click sobre entidades, CONSTANTE en pantalla (× `units_per_pixel` de la cámara 3D) |
 | Umbral de snap | `entity_node.gd::reconcile` | 220 px | Deriva mayor a esto = teletransporte al eco del server; menor = lerp 0.35 |
-| Cámara y zoom | `game/mundo3d.gd` | FOV 30 · d 1740/zoom · tilt 135 · zoom [1,3] ×1.2 · tween 0.3 s · tilt−20° con zoom | La cámara del DO 3D original completa (F1). El rango 0.621–1.157 era del mundo de sprites y murió con él; se entra en zoom 1 (el encuadre de juego) |
+| Cámara y zoom | `game/stage3d.gd` | FOV 30 · d 1740/zoom · tilt 135 · zoom [1,3] ×1.2 · tween 0.3 s · tilt−20° con zoom | La cámara del DO 3D original completa (F1). El rango 0.621–1.157 era del mundo de sprites y murió con él; se entra en zoom 1 (el encuadre de juego) |
 | Acelerador de llamas | `entity_node.gd::_process` | subida 3.0/s, caída 4.0/s | Qué tan rápido encienden y apagan las llamas al volar/frenar (su color viene del JSON de la nave) |
 | Ventana | `project.godot` | maximizada, `canvas_items`/`expand` | Arranca a pantalla completa; el lienzo lógico sigue siendo 1280×720 |
 | `COLLECT_ARRIVE` | `game/world.gd` | 200 px | Llegar a esto de la caja dispara el CollectBox (el server valida 250) |
 | Disparos (F2) | `data/ammo/*.json` + `beam_3d.gd` | vida 0.35 s · rampa 0.10 · ciclo UV 0.4 | El HAZ del original: quad aditivo que se estira de la boca viva al blanco con el patrón fluyendo por UV-scroll, siguiendo a las dos naves. El proyectil que viajaba (modelo del prototipo 2D) murió aquí |
-| Luces de efectos (F2) | `mundo3d.gd::luz_efecto` | pool de 3 · disparo 0xF7C0C0/200 · explosión 0xDEE4C8/400 | El presupuesto del original (G§7.2): pre-creadas, reciclado circular, tween de fundido. La clave `luces` de la calidad las gobierna (0/1/pool) junto con la luz del héroe |
+| Luces de efectos (F2) | `stage3d.gd::effect_light` | pool de 3 · disparo 0xF7C0C0/200 · explosión 0xDEE4C8/400 | El presupuesto del original (G§7.2): pre-creadas, reciclado circular, tween de fundido. La clave `luces` de la calidad las gobierna (0/1/pool) junto con la luz del héroe |
 | `world_size` estación | `data/props/station.json` | **1100** | Recalibrado F2: el 2460 era del sprite cenital; en perspectiva la torre medía ~4500 de alto y a zoom cercano era una montaña |
 | Daño flotante | `world.gd::_numero_flotante` | sube 42 px en 1 s | Colores del original: `FF0000` el daño que haces, `DB63E2` el que recibes; golpes seguidos se **acumulan** en el número vivo |
 | Topes de impacto | `entity_node.gd` | 5 casco, 9 escudo | Máximo de animaciones simultáneas por nave (los del prototipo) |
@@ -238,14 +255,14 @@ datos se renombraron a inglés a la vez (`orientacion`→`orientation`, `encendi
 | `DOBLE_CLICK_MS` | `game/world.gd` | 500 | Doble click sobre una entidad = fijarla y atacar (el gesto canónico); el primer click solo selecciona |
 | Flash + chispas de explosión | `world.gd::_explotar` | flash ⌀ 6×radio en 0.25 s · 24 chispas 100–200 u/s | Las capas extra de la explosión multi-capa del original, aditivas y procedurales (cero assets); escalan con el `click_radius` de la víctima |
 | Marcador de selección | `entity_node.gd::set_selected` | 1.5× → 1× en 0.3 s | El fijado "cierra" sobre el blanco, como el original |
-| Fondo (F3) | `game/fondo3d.gd` | capas −3500+550·i · jitter −500..−200 · telón −4200 · polvo 1500 en caja 4200³/rejilla 1000 · TILE_FACTOR 1.5 · huecos 25% | El fondo del original completo: cielo con twinkle (`cielo.gdshader`, dos máscaras móviles), mosaicos de nebulosa con jitter vertical POR TILE (el paralaje lo hace la cámara), planetas/sol a cota por su `p_factor`, cadena de flares proyectada, y polvo estelar anclado al mundo que se recentra a saltos de rejilla. Determinista por mapa (semilla = hash del code). `MapBackground`/`Starfield2D` murieron |
+| Fondo (F3) | `game/backdrop3d.gd` | capas −3500+550·i · jitter −500..−200 · telón −4200 · polvo 1500 en caja 4200³/rejilla 1000 · TILE_FACTOR 1.5 · huecos 25% | El fondo del original completo: cielo con twinkle (`sky.gdshader`, dos máscaras móviles), mosaicos de nebulosa con jitter vertical POR TILE (el paralaje lo hace la cámara), planetas/sol a cota por su `p_factor`, cadena de flares proyectada, y polvo estelar anclado al mundo que se recentra a saltos de rejilla. Determinista por mapa (semilla = hash del code). `MapBackground`/`Starfield2D` murieron |
 | `AQ_*` | `game/quality.gd` | ventana 20 s · baja <10 fps · sube >60 | Auto-calidad con histéresis: escalera de 4 recortes **transitorios** (mosaicos → llamas → explosiones → atlas/3D) aplicados como tope sobre el preset, sin tocar lo persistido. Sin foco no mide; en autotest no corre |
 | Encuadre del minimapa | `ui/minimap_window.gd` | 12.5% de cada lado · `--txt` 45% | Las 4 esquinas del viewport llevadas al mapa (registrado en §8 del sistema de diseño) |
 
 ## FASE 1: el cliente ES 3D (29-ago-2026)
 
 Dictamen y plan en `mex-orbit-docs/03-guidelines/plan-cliente-3d.md`. El mundo dejó de ser un
-canvas de sprites con SubViewports por bicho: ahora es **una escena 3D única** (`game/mundo3d.gd`)
+canvas de sprites con SubViewports por bicho: ahora es **una escena 3D única** (`game/stage3d.gd`)
 mirada por la **cámara del DarkOrbit 3D original**: perspectiva FOV 30°, elevación 45°
 (tilt 135), distancia `1740/zoom`, zoom continuo **[1,3]** con rueda ×1.2/÷1.2 y tween 0.3 s, y el
 **acoplamiento tilt↔zoom** (al acercar, la cámara baja hasta 20° hacia el horizonte — la
@@ -256,8 +273,8 @@ perspectiva de los aliens cambia con el zoom, que fue el detonante de todo).
   verdad; las llamas y las bocas de cañón salen de los marcadores del GLB en espacio real.
 - **HUD proyectado**: nombres, barras, números de combate, marcador de selección y etiquetas de
   portal viven en una capa 2D reposicionada con `unproject` — tamaño constante en pantalla.
-- **Click**: rayo→plano y=0 (`Mundo3D.a_mundo`); radios de click en píxeles constantes
-  (`CLICK_RADIUS × unidades_por_pixel`). Minimapa con el **trapecio** del encuadre.
+- **Click**: rayo→plano y=0 (`Stage3D.a_mundo`); radios de click en píxeles constantes
+  (`CLICK_RADIUS × units_per_pixel`). Minimapa con el **trapecio** del encuadre.
 - **Murió con el canvas**: la Camera2D y el rango 0.621–1.157, el giro cuantizado de 32 pasos
   (ahora ease continuo 0.2 s, el del original 3D), el shader de relieve y su prueba (la propiedad
   se cumple por construcción), `MapBackground`/`Starfield2D` (F1 pone un telón a −3500; F3 monta
@@ -270,14 +287,14 @@ gana el **pool de 3 luces de efectos** con destellos de disparo y explosión (cl
 calidad: 0/1/pool, que también gobierna la luz del héroe y entra en la escalera de auto-calidad), y
 la estación se recalibró a huella 1100 (la torre ya no se come la pantalla a zoom cercano).
 
-**FASE 3 (mismo día)**: el fondo es **profundidad de verdad** (`fondo3d.gd`): cielo procedural con
-el twinkle del original (`cielo.gdshader` — dos máscaras de ruido móviles multiplicadas, teñido por
+**FASE 3 (mismo día)**: el fondo es **profundidad de verdad** (`backdrop3d.gd`): cielo procedural con
+el twinkle del original (`sky.gdshader` — dos máscaras de ruido móviles multiplicadas, teñido por
 mapa), mosaicos de nebulosa a `−3500 + capa·550` con **jitter vertical por tile** (−500..−200: el
 paralaje entre tiles lo produce la cámara, la joya del tilemap del original), planetas y sol a cota
 según su `p_factor` heredado, la cadena de flares del sol proyectada al HUD (oclusión pendiente
 F4), y el **polvo estelar** como partículas sueltas al mundo alrededor del foco, recentradas a
 saltos de rejilla — la capa que vende el vuelo. Todo del `data/maps/<code>.json` de siempre y
-determinista por mapa. **Dial del cielo**: la base del `cielo.gdshader` es espacio LINEAL — quedó
+determinista por mapa. **Dial del cielo**: la base del `sky.gdshader` es espacio LINEAL — quedó
 en `(0.0012, 0.0016, 0.0040) + tinte·neb·0.012`; con los valores ×10 originales el cielo entero se
 lavaba a gris (~0.21 sRGB) y ahogaba las nebulosas — el DO real es casi negro con vetas tenues.
 **Dial del polvo**: mota de 2.4 u (escala 0.5–1.0) con rampa de grises 0.28–0.52 — a 4 u y casi
@@ -572,7 +589,7 @@ objetivo; sin máximo conocido la barra conserva el porcentaje que trajo su
 
 ### Dónde y cómo se proyecta el HUD de una nave (dos trampas medidas)
 
-Nombre y barras son 2D en pantalla sobre un cuerpo 3D: `sincronizar_hud()` proyecta
+Nombre y barras son 2D en pantalla sobre un cuerpo 3D: `sync_hud()` proyecta
 `position` con la cámara y clava el `Node2D` ahí. Dos cosas que costaron cada una su
 sesión de diagnóstico:
 
@@ -675,7 +692,7 @@ NPC (DO las reservaba a HIGH por lo mismo). BAJA se ve *borrosa*, no *pobre* —
 
 **Lo que murió con la escalera vieja:** las claves `npc` y `shader`, `_construir_quad` y el
 `Sprite3D` tumbado, el atlas/PNG de caja, portal y estación, los shaders de sprite (`undulate`,
-`peristalsis`, `rings`, `relieve`), `pruebas/medir_emision.tscn` (homologaba media contra alta:
+`peristalsis`, `rings`, `relieve`), `tests/medir_emision.tscn` (homologaba media contra alta:
 ya no hay media que homologar) y el horno de `mex-orbit-art`. **Una entidad sin `modelo` en su
 JSON no se dibuja** — existe (HUD, click, combate, minimapa) pero no tiene cuerpo. La mañana del
 1-sep eso fueron Gravit, Gravon, Mordax, Skarn, la caja y el portal: la decisión fue no dejar el PNG
@@ -691,7 +708,7 @@ Baja un escalón con media < 10 fps en 20 s y **recupera al 90 % del refresco de
 (`AQ_SUBE_FRACCION`): el original recuperaba «por encima de 60», pero aquí el VSync —default de
 Godot, sin tope propio de `max_fps`— clava el máximo al refresco (59–60 Hz), así que una media
 nunca pasa de 60 y la escalera podía bajar pero jamás volver a subir. Los 60 fps que ves son el
-VSync contra el monitor, no un tope del juego; `banco_3d` lo apaga para medir de verdad.
+VSync contra el monitor, no un tope del juego; `bench_3d` lo apaga para medir de verdad.
 
 **Se persiste por cuenta, en `user://quality.cfg`.** Dos personas que comparten un PC guardan
 ajustes distintos, y a la vez el valor **no viaja con la cuenta** a otra máquina — la calidad es una
@@ -705,7 +722,7 @@ de 2×2 téxeles**, así que el detalle fino no se promedia — se aliasa. El s�
 punteado que hierve al moverse, y era la mitad técnica de «de lejos no se ve bien». La otra mitad es
 cuánto detalle trae el render, y está en el README de `mex-orbit-art`.
 
-En `EntityNode._construir_visual`, el filtro se elige por **tipo de textura**:
+En `EntityNode._build_visual`, el filtro se elige por **tipo de textura**:
 
 | textura | filtro | por qué |
 |---|---|---|
@@ -1197,7 +1214,7 @@ el modelo se rehace con otro número de tentáculos, el cliente se entera solo.
 
 | dial | valor | de dónde sale |
 |---|---|---|
-| `eje` | **2** | el único que gira el brazo *dentro* del plano del disco, o sea el que barre la silueta. Medido con `repro_eje_hueso`: 1,02 de diferencia contra 0,79 del eje 0 y 0,83 del 1 — los otros lo inclinan hacia la cámara y desde arriba casi no se ven |
+| `eje` | **2** | el único que gira el brazo *dentro* del plano del disco, o sea el que barre la silueta. Medido con `repro_bone_axis`: 1,02 de diferencia contra 0,79 del eje 0 y 0,83 del 1 — los otros lo inclinan hacia la cámara y desde arriba casi no se ven |
 | `grados` | **16** | acotado por los VECINOS, no por lo que se lea. Los brazos más juntos están a 18-20° uno de otro, así que un barrido grande los cruza. A 205 px la silueta cambia un 8,0% con 18° y un 10,6% con 45°: rendimientos decrecientes justo donde empieza el riesgo |
 | `desfase` | 1/n | la onda da una vuelta entera al anillo |
 
@@ -1222,8 +1239,8 @@ Medido en las nueve: `vex 0,515 · ferox 0,127 · skarnox 0,110 · vorax 0,097 �
 gravit 0,085 · mordax 0,055 · vexor 0,036 · skarn 0,034`. Se reporta y no se falla porque el umbral
 bueno para las nueve aún no está medido; lo que no puede volver a pasar es que nadie se entere.
 
-**Y `repro_eje_hueso` guardaba PNG negros diciendo «guardado».** Prefijaba `npcs/` siempre, así que
-`--modelo=npcs/vorax.glb` daba `assets/npcs/npcs/vorax.glb`, el modelo no cargaba y la escena seguía
+**Y `repro_bone_axis` guardaba PNG negros diciendo «guardado».** Prefijaba `npcs/` siempre, así que
+`--model=npcs/vorax.glb` daba `assets/npcs/npcs/vorax.glb`, el modelo no cargaba y la escena seguía
 adelante. Cuatro renders vacíos que se analizan como si fueran un resultado son peor que un error.
 Ahora comprueba que el recurso existe y aborta, y el encuadre se **mide** del modelo en vez de una
 constante heredada de otro bicho.
@@ -1244,10 +1261,10 @@ diferencia.
 Es dirección de arte, no descuido: la estación es una **torre**, y una torre vista en cenital es un
 punto. El resto del juego sigue siendo cenital.
 
-Bajar la cámara obliga a cambiar el encuadre con ella. `extension_3d` mide la **huella** (X y Z), que
+Bajar la cámara obliga a cambiar el encuadre con ella. `extent_3d` mide la **huella** (X y Z), que
 a 90° es exactamente lo que se ve; en cuanto la cámara baja deja de serlo, porque la altura pasa a
 proyectarse sobre la pantalla y una torre de 1,92 sobre una planta de 1,05 se sale por arriba. Por
-eso la estación encuadra con `extension_vista`, que **proyecta las ocho esquinas de la caja al espacio
+eso la estación encuadra con `view_extent`, que **proyecta las ocho esquinas de la caja al espacio
 de la cámara** y toma el lado mayor: exacto y sin casos especiales.
 
 El viewport es grande, pero es **uno solo**: no hay treinta estaciones en pantalla como puede haber
@@ -1291,7 +1308,7 @@ trampas para tenerla escrita dos veces: el mundo 3D propio, el borrado explícit
 glow atado al nivel `emissive`, la luz compartida. Cada línea está puesta por un fallo que ya
 ocurrió, y una copia que se quede atrás los repite todos.
 
-Con ella salieron también `extension_3d()` y `materiales_3d()`. La primera **acumula la
+Con ella salieron también `extent_3d()` y `materials_3d()`. La primera **acumula la
 transformación a mano** hasta la raíz: `global_transform` no vale porque esto corre antes de que el
 nodo entre en el árbol, y usarlo devuelve la identidad soltando un error por consola que **no detiene
 nada** — el encuadre sale mal y el juego sigue. Se cayó en esa trampa al extraerla, con el comentario
@@ -1327,13 +1344,13 @@ recortes pegados con la luz viniendo de sitios distintos. La elevación (el tilt
 de mundo. Aquí cada entidad se renderiza en su `SubViewport` aislado (`own_world_3d`), así que solo
 puede iluminar la malla del propio héroe: es un **rim azul de identidad sobre tu nave**, no un foco
 sobre los vecinos. El radio 450 no porta (esas unidades no existen en el viewport del modelo); se
-dimensiona contra `extension_3d()`.
+dimensiona contra `extent_3d()`.
 
-**El sol se centralizó en `AssetDefs.sol_mundo()`**, hermano de `ambiente_mundo()`. El ambiente ya
-estaba en un sitio, pero el sol estaba copiado suelto en el juego y en cada rig de `pruebas/` con
+**El sol se centralizó en `AssetDefs.world_sun()`**, hermano de `world_ambient()`. El ambiente ya
+estaba en un sitio, pero el sol estaba copiado suelto en el juego y en cada rig de `tests/` con
 energía 1.0 y sin color. Eso convertía el puerto en una trampa: `medir_emision` habría homologado
 media contra un «alta» con sol blanco que el juego ya no renderiza. Ahora todos tiran del helper —el
-`banco_3d` no, a propósito: tiene sus valores de perf (sol 2.6) y no es la referencia de aspecto.
+`bench_3d` no, a propósito: tiene sus valores de perf (sol 2.6) y no es la referencia de aspecto.
 
 **El precio, que va en este mismo trabajo:** cambiar el sol y el ambiente **descalibra el horneado de
 media** de todos los bichos y la estación. `HORNO_SOL`/`HORNO_AMBIENTE` de cada asset se re-derivan y

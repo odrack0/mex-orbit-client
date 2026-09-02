@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://yd8xx8pmpehf"
-path="res://.godot/imported/vexor-cola_emissive_material.png-f3cdb9b0d6095ff62d88bd1b28830053.ctex"
+uid="uid://dkllks6138drq"
+path="res://.godot/imported/vexor-cola_normal.jpg-3d21b81b83dc7f276afc58cc0c124c10.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "260d36e5ca7c78b40a55b14dae8933e2"
+"md5": "72342286ae56312d8cd7292e18a7d5dd"
 }
 
 [deps]
 
-source_file="res://pruebas/vexor-cola_emissive_material.png"
-dest_files=["res://.godot/imported/vexor-cola_emissive_material.png-f3cdb9b0d6095ff62d88bd1b28830053.ctex"]
+source_file="res://tests/vexor-cola_normal.jpg"
+dest_files=["res://.godot/imported/vexor-cola_normal.jpg-3d21b81b83dc7f276afc58cc0c124c10.ctex"]
 
 [params]
 

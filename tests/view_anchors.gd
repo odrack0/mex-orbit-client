@@ -4,7 +4,7 @@ extends Node2D
 ## y guarda la imagen. Sirve para ver si una tobera esta donde el cliente cree, en
 ## vez de discutirlo mirando la nave en movimiento.
 ##
-##   godot --path . res://pruebas/ver_anclajes.tscn -- --modelo=ships/phoenix.glb
+##   godot --path . res://tests/view_anchors.tscn -- --model=ships/phoenix.glb
 
 ## Diales de data/config/tests.json (`view_anchors` + `common`).
 static var CFG: Dictionary = AssetDefs.config("tests").get("view_anchors", {})
@@ -37,8 +37,8 @@ var _waits := 0
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--modelo="):
-			_path = "res://assets/%s" % arg.trim_prefix("--modelo=")
+		if arg.begins_with("--model="):
+			_path = "res://assets/%s" % arg.trim_prefix("--model=")
 
 	_model = (load(_path) as PackedScene).instantiate()
 	var box := AABB()

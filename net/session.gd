@@ -22,10 +22,10 @@ var pilot_name := ""
 # argumentos de autotest (--screenshot=ruta.png): volar solo y guardar captura
 var autotest_screenshot := ""
 ## Que prueba corre. "loop" es la pasada e2e completa que cierra el gate; para
-## trabajo de arte esa pasada es un peaje de tres minutos, asi que "bestiario"
+## trabajo de arte esa pasada es un peaje de tres minutos, asi que "bestiary"
 ## solo retrata a cada bicho y sale.
 var autotest_mode := "loop"
-## Preajuste de calidad forzado por linea de comandos (--calidad=baja|media|alta).
+## Preajuste de calidad forzado por linea de comandos (--quality=baja|media|alta).
 ## Lo usa la prueba para retratar la MISMA escena en los tres niveles; vacio =
 ## se respeta lo que el jugador tenga guardado.
 var forced_quality := ""
@@ -38,10 +38,10 @@ func _ready() -> void:
 			api_base = arg.trim_prefix("--api=")
 		elif arg.begins_with("--screenshot="):
 			autotest_screenshot = arg.trim_prefix("--screenshot=")
-		elif arg.begins_with("--modo="):
-			autotest_mode = arg.trim_prefix("--modo=")
-		elif arg.begins_with("--calidad="):
-			forced_quality = arg.trim_prefix("--calidad=")
+		elif arg.begins_with("--mode="):
+			autotest_mode = arg.trim_prefix("--mode=")
+		elif arg.begins_with("--quality="):
+			forced_quality = arg.trim_prefix("--quality=")
 
 
 ## A donde llama el cliente.

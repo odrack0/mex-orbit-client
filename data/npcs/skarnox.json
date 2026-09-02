@@ -22,7 +22,7 @@
   "wings": {
     "cycle": 6.0
   },
-  "_lava": "Lava que VIAJA (solo calidad alta): pase aditivo lava_flujo.gdshader como next_pass del material. El ruido corre sobre la posicion local (los islotes de UV de Meshy partirian el flujo) y late en fase con el pulso. amount = cuanto aniade sobre el pulso, scale = tamanio de las lenguas en unidades del modelo, speed = que tan rapido viaja la claridad.",
+  "_lava": "Lava que VIAJA (solo calidad alta): pase aditivo lava_flow.gdshader como next_pass del material. El ruido corre sobre la posicion local (los islotes de UV de Meshy partirian el flujo) y late en fase con el pulso. amount = cuanto aniade sobre el pulso, scale = tamanio de las lenguas en unidades del modelo, speed = que tan rapido viaja la claridad.",
   "lava": {
     "amount": 1.8,
     "scale": 4.0,

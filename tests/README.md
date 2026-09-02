@@ -5,15 +5,15 @@ pregunta que decide si el pipeline de modelo único entra o no.
 
 ```bash
 # escritorio (Forward+)
-Godot --path . pruebas/banco_3d.tscn -- --n=50 --elev=70
+Godot --path . tests/bench_3d.tscn -- --n=50 --elev=70
 
 # el mismo renderizador que usa el navegador
-Godot --path . --rendering-method gl_compatibility pruebas/banco_3d.tscn -- --n=50
+Godot --path . --rendering-method gl_compatibility tests/bench_3d.tscn -- --n=50
 ```
 
 Argumentos: `--n=` bichos, `--elev=` grados de cámara, `--shot=` ruta de captura,
-`--segundos=` cuánto mide antes de cerrarse (**0 = no se cierra**, el modo
-«mirarlo» en vez de «medirlo»), `--calentamiento=` segundos que no cuentan al
+`--seconds=` cuánto mide antes de cerrarse (**0 = no se cierra**, el modo
+«mirarlo» en vez de «medirlo»), `--warmup=` segundos que no cuentan al
 principio.
 
 ## Por qué vive aquí y no en `mex-orbit-testing`
@@ -156,7 +156,7 @@ Se genera, no se edita. La fuente vive en `mex-orbit-art/source/3d-models/`:
 
 ```bash
 blender --background --factory-startup --python tools/normalize-model.py -- \
-    source/3d-models/vexor.glb <cliente>/pruebas/vexor.glb 15000 512 r
+    source/3d-models/vexor.glb <cliente>/tests/vexor.glb 15000 512 r
 ```
 
 ## La trampa del SubViewport por entidad

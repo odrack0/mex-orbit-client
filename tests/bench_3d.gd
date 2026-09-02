@@ -6,15 +6,15 @@
 # AssetDefs.LUZ_MUNDO_GRADOS—, mide los fps sostenidos y se va.
 #
 # Uso:
-#   Godot --path . pruebas/banco_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
+#   Godot --path . tests/bench_3d.tscn -- --n=15 --elev=70 --shot=C:/ruta.png
 extends Node3D
 
 ## Diales de data/config/tests.json: `bench_3d` es lo propio del banco y `common`
-## lo que comparten todas las escenas de pruebas/ (encuadre, camara, carpeta).
+## lo que comparten todas las escenas de tests/ (encuadre, camara, carpeta).
 static var CFG: Dictionary = AssetDefs.config("tests").get("bench_3d", {})
 static var CFG_COMMON: Dictionary = AssetDefs.config("tests").get("common", {})
 static var FRAME_MARGIN: float = AssetDefs.num(CFG_COMMON, "frame_margin", 1.15)
-static var DEFAULT_MODEL: String = str(CFG.get("default_model", "res://pruebas/vexor.glb"))
+static var DEFAULT_MODEL: String = str(CFG.get("default_model", "res://tests/vexor.glb"))
 static var DEFAULT_COUNT: int = int(AssetDefs.num(CFG, "default_count", 15))
 static var DEFAULT_ELEVATION_DEG: float = AssetDefs.num(CFG, "default_elevation_deg", 70.0)
 static var DEFAULT_SECONDS: float = AssetDefs.num(CFG, "default_seconds", 6.0)
@@ -160,32 +160,32 @@ func _ready() -> void:
 			_elev = float(arg.trim_prefix("--elev="))
 		elif arg.begins_with("--shot="):
 			_shot = arg.trim_prefix("--shot=")
-		elif arg.begins_with("--eje-alas="):
-			_wing_axis_v = int(arg.trim_prefix("--eje-alas="))
-		elif arg.begins_with("--eje-cola="):
-			_tail_axis_v = int(arg.trim_prefix("--eje-cola="))
-		elif arg.begins_with("--cola-grados="):
-			TAIL_DEG = float(arg.trim_prefix("--cola-grados="))
-		elif arg.begins_with("--alas-grados="):
-			WINGS_DEG = float(arg.trim_prefix("--alas-grados="))
-		elif arg == "--traza":
+		elif arg.begins_with("--wings-axis="):
+			_wing_axis_v = int(arg.trim_prefix("--wings-axis="))
+		elif arg.begins_with("--tail-axis="):
+			_tail_axis_v = int(arg.trim_prefix("--tail-axis="))
+		elif arg.begins_with("--tail-deg="):
+			TAIL_DEG = float(arg.trim_prefix("--tail-deg="))
+		elif arg.begins_with("--wings-deg="):
+			WINGS_DEG = float(arg.trim_prefix("--wings-deg="))
+		elif arg == "--trace":
 			_trace = true
-		elif arg == "--una-cara":
+		elif arg == "--single-sided":
 			_double_sided = false
-		elif arg.begins_with("--giro="):
-			_spin = float(arg.trim_prefix("--giro="))   # grados/s; 0 = quietos
-		elif arg.begins_with("--pulso="):
-			_pulse = arg.trim_prefix("--pulso=")         # sync | libre | no
+		elif arg.begins_with("--spin="):
+			_spin = float(arg.trim_prefix("--spin="))   # grados/s; 0 = quietos
+		elif arg.begins_with("--pulse="):
+			_pulse = arg.trim_prefix("--pulse=")         # sync | libre | no
 		elif arg.begins_with("--anim="):
 			_anim_mode = arg.trim_prefix("--anim=")     # player | directo | no
-		elif arg.begins_with("--modelo="):
-			_path = arg.trim_prefix("--modelo=")
-		elif arg.begins_with("--calentamiento="):
-			_warmup = float(arg.trim_prefix("--calentamiento="))
-		elif arg.begins_with("--segundos="):
+		elif arg.begins_with("--model="):
+			_path = arg.trim_prefix("--model=")
+		elif arg.begins_with("--warmup="):
+			_warmup = float(arg.trim_prefix("--warmup="))
+		elif arg.begins_with("--seconds="):
 			# 0 = no se cierra solo. Para mirarlo en vez de medirlo: la medida
 			# sigue actualizandose en pantalla y se cierra a mano.
-			_seconds = float(arg.trim_prefix("--segundos="))
+			_seconds = float(arg.trim_prefix("--seconds="))
 
 	var scene: PackedScene = load(_path)
 	if scene == null:
@@ -280,7 +280,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	# El giro sirve para ver que el reflejo BARRE, pero tapa el aleteo y la cola:
-	# con --giro=0 los bichos se quedan quietos y solo se mueve lo que se anima.
+	# con --spin=0 los bichos se quedan quietos y solo se mueve lo que se anima.
 	if _spin > 0.0:
 		for i in _creatures.size():
 			_creatures[i].rotation.y += deg_to_rad(_spin) * delta * (
@@ -421,7 +421,7 @@ func _process(delta: float) -> void:
 
 	# En web no se cierra: no hay a quien devolverle el codigo de salida y la
 	# medida se lee de la pantalla, asi que sigue girando y actualizando.
-	# Con --segundos=0 tampoco, que es el modo "mirarlo" en vez de "medirlo".
+	# Con --seconds=0 tampoco, que es el modo "mirarlo" en vez de "medirlo".
 	if _seconds > 0.0 and _t >= _seconds and not OS.has_feature("web"):
 		set_process(false)
 		_finish(medium)

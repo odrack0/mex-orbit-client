@@ -138,13 +138,13 @@ if ($Autotest -or $Bestiario -or $Salto) {
     }
     # El BESTIARIO solo retrata a cada bicho y sale: es la prueba para trabajo de
     # arte, donde la pasada completa del loop es un peaje de tres minutos.
-    $modo = if ($Bestiario) { 'bestiario' } elseif ($Salto) { 'salto' } else { 'loop' }
+    $modo = if ($Bestiario) { 'bestiary' } elseif ($Salto) { 'jump' } else { 'loop' }
     # Holgado sobre el limite interno de cada modo (60 s / 190 s): si el lanzador
     # mata a Godot antes, el resultado es un timeout falso que no dice nada.
     $tope = if ($Bestiario) { 90000 } elseif ($Salto) { 200000 } else { 300000 }
     Push-Location $cliente
-    $argumentos = @('--path', '.', '--', "--screenshot=$captura", "--modo=$modo")
-    if ($Calidad) { $argumentos += "--calidad=$Calidad" }
+    $argumentos = @('--path', '.', '--', "--screenshot=$captura", "--mode=$modo")
+    if ($Calidad) { $argumentos += "--quality=$Calidad" }
     $p = Start-Process godot -ArgumentList $argumentos -NoNewWindow -PassThru
     if (-not $p.WaitForExit($tope)) {
         $p | Stop-Process -Force

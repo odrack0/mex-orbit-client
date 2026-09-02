@@ -233,7 +233,7 @@ static var SKYBOX_MESH: String = str(_SKY.get("mesh", "res://assets/do-ref/skybo
 static var SKYBOX_STARS: String = str(_SKY.get("stars", "res://assets/do-ref/skybox-stars.png"))
 static var SKYBOX_MASK: String = str(_SKY.get("mask", "res://assets/do-ref/skybox-mask.png"))
 static var SKYBOX_SHADER: String = str(_SKY.get("shader", "res://game/shaders/skybox_do.gdshader"))
-static var SKY_FALLBACK_SHADER: String = str(_SKY.get("fallback_shader", "res://game/shaders/cielo.gdshader"))
+static var SKY_FALLBACK_SHADER: String = str(_SKY.get("fallback_shader", "res://game/shaders/sky.gdshader"))
 static var SKYBOX_SCALE: float = AssetDefs.num(_SKY, "scale", 160000.0)
 static var SKYBOX_RENDER_PRIORITY: int = int(AssetDefs.num(_SKY, "render_priority", -10.0))
 
@@ -243,7 +243,7 @@ static var SKYBOX_RENDER_PRIORITY: int = int(AssetDefs.num(_SKY, "render_priorit
 ## moviles multiplicadas por la textura fina de estrellas; skybox_do.gdshader).
 ## No escribe profundidad y va con prioridad -10: todo lo demas (planeta,
 ## techo, tiles) se pinta encima. Si faltan los assets, cae al cielo
-## procedural viejo (cielo.gdshader) tenido con el tinte del mapa.
+## procedural viejo (sky.gdshader) tenido con el tinte del mapa.
 func set_sky(tint: Color) -> void:
 	if ResourceLoader.exists(SKYBOX_MESH) and ResourceLoader.exists(SKYBOX_STARS) \
 			and ResourceLoader.exists(SKYBOX_MASK):

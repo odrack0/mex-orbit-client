@@ -1617,13 +1617,13 @@ func _autotest(delta: float) -> void:
 	# modo SALTO: volar hasta el portal y cruzarlo de verdad. Va aparte de la
 	# pasada del loop porque el portal del 1-1 esta a ~19.000 unidades de la base
 	# y llegar cuesta un minuto: meterlo en la puerta rapida la doblaria de largo.
-	if Session.autotest_mode == "salto":
+	if Session.autotest_mode == "jump":
 		_autotest_jump()
 		return
 
 	# modo BESTIARIO: solo los retratos. La pasada completa tarda ~3 min y para
 	# calibrar un shader eso es un peaje: se salta directo a la fase 10.
-	if Session.autotest_mode == "bestiario":
+	if Session.autotest_mode == "bestiary":
 		if _autotest_t > AT_BESTIARY_TIMEOUT_SEC:
 			_at_capture("BESTIARIO TIMEOUT en el bicho %d" % _at_creature, 1)
 			return
@@ -2406,11 +2406,11 @@ func _autotest_jump() -> void:
 
 ## Retrato de cada bicho del bestiario: la camara los visita sin volar hasta
 ## ellos. Agregar un alien = agregarlo a AT_BESTIARIO, nada mas.
-## Lo comparten los dos modos: en "loop" es la ultima fase, en "bestiario" es
+## Lo comparten los dos modos: en "loop" es la ultima fase, en "bestiary" es
 ## la unica.
 func _autotest_bestiary() -> void:
 	if _at_creature >= AT_BESTIARY.size():
-		if Session.autotest_mode == "bestiario":
+		if Session.autotest_mode == "bestiary":
 			# Prueba del cambio EN CALIENTE: se baja la calidad con el mundo ya
 			# poblado y se retrata. Si reconstruir rompiera algo, revienta aqui.
 			if Session.forced_quality == "" and not _at_quality_change:
@@ -2488,7 +2488,7 @@ func _autotest_bestiary() -> void:
 	# En modo arte se toma un SEGUNDO fotograma casi un segundo despues del
 	# primero: una foto fija no demuestra que un shader se MUEVA, con dos se
 	# compara. En la pasada del loop sobra — ahi solo se comprueba que existan.
-	var two_frames := Session.autotest_mode == "bestiario"
+	var two_frames := Session.autotest_mode == "bestiary"
 	if not _at_first_frame:
 		if dt <= AT_FIRST_FRAME_SEC:
 			return

@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://h5j1pimxunbi"
-path="res://.godot/imported/vexor-cola.glb-5aa1f8d490e827e317b24445931691b2.scn"
+path="res://.godot/imported/vexor-cola.glb-03f60e8dd975e03db4a5dbe9a19611db.scn"
 
 [deps]
 
-source_file="res://pruebas/vexor-cola.glb"
-dest_files=["res://.godot/imported/vexor-cola.glb-5aa1f8d490e827e317b24445931691b2.scn"]
+source_file="res://tests/vexor-cola.glb"
+dest_files=["res://.godot/imported/vexor-cola.glb-03f60e8dd975e03db4a5dbe9a19611db.scn"]
 
 [params]
 

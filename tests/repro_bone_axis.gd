@@ -5,7 +5,7 @@ extends Node2D
 ## las tres imagenes: se elige mirando, no razonando sobre la permutacion de ejes
 ## de glTF. Deducirlo ya salio mal con la orientacion del bicho entero.
 ##
-##   godot --path . res://pruebas/repro_eje_hueso.tscn -- --hueso=cuerno_izq --grados=30
+##   godot --path . res://tests/repro_bone_axis.tscn -- --bone=cuerno_izq --degrees=30
 
 ## Diales de data/config/tests.json (`repro_bone_axis` + `common`).
 static var CFG: Dictionary = AssetDefs.config("tests").get("repro_bone_axis", {})
@@ -32,20 +32,20 @@ var _waits := 0
 
 func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--hueso="):
-			_bone = arg.trim_prefix("--hueso=")
-		elif arg.begins_with("--grados="):
-			_degrees = float(arg.trim_prefix("--grados="))
-		elif arg.begins_with("--modelo="):
+		if arg.begins_with("--bone="):
+			_bone = arg.trim_prefix("--bone=")
+		elif arg.begins_with("--degrees="):
+			_degrees = float(arg.trim_prefix("--degrees="))
+		elif arg.begins_with("--model="):
 			# Acepta "vorax.glb" y tambien "npcs/vorax.glb". Antes prefijaba
 			# `npcs/` siempre, asi que la segunda forma —la que documenta
-			# ver_anclajes— daba `assets/npcs/npcs/vorax.glb`, el modelo NO
+			# view_anchors— daba `assets/npcs/npcs/vorax.glb`, el modelo NO
 			# cargaba y la escena guardaba cuatro PNG negros diciendo "guardado".
-			var m := arg.trim_prefix("--modelo=")
+			var m := arg.trim_prefix("--model=")
 			_path = "res://assets/%s" % m if m.contains("/") else "res://assets/npcs/%s" % m
-		elif arg.begins_with("--solo-eje="):
-			_only = int(arg.trim_prefix("--solo-eje="))
-		elif arg == "--ambos":
+		elif arg.begins_with("--only-axis="):
+			_only = int(arg.trim_prefix("--only-axis="))
+		elif arg == "--both":
 			_both = true
 
 	_vp = SubViewport.new()

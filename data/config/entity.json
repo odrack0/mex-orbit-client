@@ -30,7 +30,7 @@
     "height": 40.0,
     "range": 450.0
   },
-  "lava_shader_path": "res://game/shaders/lava_flujo.gdshader",
+  "lava_shader_path": "res://game/shaders/lava_flow.gdshader",
   "_idle_turn": "NPCs parados: giro perezoso aleatorio cada `min_sec`..`max_sec` segundos (vida del original).",
   "idle_turn": {
     "min_sec": 2.0,

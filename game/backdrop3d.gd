@@ -2,7 +2,7 @@
 # Ya no hay formula de paralaje — cada capa vive a su cota y la camara en
 # perspectiva hace el resto, que es exactamente como lo hacia el original:
 #
-#   cielo      -> Sky del Environment (shaders/cielo.gdshader): estrellas con
+#   cielo      -> Sky del Environment (shaders/sky.gdshader): estrellas con
 #                 twinkle, infinito, recentrado gratis
 #   telon      -> el arte del mapa a y=-4200, la capa mas profunda
 #   nebulosas  -> mosaicos de quads a y = -3500 + capa*550, CADA tile con su

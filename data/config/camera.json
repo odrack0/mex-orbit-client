@@ -1,5 +1,5 @@
 {
-  "_comment": "Diales de la escena 3D unica (game/mundo3d.gd, Stage3D): el rig orbital de camara del cliente 3D original (guidelines G§3), el zoom, el pool de luces de efectos y el skybox. Nada de esto vive en el codigo: moverlo aqui es cambiar la sensacion.",
+  "_comment": "Diales de la escena 3D unica (game/stage3d.gd, Stage3D): el rig orbital de camara del cliente 3D original (guidelines G§3), el zoom, el pool de luces de efectos y el skybox. Nada de esto vive en el codigo: moverlo aqui es cambiar la sensacion.",
   "fov": 30.0,
   "_fov": "FOV vertical en grados de la camara en perspectiva (G§3).",
   "near": 10.0,
@@ -29,7 +29,7 @@
     "mask": "res://assets/do-ref/skybox-mask.png",
     "_mesh": "El DOSkybox del original: su malla skybox_geometry, la textura fina de estrellas y la mascara movil. Si falta alguno se cae al cielo procedural (fallback_shader).",
     "shader": "res://game/shaders/skybox_do.gdshader",
-    "fallback_shader": "res://game/shaders/cielo.gdshader",
+    "fallback_shader": "res://game/shaders/sky.gdshader",
     "scale": 160000.0,
     "_scale": "Escala de la malla (radio nativo 0.43 -> ~69000): debe ENVOLVER todo lo opaco (props a ~17000, planeta a ~50000) y quedar bajo `far`. El original usaba x10000 porque su skybox era un pre-pase sin test de profundidad.",
     "render_priority": -10,

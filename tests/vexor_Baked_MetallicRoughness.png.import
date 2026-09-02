@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b63qtss7qkgho"
-path="res://.godot/imported/vexor_Baked_MetallicRoughness.png-daf032c8578db5a82f614f038a506469.ctex"
+path="res://.godot/imported/vexor_Baked_MetallicRoughness.png-ff512abed05560be18761b86e26ff7f6.ctex"
 metadata={
 "vram_texture": false
 }
@@ -13,8 +13,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://pruebas/vexor_Baked_MetallicRoughness.png"
-dest_files=["res://.godot/imported/vexor_Baked_MetallicRoughness.png-daf032c8578db5a82f614f038a506469.ctex"]
+source_file="res://tests/vexor_Baked_MetallicRoughness.png"
+dest_files=["res://.godot/imported/vexor_Baked_MetallicRoughness.png-ff512abed05560be18761b86e26ff7f6.ctex"]
 
 [params]
 

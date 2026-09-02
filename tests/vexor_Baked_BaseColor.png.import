@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://d37g7fahme56o"
-path="res://.godot/imported/vexor_emissive_material.png-529d7ed2883f0bbd6fc09b93ae2e3ede.ctex"
+uid="uid://da8aviadl5ruf"
+path="res://.godot/imported/vexor_Baked_BaseColor.png-6e3286b55dbd4a69a05a47c1b6d0375c.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "ced5158c5db4be46bd6ba2fb15081e74"
+"md5": "7c4bbedbff4e3ffc67cf15b2d7cb7aa7"
 }
 
 [deps]
 
-source_file="res://pruebas/vexor_emissive_material.png"
-dest_files=["res://.godot/imported/vexor_emissive_material.png-529d7ed2883f0bbd6fc09b93ae2e3ede.ctex"]
+source_file="res://tests/vexor_Baked_BaseColor.png"
+dest_files=["res://.godot/imported/vexor_Baked_BaseColor.png-6e3286b55dbd4a69a05a47c1b6d0375c.ctex"]
 
 [params]
 
