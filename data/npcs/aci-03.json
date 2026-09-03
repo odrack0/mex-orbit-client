@@ -1,0 +1,30 @@
+{
+  "_comment": "ACI-03 (nombre TEMPORAL): tercera maquina de la serie ACI, una media luna rapida con la capsula del ojo en el vertice y franjas cian dentro de los brazos. Entra en la escalera del 1-1 entre el Vexor y el Skarn (migracion 2026.09.02.4).",
+  "code": "aci-03",
+  "screen_size": 180,
+  "click_radius": 60,
+  "_spin": "steps 0 = giro continuo. Una media luna rapida gira agil",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 110
+  },
+  "_pulse": "Respiracion electronica como sus hermanos (mode wave): el albedo va apagado donde emite, asi que el minimo casi apaga las franjas y el maximo dispara el glow. Ciclo 1.6 s (wings.cycle), el mas vivo de la serie.",
+  "pulse": {
+    "mode": "wave",
+    "min_intensity": 0.05,
+    "max_intensity": 3.0,
+    "sharpness": 1.6
+  },
+  "_wings": "Sin alas: solo el reloj del pulso.",
+  "wings": {
+    "cycle": 1.6
+  },
+  "_orientation": "El ojo esta en la capsula del vertice de la U, cara +Z del GLB (renders de seis caras, 2-sep): yaw 180 lo lleva a la proa (-Z) y los brazos de la U quedan atras.",
+  "orientation": {
+    "yaw": 180.0,
+    "pitch": 0.0,
+    "roll": 0.0
+  },
+  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,9 M (hornear-normales.py), emisiva cian con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
+  "model": "res://assets/npcs/aci-03.glb"
+}
