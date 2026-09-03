@@ -161,6 +161,12 @@ static func _default(group: String, key: String, fallback: float) -> float:
 	return AssetDefs.num(DEFAULTS.get(group, {}), key, fallback)
 
 
+## Igual que _default, para un valor de TEXTO (p. ej. `pulse.mode`).
+static func _default_str(group: String, key: String, fallback: String) -> String:
+	var g: Dictionary = CFG.get("defaults", {}).get(group, {})
+	return str(g.get(key, fallback))
+
+
 ## El siguiente giro perezoso de un NPC parado, en segundos.
 static func _next_idle_turn() -> float:
 	return IDLE_TURN_MIN_SEC + randf() * (IDLE_TURN_MAX_SEC - IDLE_TURN_MIN_SEC)
@@ -279,6 +285,17 @@ var _horns_axis: int = DEFAULT_HORNS_AXIS
 var _pulse_min: float = _default("pulse", "min_intensity", 0.25)
 var _pulse_max: float = _default("pulse", "max_intensity", 2.6)
 var _pulse_sharp: float = _default("pulse", "sharpness", 2.4)
+# modo del pulso: "wave" (la onda de siempre) o "blink" (parpadeo electronico:
+# onda cuadrada con flancos suaves, para lentes y LEDs, no para nucleos vivos)
+var _pulse_mode: String = _default_str("pulse", "mode", "wave")
+var _blink_hz: float = _default("pulse", "blink_hz", 3.0)
+var _blink_duty: float = _default("pulse", "duty", 0.5)
+var _blink_edge: float = _default("pulse", "edge", 0.08)
+# giro fijo del modelo sobre su eje vertical (JSON `orientation.yaw`, grados):
+# decide que cara del GLB es la PROA sin reexportar el asset
+var _yaw_deg: float = _default("orientation", "yaw", 0.0)
+var _pitch_deg: float = _default("orientation", "pitch", 0.0)   # cabeceo (X)
+var _roll_deg: float = _default("orientation", "roll", 0.0)     # alabeo fijo (Z)
 
 # bocas de canion (espacio LOCAL del cuerpo, unidades de mundo) y a cual toca
 var _cannons: Array[Vector2] = []
@@ -386,6 +403,18 @@ func _build_mesh_3d(d: Dictionary) -> bool:
 	_pulse_min = AssetDefs.num(pulse_def, "min_intensity", _default("pulse", "min_intensity", 0.25))
 	_pulse_max = AssetDefs.num(pulse_def, "max_intensity", _default("pulse", "max_intensity", 2.6))
 	_pulse_sharp = AssetDefs.num(pulse_def, "sharpness", _default("pulse", "sharpness", 2.4))
+	_pulse_mode = str(pulse_def.get("mode", _default_str("pulse", "mode", "wave")))
+	_blink_hz = AssetDefs.num(pulse_def, "blink_hz", _default("pulse", "blink_hz", 3.0))
+	_blink_duty = AssetDefs.num(pulse_def, "duty", _default("pulse", "duty", 0.5))
+	_blink_edge = AssetDefs.num(pulse_def, "edge", _default("pulse", "edge", 0.08))
+	var ori_def: Dictionary = d.get("orientation", {})
+	_yaw_deg = AssetDefs.num(ori_def, "yaw", _default("orientation", "yaw", 0.0))
+	_pitch_deg = AssetDefs.num(ori_def, "pitch", _default("orientation", "pitch", 0.0))
+	_roll_deg = AssetDefs.num(ori_def, "roll", _default("orientation", "roll", 0.0))
+	# la cara que es proa: el GLB llega como Meshy lo genero, y `orientation`
+	# lo gira antes del rumbo (que va en _spin3d, el padre). Va DESPUES de leer
+	# el JSON: montarlo arriba con los defaults dejaba el yaw en 0 (2-sep)
+	_model.rotation_degrees = Vector3(_pitch_deg, _yaw_deg, _roll_deg)
 	if Quality.level("emissive") == 0:
 		_pulse_min = 1.0
 		_pulse_max = 1.0
@@ -686,10 +715,10 @@ func _process(delta: float) -> void:
 			flame.scale = Vector3.ONE * maxf(_thrust, THRUST_SCALE_MIN) * k
 
 	# ---- el cuerpo articulado (malla): aleteo, cola, brazos, destello ----
+	var clock := Time.get_ticks_msec() * 0.001
+	var phase := fposmod(entity_id * 0.618034, 1.0)
+	var t := fposmod(clock / _wings_cycle + phase, 1.0)
 	if not _bones_3d.is_empty():
-		var clock := Time.get_ticks_msec() * 0.001
-		var phase := fposmod(entity_id * 0.618034, 1.0)
-		var t := fposmod(clock / _wings_cycle + phase, 1.0)
 		var bat := deg_to_rad(_wings_deg) * sin(TAU * t)
 		_set_bone("ala_izq", _wings_axis, -bat)
 		_set_bone("ala_der", _wings_axis, bat)
@@ -707,14 +736,23 @@ func _process(delta: float) -> void:
 		for k in TAIL_BONES:
 			_set_bone("cola_%d" % (k + 1), _tail_axis,
 				deg_to_rad(_tail_deg) * sin(TAU * (tc - k * _tail_phase)))
-		if not _mats_3d.is_empty():
-			var wave3 := pow(0.5 - 0.5 * cos(TAU * t), _pulse_sharp)
-			var e: float = _pulse_min + (_pulse_max - _pulse_min) * wave3
-			e *= lerpf(GLOW_HP_MIN, 1.0, _hp_pct)
-			for mat in _mats_3d:
-				mat.emission_energy_multiplier = e
-			for sm in _lava_3d:
-				sm.set_shader_parameter("intensidad", e)
+	# el pulso emisivo va APARTE de los huesos: hasta el 2-sep-2026 vivia dentro
+	# del bloque de arriba y los bichos sin esqueleto (Skarn, Gravit, Gravon,
+	# Mordax, ACI-01) nunca pulsaron — su JSON `pulse` era letra muerta
+	if not _mats_3d.is_empty():
+		var wave3: float
+		if _pulse_mode == "blink":
+			# onda cuadrada con flancos de `edge`: encendida `duty` del ciclo
+			var u := fposmod(clock * _blink_hz + phase, 1.0)
+			wave3 = smoothstep(0.0, _blink_edge, u) * (1.0 - smoothstep(_blink_duty, _blink_duty + _blink_edge, u))
+		else:
+			wave3 = pow(0.5 - 0.5 * cos(TAU * t), _pulse_sharp)
+		var e: float = _pulse_min + (_pulse_max - _pulse_min) * wave3
+		e *= lerpf(GLOW_HP_MIN, 1.0, _hp_pct)
+		for mat in _mats_3d:
+			mat.emission_energy_multiplier = e
+		for sm in _lava_3d:
+			sm.set_shader_parameter("intensidad", e)
 
 	# ---- movimiento (modelo, sin cambios) ----
 	if in_flight:

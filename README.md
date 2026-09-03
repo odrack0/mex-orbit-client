@@ -196,6 +196,20 @@ degradados de la explosión) van como arrays `[r, g, b, a]` y no como hex; y las
 datos se renombraron a inglés a la vez (`orientacion`→`orientation`, `encendido`→`ignition`,
 `alas`→`wings`, `modelo`→`model`, `malla`→`mesh`, `lado`→`side`…), con sus claves-comentario.
 
+### Pulso con parpadeo y la proa por JSON (2-sep-2026)
+
+Dos diales nuevos por especie en `data/npcs/<code>.json` (defaults en `entity.json` → `defaults`):
+
+| Dial | Valores | Qué hace |
+|---|---|---|
+| `pulse.mode` | `wave` (defecto) · `blink` | `wave` es la onda de siempre (`min_intensity`..`max_intensity` con `sharpness`, al reloj de las alas). `blink` es un **parpadeo electrónico**: onda cuadrada a `blink_hz`, encendida `duty` del ciclo, con flancos de `edge` (fracción del ciclo). Para lentes y LEDs, no para núcleos vivos. El ACI-01 va a 4 Hz, duty 0,55, edge 0,06 |
+| `orientation.yaw` / `pitch` / `roll` | grados | **Giro fijo del modelo** antes del rumbo: decide qué cara del GLB es la proa (lo que encara al atacar) sin reexportar el asset. Se elige mirando los renders de `tests/repro_orientation` (12 giros cenitales) o las seis caras en Blender. El ACI-01 tiene sus dos lentes en ±X y va con `yaw: 90` |
+
+**Y un bug que salió al ponerlos:** el pulso emisivo vivía dentro del bloque `if not _bones_3d.is_empty()`
+de `entity_node.gd`, así que los bichos **sin esqueleto** (Skarn, Gravit, Gravon, Mordax, ACI-01) nunca
+pulsaron: su `pulse` del JSON era letra muerta y su emisión se quedaba fija en 1×. Desde el 2-sep el
+pulso va aparte de los huesos y esas cinco especies laten por primera vez con sus propios diales.
+
 ### Código en inglés, comentarios en español (2-sep-2026)
 
 El mismo día el código pasó entero a inglés en tres fases con gate (autotest + bestiario) cada una:

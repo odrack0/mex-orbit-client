@@ -141,7 +141,11 @@
     "pulse": {
       "min_intensity": 0.25,
       "max_intensity": 2.6,
-      "sharpness": 2.4
+      "sharpness": 2.4,
+      "mode": "wave",
+      "blink_hz": 3.0,
+      "duty": 0.5,
+      "edge": 0.08
     },
     "wings": {
       "degrees": 34.0,
@@ -157,6 +161,13 @@
     "arms": {
       "cycle": 2.4,
       "axis": 2
-    }
+    },
+    "_pulse": "mode wave = onda (min..max con sharpness); mode blink = parpadeo: onda cuadrada a blink_hz, encendida duty del ciclo, con flancos de edge (fraccion del ciclo).",
+    "orientation": {
+      "yaw": 0.0,
+      "pitch": 0.0,
+      "roll": 0.0
+    },
+    "_orientation": "Giro fijo del modelo en grados (Euler YXZ de Godot): yaw sobre Y elige que cara es la proa; pitch (X) y roll (Z) lo voltean si el ojo esta en un polo. Se decide con los renders de tests/repro_orientation; no hace falta reexportar."
   }
 }
