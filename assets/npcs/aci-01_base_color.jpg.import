@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vers2dqw1r7g"
-path="res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"
+uid="uid://hjqp31xi6hv4"
+path="res://.godot/imported/aci-01_base_color.jpg-c92aea6d05df9356d394a31a35bf19a5.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "bf6ae57d9cb4a7e371782a5379c4576e"
+"md5": "ae584875209632a05a1a5974d23223a7"
 }
 
 [deps]
 
-source_file="res://assets/npcs/skarn_base_color.jpg"
-dest_files=["res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"]
+source_file="res://assets/npcs/aci-01_base_color.jpg"
+dest_files=["res://.godot/imported/aci-01_base_color.jpg-c92aea6d05df9356d394a31a35bf19a5.ctex"]
 
 [params]
 

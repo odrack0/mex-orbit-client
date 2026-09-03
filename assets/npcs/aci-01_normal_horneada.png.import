@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vers2dqw1r7g"
-path="res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"
+uid="uid://b8atwr1aikxib"
+path="res://.godot/imported/aci-01_normal_horneada.png-f856e90aa6ba692714a83f5a6c031c74.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "bf6ae57d9cb4a7e371782a5379c4576e"
+"md5": "c332c5a03c3121d92a1996148bb17462"
 }
 
 [deps]
 
-source_file="res://assets/npcs/skarn_base_color.jpg"
-dest_files=["res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"]
+source_file="res://assets/npcs/aci-01_normal_horneada.png"
+dest_files=["res://.godot/imported/aci-01_normal_horneada.png-f856e90aa6ba692714a83f5a6c031c74.ctex"]
 
 [params]
 

@@ -1,6 +1,6 @@
 {
-  "_comment": "Drony: especie MECANICA (un dron pequeno y agil), no biologica ni mineral. Su brillo son las lentes cian: un parpadeo electronico, rapido y con valles cortos, no un latido. Entra en la escalera del 1-1 entre el Vex y el Gravit (migracion 2026.09.02.1).",
-  "code": "drony",
+  "_comment": "ACI-01 (nombre TEMPORAL, antes Drony): especie MECANICA (un dron pequeno y agil), no biologica ni mineral. Su brillo son las lentes cian: un parpadeo electronico, rapido y con valles cortos, no un latido. Entra en la escalera del 1-1 entre el Vex y el Gravit (migracion 2026.09.02.1).",
+  "code": "aci-01",
   "screen_size": 150,
   "click_radius": 50,
   "_spin": "steps 0 = giro continuo. Un dron pivota rapido: gira mas que un penasco y menos que un insecto",
@@ -15,5 +15,5 @@
     "sharpness": 1.2
   },
   "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,9 M (hornear-normales.py). Sin esqueleto. Diales: ver README de arte.",
-  "model": "res://assets/npcs/drony.glb"
+  "model": "res://assets/npcs/aci-01.glb"
 }

@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://vers2dqw1r7g"
-path="res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"
+uid="uid://cgto0u1kfnno0"
+path="res://.godot/imported/aci-01_metallic_roughness.jpg-9361a41fd6e0ac13b18c36ec198f5639.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "bf6ae57d9cb4a7e371782a5379c4576e"
+"md5": "af9f3107ad589826488f8e8ea408a0e9"
 }
 
 [deps]
 
-source_file="res://assets/npcs/skarn_base_color.jpg"
-dest_files=["res://.godot/imported/skarn_base_color.jpg-3e02bb04415053da0ecae058a282c3e3.ctex"]
+source_file="res://assets/npcs/aci-01_metallic_roughness.jpg"
+dest_files=["res://.godot/imported/aci-01_metallic_roughness.jpg-9361a41fd6e0ac13b18c36ec198f5639.ctex"]
 
 [params]
 
