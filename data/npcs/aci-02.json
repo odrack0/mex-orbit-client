@@ -19,15 +19,15 @@
   "wings": {
     "cycle": 2.0
   },
-  "_orientation": "El ojo principal esta en la cara +Z del GLB (renders de seis caras, 2-sep): yaw 180 lo lleva a la proa (-Z), lo que encara al atacar.",
+  "_orientation": "Giro fijo del modelo en grados (yaw = peonza, pitch = cabeceo, roll = alabeo). v2 (2-sep noche): con yaw 0 el ojo mira a la CAMARA y los tentaculos cuelgan hacia ella (mismo criterio que el ACI-01); con yaw 180 el ojo va a proa y no se ve. Medido con dos retratos del bestiario.",
   "orientation": {
-    "yaw": 180.0,
+    "yaw": 0.0,
     "pitch": 0.0,
     "roll": 0.0
   },
-  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,96 M (hornear-normales.py), emisiva cian con ganancia 2,5 y albedo apagado, y rig radial colgante de 4 huesos para los tentaculos. Diales: ver README de arte.",
+  "_model": "Malla 3D v2 del 2-sep-2026: remesh y retextura nuevos de Meshy (58 106 tris: cuatro veces el presupuesto, pide remesh a 6-7 k quads) con normales horneadas desde el alto de 1,88 M, emisiva cian con ganancia 2,5 (la textura vuelve a traer el cian palido, p99 0,12) y albedo apagado, rig radial colgante de 4 huesos. Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-02.glb",
-  "_arms": "Los tentaculos: rig radial COLGANTE (riguear-modelo.py con RADIAL=4, RADIAL_Z_DESDE=-0.33, RADIAL_Z_HASTA=-0.52): cuatro haces de tentaculos bajo el disco, huesos brazo_1..4, con la onda de brazos de EntityNode. degrees = vaiven por haz, cycle = segundos por vuelta, phase_offset = desfase entre haces (la onda recorre el bicho), axis = eje local del hueso.",
+  "_arms": "Los tentaculos: rig radial COLGANTE (riguear-modelo.py RADIAL=4 RADIAL_DESDE=0.30 RADIAL_ARCO=22 RADIAL_Z_DESDE=-0.35 RADIAL_Z_HASTA=-0.52): cuatro haces bajo el disco (30, 82, 102 y 284 grados en la v2), huesos brazo_1..4, con la onda de brazos de EntityNode.",
   "arms": {
     "degrees": 18.0,
     "cycle": 2.4,
