@@ -1435,3 +1435,77 @@ media contra un «alta» con sol blanco que el juego ya no renderiza. Ahora todo
 media** de todos los bichos y la estación. `HORNO_SOL`/`HORNO_AMBIENTE` de cada asset se re-derivan y
 media se rehornea y se re-homologa con `medir_emision` — no se deja a ojo. Hasta que eso pase, «alta»
 se ve con la luz nueva y «media» con la vieja: los dos caminos **no homologan**.
+
+## Instalador de Windows (3-sep-2026)
+
+El cliente de navegador se queda corto: 90 MB de `.pck` más 39 MB de `.wasm` en frío, sin acceso
+real a la GPU y con el techo de rendimiento del navegador encima. La salida es un cliente nativo, y
+para repartirlo hace falta un instalador.
+
+**El formato del instalador no tiene nada que ver con el aviso de SmartScreen.** Es la confusión que
+costó el instalador de Electron: no se bloqueó por ser Electron ni por usar NSIS, sino por **estar
+sin firmar**. Un Inno Setup, un MSI o un MSIX sin firma dan exactamente la misma pantalla azul con el
+«Más información → Ejecutar de todas formas» escondido. Lo único que mueve esa aguja es la firma
+Authenticode y la reputación del certificado: con un certificado **OV** —el único al alcance de una
+persona física— la reputación se acumula con las descargas, así que los primeros días avisa igual;
+un **EV** la trae desde el primer minuto, pero exige entidad legal registrada.
+
+### La decisión que manda: instalación por usuario, sin UAC
+
+`PrivilegesRequired=lowest` en `tools/mexorbit.iss`. El instalador no pide elevación, así que **no
+sale el escudo de UAC** —el segundo diálogo donde la gente se atora— y a cambio instala en
+`%LOCALAPPDATA%\Programs\MexOrbit` en vez de `Program Files`. Es el mismo patrón que usa VS Code.
+
+Esto **no** quita el aviso de SmartScreen. Son dos diálogos distintos y solo uno se arregla gratis.
+
+### El guardián de credenciales busca contenido, no nombre
+
+`tools/build-windows.ps1` revisa el `.pck` antes de empaquetarlo, igual que `deploy-web.sh`, pero con
+otras agujas. Buscar la palabra `dev_login` **da falso positivo**: desde que los diales viven en
+`data/config/`, `net.json` guarda la *ruta* al archivo en la clave `dev_login_path`, y los JSON
+viajan verbatim dentro del `.pck`. El guardián se dispara con la ruta, no con el secreto.
+
+Las agujas son la firma del **contenido** del `.cfg`, medidas contra un `.pck` real:
+
+| aguja | en el pck | sirve |
+|---|---|---|
+| `[login]` | ausente | ✅ cabecera de sección del cfg |
+| `password =` | ausente | ✅ sintaxis de asignación del cfg |
+| `dev1234` | ausente | ✅ valor de ejemplo |
+| `username` | **presente** | ❌ lo usa la pantalla de login |
+| `dev_login` | **presente** | ❌ es la clave de `net.json` |
+
+### Diales
+
+| dial | dónde | valor | nota |
+|---|---|---|---|
+| versión | `-Version` de `build-windows.ps1` | `0.1.0` | se mueve **junto** con `application/file_version` y `product_version` del preset |
+| `AppId` | `mexorbit.iss` | `2D64FAB1-…` | **jamás se cambia**: es lo que ata una instalación con su actualización |
+| sellado de tiempo | `-TimestampUrl` | DigiCert | sin él la firma muere al caducar el certificado |
+| `exclude_filter` | preset Windows | añade `logs/*` | el preset Web no lo trae |
+
+### Cómo se construye
+
+```powershell
+.\tools\build-windows.ps1                 # sale en build/installer/
+.\tools\build-windows.ps1 -Sign -CertThumbprint <huella>
+```
+
+Requiere, y **ninguna está instalada todavía**: las plantillas de exportación de Windows de Godot
+4.7.1 (solo hay Android, iOS y Web), **Inno Setup 6**, y el Windows SDK (este último únicamente para
+firmar).
+
+### Pendientes
+
+- **No hay icono.** `config/icon` está sin definir y no existe ningún `.ico`, así que el juego sale
+  con el robot de Godot. El cableado ya está puesto: basta soltar el `.ico` y descomentar
+  `SetupIconFile` en el `.iss` más `application/icon` en el preset.
+- **Actualizador.** Sin él, cada despliegue son 90 MB que el jugador vuelve a bajar a mano, y un
+  cliente nativo viejo no se refresca solo como una pestaña. Agrava que `ProtocolVersion` siga en 1
+  en las dos puntas: un cliente desactualizado no falla limpio, se desincroniza en silencio. El
+  patrón natural es un lanzador pequeño y firmado que consulte la versión contra la api, baje solo el
+  `.pck` nuevo y arranque el juego — y como el lanzador casi nunca cambia, la reputación de
+  SmartScreen se acumula sobre un binario estable en vez de reiniciarse en cada build.
+- **`res://logs/` no funciona en un export.** `res://` es de solo lectura fuera del editor, así que
+  `anomalias.log` no se escribe en el cliente nativo. Si ese log importa, tiene que mudarse a
+  `user://`.
