@@ -21,10 +21,14 @@
   },
   "material": {
     "roughness": 0.35,
-    "_roughness": "gloss 50 del BasicSpecularMethod del legacy: brillo cerrado, no mate. Las mallas de Meshy vienen casi mate y por eso se ven planas.",
+    "_roughness": "gloss 50 del BasicSpecularMethod del legacy: brillo cerrado, no mate. SOLO para mallas SIN mapa de rugosidad (Vex, Vexor...); con mapa, manda roughness_scale.",
     "rim": 0.3,
     "rim_tint": 0.5,
-    "_rim": "El FresnelSpecularMethod del legacy (fresnelPower 5): realza el borde y separa la silueta del negro del espacio."
+    "_rim": "El FresnelSpecularMethod del legacy (fresnelPower 5): realza el borde y separa la silueta del negro del espacio.",
+    "roughness_scale": 0.9,
+    "_roughness_scale": "Multiplicador del mapa de rugosidad de la textura PBR (Meshy). Antes se forzaba 0,35 absoluto tambien con mapa: 0,35 x 0,47 = 0,16, un espejo negro que borraba el oxido y las placas (ACI-01, 2-sep).",
+    "metallic_scale": 0.35,
+    "_metallic_scale": "Multiplicador del mapa metalico. Meshy pinta metallic 0,6-0,9 y en PBR un metal es lo que refleja: aqui refleja el espacio negro (fondo y ambiente de color plano, sin cielo), asi que sale negro. A 0,35 conserva el brillo metalico sin perder el albedo. Solo aplica con mapa metalico presente."
   },
   "glow": {
     "intensity": 1.0,

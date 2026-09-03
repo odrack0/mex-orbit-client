@@ -88,6 +88,8 @@ static var HERO_LIGHT_ENERGY: float = num(_HERO_LIGHT, "energy", 0.6)
 ## Lo que de verdad quita lo plano —la reflexion de entorno (FresnelEnvMapMethod)— NO
 ## esta aqui: necesita una fuente de reflexion en el viewport y va aparte.
 static var MAT_ROUGHNESS: float = num(_MATERIAL, "roughness", 0.35)
+static var MAT_ROUGHNESS_SCALE: float = num(_MATERIAL, "roughness_scale", 0.9)
+static var MAT_METALLIC_SCALE: float = num(_MATERIAL, "metallic_scale", 0.35)
 static var MAT_RIM: float = num(_MATERIAL, "rim", 0.3)
 static var MAT_RIM_TINT: float = num(_MATERIAL, "rim_tint", 0.5)
 
@@ -371,7 +373,16 @@ static func materials_3d(node: Node) -> Array[BaseMaterial3D]:
 			# LOOK "NO PLANO" (mitad barata, portada del material de nave del legacy):
 			# brillo cerrado (gloss 50 -> roughness) + fresnel de borde (fresnelPower 5
 			# -> rim). Ver los dials MAT_* arriba. La reflexion de entorno va aparte.
-			copy.roughness = MAT_ROUGHNESS
+			# CON mapa PBR (Meshy) se respeta el mapa: roughness/metallic son aqui
+			# MULTIPLICADORES de la textura. Forzar 0,35 absoluto daba 0,35 x 0,47 =
+			# 0,16 (espejo), y el metalico 0,6-0,9 de Meshy refleja un entorno que es
+			# espacio negro: el ACI-01 salia como una bola negra sin oxido ni placas.
+			if copy.roughness_texture != null:
+				copy.roughness = MAT_ROUGHNESS_SCALE
+			else:
+				copy.roughness = MAT_ROUGHNESS
+			if copy.metallic_texture != null:
+				copy.metallic = MAT_METALLIC_SCALE
 			copy.rim_enabled = true
 			copy.rim = MAT_RIM
 			copy.rim_tint = MAT_RIM_TINT

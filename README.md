@@ -216,6 +216,29 @@ de `entity_node.gd`, así que los bichos **sin esqueleto** (Skarn, Gravit, Gravo
 pulsaron: su `pulse` del JSON era letra muerta y su emisión se quedaba fija en 1×. Desde el 2-sep el
 pulso va aparte de los huesos y esas cinco especies laten por primera vez con sus propios diales.
 
+### Por qué un metal de Meshy salía negro, y los dos diales del material (2-sep-2026)
+
+El ACI-01 se veía en el visor de Meshy como chapa gris oxidada con placas, y en el juego como una
+bola negra brillante. Medido: su mapa metálico va a **0,67 de media (p90 0,92)**, el ACI-04 a 0,70 y
+la Phoenix a 0,60; el ACI-02, el ACI-03 y el Skarn a ~0, y por eso no se ennegrecían. En PBR un metal
+casi no tiene difuso: su color es lo que refleja, y nuestro entorno es fondo de color plano y
+ambiente de color plano —no hay cielo de reflexión—, así que refleja el espacio negro. Encima el
+cliente forzaba `roughness` 0,35 absoluto a todo material (el «gloss 50» del legacy, pensado para
+sprites sin mapa): con mapa de rugosidad Godot lo multiplica, 0,35 × 0,47 ≈ 0,16, un espejo. El
+héroe tiene la misma luz de mundo: se salvaba a medias por la luz azul pegada a la nave y un albedo
+más claro.
+
+Dos diales en `lighting.json` → `material`, que solo actúan cuando la textura trae el mapa:
+
+| Dial | Valor | Qué hace |
+|---|---|---|
+| `roughness_scale` | 0,9 | Multiplicador del mapa de rugosidad de Meshy. Sin mapa (Vex, Vexor…) sigue mandando `roughness` 0,35 absoluto |
+| `metallic_scale` | 0,35 | Multiplicador del mapa metálico. Conserva el brillo de metal sin que el cuerpo sea un reflejo del vacío |
+
+Comparado en el bestiario: el ACI-01 pasa de bola negra a chapa gris con placas y óxido; el ACI-04
+de negro a gris mate; el Skarn (sin metálico) apenas cambia. Si algún día se quiere metal de verdad,
+la pieza que falta es un cielo de reflexión (`reflected_light_source`), no subir estos diales.
+
 ### Código en inglés, comentarios en español (2-sep-2026)
 
 El mismo día el código pasó entero a inglés en tres fases con gate (autotest + bestiario) cada una:
