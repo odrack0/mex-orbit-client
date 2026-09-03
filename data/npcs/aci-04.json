@@ -25,7 +25,7 @@
     "pitch": 0.0,
     "roll": 0.0
   },
-  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,95 M (hornear-normales.py), emisiva cian con albedo apagado, rig de cuernos para las manos con la malla girada 180. Diales: ver README de arte.",
+  "_model": "Malla 3D v2 del 2-sep-2026 (noche): remesh y retextura nuevos de Meshy (79 014 tris; medido con el banco que los triangulos ya no son el coste) con normales horneadas desde el alto de 1,95 M, emisiva cian con albedo apagado, rig de cuernos para las manos con la malla girada 180 (GIRO_Z). Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-04.glb",
   "_horns_deg": "Las MANOS: rig de cuernos con la malla girada 180 (GIRO_Z=180, CUERNO_DESDE 0.15, CUERNO_BANDA 0.05, CUERNO_X_MIN 0.30 para que la cara no pellizque), huesos cuerno_izq/der = las puntas de las tenazas. Rango de la pinza en grados, de -35 (abiertas) a 0 (cerradas), al reloj de wings.cycle. Eje 1, medido con tests/repro_bone_axis: el 2 (el del Vex) aqui casi no mueve la mano (dif 0,1), el 1 la abre en el plano y el 0 la levanta hacia la camara. La primera version las movia como alas (el brazo entero): no era lo pedido.",
   "horns_deg": [
