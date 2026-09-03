@@ -17,10 +17,10 @@
   "_model": "Malla 3D v3 del 2-sep-2026: remesh y retextura nuevos de Meshy (20 846 tris) con normales horneadas desde el alto de 1,96 M (hornear-normales.py), emisiva cian con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-01.glb",
   "_pulse": "Respiracion electronica (mode wave). La textura emisiva es cian SATURADO (0,72): con min 0,6 ya salia a tope en pantalla y el tonemap recortaba la subida (medido 2-sep: 0,94 de brillo en ambos extremos). Por eso el minimo casi apaga (0,05) y el maximo dispara el glow (3,0); sharpness 1,6 = mas tiempo en la parte baja.",
-  "_orientation": "Giro fijo del modelo en grados. v3 (2-sep noche): el ojo esta en el POLO INFERIOR (-Y) del GLB, invariante al yaw (yaw 0 y 180 daban el mismo retrato con el dummy mirando al norte); pitch 90 sube ese polo a la proa (-Z). Medido con el bestiario, no con renders externos.",
+  "_orientation": "Giro fijo del modelo en grados. v3: el ojo NO esta en un polo sino a medio camino entre el polo inferior y la popa (~45 grados atras-abajo): pitch 0 lo deja abajo, +90 y -90 lo suben, y pitch -45 lo pone MIRANDO DE FRENTE A LA CAMARA, que es lo que el usuario eligio (2-sep noche, como se veia la v2 y como el render del concepto). Serie medida con el bestiario (dummy con proa al norte).",
   "orientation": {
     "yaw": 0.0,
-    "pitch": 90.0,
+    "pitch": -45.0,
     "roll": 0.0
   },
   "_wings": "Sin alas: solo el reloj del pulso. 1.8 s por ciclo, mas vivo que los 2.17 s heredados del Vexor.",
