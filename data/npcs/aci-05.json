@@ -1,5 +1,5 @@
 {
-  "_comment": "ACI-05 (nombre TEMPORAL): quinta maquina de la serie ACI, cuerpo alargado con pinzas y un ojo a proa y dos gondolas a popa. Entra en la escalera del 1-1 entre el Skarn y el Ferox (migracion 2026.09.02.6).",
+  "_comment": "ACI-05 (nombre TEMPORAL): quinta maquina de la serie ACI. v2: media luna con la cabina (ojo) a proa y dos taladros a popa. Entra en la escalera del 1-1 entre el Skarn y el Ferox (migracion 2026.09.02.6).",
   "code": "aci-05",
   "screen_size": 190,
   "click_radius": 64,
@@ -19,12 +19,12 @@
   "wings": {
     "cycle": 2.4
   },
-  "_orientation": "Giro fijo del modelo en grados (yaw = peonza, pitch = cabeceo, roll = alabeo). El GLB viene tumbado con el eje largo en X: las pinzas y el ojo en -X, las gondolas en +X. yaw 270 pone las pinzas a proa (-Z) y las gondolas a popa. Probado con pitch -90 primero (el usuario dijo que el ojo estaba arriba): lo ponia de canto; era cuestion de yaw.",
+  "_orientation": "Giro fijo del modelo en grados (yaw = peonza, pitch = cabeceo, roll = alabeo). yaw 270 pone la cabina (el ojo) a proa, comprobado en el retrato de la v2 (3-sep).",
   "orientation": {
     "yaw": 270.0,
     "pitch": 0.0,
     "roll": 0.0
   },
-  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy de 54 086 tris (3,6 veces el presupuesto: pide remesh a 6-7 k quads) con normales horneadas desde el alto de 1,93 M (hornear-normales.py), emisiva cian con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
+  "_model": "Malla 3D v2 del 3-sep-2026: remesh y retextura nuevos de Meshy (56 265 tris; medido que los triangulos no cuestan fps) con normales horneadas desde el alto de 1,94 M (hornear-normales.py), emisiva cian saturada de serie (4,8 %, p99 0,96) con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-05.glb"
 }
