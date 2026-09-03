@@ -1,0 +1,32 @@
+{
+  "_comment": "ACI-04 (nombre TEMPORAL): cuarta maquina de la serie ACI, una esfera blindada con un ojo, franjas cian y un par de tenazas a los lados. La mas dura de la serie; entra en la escalera del 1-1 entre el ACI-03 y el Skarn (migracion 2026.09.02.5).",
+  "code": "aci-04",
+  "screen_size": 185,
+  "click_radius": 62,
+  "_spin": "steps 0 = giro continuo. Una esfera pesada pivota despacio",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 70
+  },
+  "_pulse": "Respiracion electronica como sus hermanos (mode wave): el albedo va apagado donde emite. Ciclo 2.2 s (wings.cycle, que es tambien el reloj de las tenazas).",
+  "pulse": {
+    "mode": "wave",
+    "min_intensity": 0.05,
+    "max_intensity": 3.0,
+    "sharpness": 1.6
+  },
+  "_wings": "Las TENAZAS van como alas: rig de bisagra en |x| 0.72 (riguear-modelo.py 0.72 0.10 0 0 0 0.075; a 0.62 mordia los flancos de la esfera), huesos ala_izq/ala_der en espejo. degrees = cuanto abren y cierran, cycle = segundos por ciclo, axis 2 = barren en el plano (se ve desde arriba como pinza).",
+  "wings": {
+    "degrees": 14.0,
+    "cycle": 2.2,
+    "axis": 2
+  },
+  "_orientation": "El ojo y las franjas estan en la cara +Z del GLB (renders de seis caras, 2-sep): yaw 180 lo lleva a la proa (-Z); las tenazas se curvan hacia el frente.",
+  "orientation": {
+    "yaw": 180.0,
+    "pitch": 0.0,
+    "roll": 0.0
+  },
+  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,95 M (hornear-normales.py), emisiva cian con albedo apagado, rig de alas para las tenazas. Diales: ver README de arte.",
+  "model": "res://assets/npcs/aci-04.glb"
+}
