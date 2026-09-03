@@ -9,20 +9,22 @@
     "deg_per_sec": 120
   },
   "pulse": {
-    "mode": "blink",
-    "min_intensity": 0.5,
-    "max_intensity": 2.6,
-    "blink_hz": 4.0,
-    "duty": 0.55,
-    "edge": 0.06
+    "mode": "wave",
+    "min_intensity": 0.6,
+    "max_intensity": 2.4,
+    "sharpness": 1.0
   },
   "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,9 M (hornear-normales.py). Sin esqueleto. Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-01.glb",
-  "_pulse": "Parpadeo electronico: onda cuadrada a 4 Hz, encendida el 55% del ciclo, flancos cortos. min 0.5 para que nunca se apague del todo.",
+  "_pulse": "Respiracion electronica: la emisiva sube y baja suave (mode wave, sharpness 1.0 = senoidal pura) al ciclo de wings.cycle. El parpadeo (blink) se probo el 2-sep y no gusto en vivo.",
   "_orientation": "Giro fijo del modelo en grados. Las dos lentes (ojos) estan en los lados +X y -X del GLB (renders de seis caras, 2-sep); yaw 90 lleva la de +X a la proa (-Z), que es lo que encara al atacar.",
   "orientation": {
     "yaw": 90.0,
     "pitch": 0.0,
     "roll": 0.0
+  },
+  "_wings": "Sin alas: solo el reloj del pulso. 1.8 s por ciclo, mas vivo que los 2.17 s heredados del Vexor.",
+  "wings": {
+    "cycle": 1.8
   }
 }
