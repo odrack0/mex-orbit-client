@@ -1,0 +1,30 @@
+{
+  "_comment": "ACI-05 (nombre TEMPORAL): quinta maquina de la serie ACI, cuerpo alargado con pinzas y un ojo a proa y dos gondolas a popa. Entra en la escalera del 1-1 entre el Skarn y el Ferox (migracion 2026.09.02.6).",
+  "code": "aci-05",
+  "screen_size": 190,
+  "click_radius": 64,
+  "_spin": "steps 0 = giro continuo",
+  "turn": {
+    "steps": 0,
+    "deg_per_sec": 80
+  },
+  "_pulse": "Respiracion electronica como sus hermanos (mode wave): albedo apagado donde emite; el minimo casi apaga el ojo y el maximo dispara el glow. Ciclo 2.4 s (wings.cycle).",
+  "pulse": {
+    "mode": "wave",
+    "min_intensity": 0.05,
+    "max_intensity": 3.0,
+    "sharpness": 1.6
+  },
+  "_wings": "Sin alas: solo el reloj del pulso.",
+  "wings": {
+    "cycle": 2.4
+  },
+  "_orientation": "Giro fijo del modelo en grados (yaw = peonza, pitch = cabeceo, roll = alabeo). El GLB viene tumbado con el eje largo en X: las pinzas y el ojo en -X, las gondolas en +X. yaw 270 pone las pinzas a proa (-Z) y las gondolas a popa. Probado con pitch -90 primero (el usuario dijo que el ojo estaba arriba): lo ponia de canto; era cuestion de yaw.",
+  "orientation": {
+    "yaw": 270.0,
+    "pitch": 0.0,
+    "roll": 0.0
+  },
+  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy de 54 086 tris (3,6 veces el presupuesto: pide remesh a 6-7 k quads) con normales horneadas desde el alto de 1,93 M (hornear-normales.py), emisiva cian con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
+  "model": "res://assets/npcs/aci-05.glb"
+}
