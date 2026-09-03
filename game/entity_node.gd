@@ -233,6 +233,10 @@ var max_shield_abs := 0
 
 var _visual_angle := 0.0          # grados de pantalla de la proa
 var _idle_timer := 0.0
+## El dummy del bestiario lo pone a true: rumbo fijo a 0 (proa al norte) y sin
+## giro perezoso, o el retrato sale con un rumbo aleatorio y no sirve para juzgar
+## `orientation` (2-sep-2026: el ACI-01 salio a 267 y 86 grados en dos retratos).
+var heading_frozen := false
 var _visual_target := 0.0         # a donde va el giro en curso (fuente del banking)
 ## Velocidad angular EFECTIVA del giro en curso: 0 = naves, ease a TURN_TIME
 ## sin importar la magnitud; >0 = velocidad angular constante (bichos).
@@ -777,7 +781,7 @@ func _process(delta: float) -> void:
 			attack_target = null
 	if attack_target != null:
 		_face_towards(attack_target.position)
-	elif not in_flight and is_npc:
+	elif not in_flight and is_npc and not heading_frozen:
 		# NPCs parados: giro perezoso aleatorio cada 2-7 s (vida del original)
 		_idle_timer -= delta
 		if _idle_timer <= 0.0:

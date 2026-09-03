@@ -2551,6 +2551,7 @@ func _dummy_of_species(code: String) -> EntityNode:
 	sp.shield_pct = 1.0
 	sp.speed = 0
 	var node := EntityNode.new()
+	node.heading_frozen = true     # retrato reproducible: proa al norte, sin giro perezoso
 	node.setup(sp, false)
 	add_child(node)
 	return node

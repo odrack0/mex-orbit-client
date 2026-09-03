@@ -205,6 +205,12 @@ Dos diales nuevos por especie en `data/npcs/<code>.json` (defaults en `entity.js
 | `pulse.mode` | `wave` (defecto) · `blink` | `wave` es la onda de siempre (`min_intensity`..`max_intensity` con `sharpness`, al reloj de las alas). `blink` es un **parpadeo electrónico**: onda cuadrada a `blink_hz`, encendida `duty` del ciclo, con flancos de `edge` (fracción del ciclo). Para lentes y LEDs, no para núcleos vivos. El ACI-01 va a 4 Hz, duty 0,55, edge 0,06 |
 | `orientation.yaw` / `pitch` / `roll` | grados | **Giro fijo del modelo** antes del rumbo: decide qué cara del GLB es la proa (lo que encara al atacar) sin reexportar el asset. Se elige mirando los renders de `tests/repro_orientation` (12 giros cenitales) o las seis caras en Blender. El ACI-01 tiene sus dos lentes en ±X y va con `yaw: 90` |
 
+**El dummy del bestiario mira al norte y no gira** (`heading_frozen`, 2-sep): antes heredaba el giro
+perezoso de NPC parado y salía a un rumbo aleatorio (267° y 86° en dos retratos seguidos del ACI-01),
+con lo que un retrato no servía para juzgar `orientation`. Con la proa fija al norte, comparar dos
+retratos con distinto `yaw`/`pitch` es la prueba que manda: si salen iguales, el rasgo está en un
+polo y el giro que hace falta es `pitch`, como el ojo del ACI-01 v3.
+
 **Y un bug que salió al ponerlos:** el pulso emisivo vivía dentro del bloque `if not _bones_3d.is_empty()`
 de `entity_node.gd`, así que los bichos **sin esqueleto** (Skarn, Gravit, Gravon, Mordax, ACI-01) nunca
 pulsaron: su `pulse` del JSON era letra muerta y su emisión se quedaba fija en 1×. Desde el 2-sep el
