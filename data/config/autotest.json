@@ -18,10 +18,10 @@
   ],
   "_bestiary": "Bichos a los que se les toma retrato de QA (uno por especie); agregar un alien = agregarlo aqui.",
   "prey": [
-    "vex",
-    "vexor"
+    "aci-01",
+    "aci-02"
   ],
-  "_prey": "Especies que caza el loop: las dos comunes y flojas.",
+  "_prey": "Especies que caza el loop. Desde 2026.09.03.1 el 1-1 solo tiene la serie ACI (antes vex/vexor).",
   "timeouts": {
     "_comment": "Techo de reloj de cada modo; al pasarse se captura y se sale con codigo 1.",
     "loop_sec": 190.0,
