@@ -15,18 +15,22 @@
     "max_intensity": 3.0,
     "sharpness": 1.6
   },
-  "_wings": "Las TENAZAS van como alas: rig de bisagra en |x| 0.72 (riguear-modelo.py 0.72 0.10 0 0 0 0.075; a 0.62 mordia los flancos de la esfera), huesos ala_izq/ala_der en espejo. degrees = cuanto abren y cierran, cycle = segundos por ciclo, axis 2 = barren en el plano (se ve desde arriba como pinza).",
+  "_wings": "Sin alas: solo el reloj del pulso y de la pinza.",
   "wings": {
-    "degrees": 14.0,
-    "cycle": 2.2,
-    "axis": 2
+    "cycle": 2.2
   },
-  "_orientation": "El ojo y las franjas estan en la cara +Z del GLB (renders de seis caras, 2-sep): yaw 180 lo lleva a la proa (-Z); las tenazas se curvan hacia el frente.",
+  "_orientation": "La malla del cliente ya va girada 180 en el rig (GIRO_Z), asi que el ojo mira a -Z de serie: yaw 0. (El master de arte sigue con el ojo en +Z.)",
   "orientation": {
-    "yaw": 180.0,
+    "yaw": 0.0,
     "pitch": 0.0,
     "roll": 0.0
   },
-  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,95 M (hornear-normales.py), emisiva cian con albedo apagado, rig de alas para las tenazas. Diales: ver README de arte.",
-  "model": "res://assets/npcs/aci-04.glb"
+  "_model": "Malla 3D del 2-sep-2026: remesh de Meshy con normales horneadas desde el alto de 1,95 M (hornear-normales.py), emisiva cian con albedo apagado, rig de cuernos para las manos con la malla girada 180. Diales: ver README de arte.",
+  "model": "res://assets/npcs/aci-04.glb",
+  "_horns_deg": "Las MANOS: rig de cuernos con la malla girada 180 (GIRO_Z=180, CUERNO_DESDE 0.15, CUERNO_BANDA 0.05, CUERNO_X_MIN 0.30 para que la cara no pellizque), huesos cuerno_izq/der = las puntas de las tenazas. Rango de la pinza en grados, de -35 (abiertas) a 0 (cerradas), al reloj de wings.cycle. Eje 1, medido con tests/repro_bone_axis: el 2 (el del Vex) aqui casi no mueve la mano (dif 0,1), el 1 la abre en el plano y el 0 la levanta hacia la camara. La primera version las movia como alas (el brazo entero): no era lo pedido.",
+  "horns_deg": [
+    -35.0,
+    0.0
+  ],
+  "horns_axis": 1
 }
