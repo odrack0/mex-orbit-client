@@ -1539,7 +1539,7 @@ var _at_jump_rejected := false     # el autotest suelta la camara para retratar 
 var _at_camera_t := -1.0
 ## Los bichos a los que el autotest les toma retrato de QA (uno por especie).
 static var AT_BESTIARY: Array = _strings(AT_CFG.get("bestiary"),
-	["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax", "aci-01"])
+	["vex", "vexor", "skarn", "ferox", "skarnox", "gravit", "mordax", "gravon", "vorax", "aci-01", "aci-02"])
 var _at_creature := 0
 var _at_relief := -1                      # paso de la prueba del relieve
 var _at_hull_at := PackedFloat32Array()
