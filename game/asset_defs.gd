@@ -12,6 +12,9 @@ const AMMO_PATH := "res://data/ammo/%s.json"
 const CONFIG_PATH := "res://data/config/%s.json"
 
 static var _cache := {}
+## Overrides en memoria del TALLER de assets (solo dev): un JSON editado en vivo
+## pisa al del disco hasta que se limpie. path -> Dictionary.
+static var _overrides := {}
 
 ## Los diales de la luz y el material: data/config/lighting.json. Se declara
 ## ANTES de las estaticas que lo leen (las `static var` se inicializan en orden
@@ -219,7 +222,46 @@ static func vec3(v: Variant, fallback := Vector3.ZERO) -> Vector3:
 	return fallback
 
 
+## Ruta del JSON de un asset por categoria (npcs/ships/props/maps/ammo) y code.
+static func path_for(category: String, code: String) -> String:
+	match category:
+		"ships": return SHIPS_PATH % code
+		"npcs": return NPCS_PATH % code
+		"props": return PROPS_PATH % code
+		"maps": return MAPS_PATH % code
+		"ammo": return AMMO_PATH % code
+	return ""
+
+
+## Los codes que hay en data/<categoria>/ (nombres de archivo sin .json, sin comentarios).
+static func codes_of(category: String) -> Array[String]:
+	var out: Array[String] = []
+	var dir := "res://data/%s" % category
+	for f in DirAccess.get_files_at(dir):
+		if f.ends_with(".json"):
+			out.append(f.trim_suffix(".json"))
+	out.sort()
+	return out
+
+
+## Taller: pisa (o quita, con {}) el JSON de una ruta sin tocar el disco.
+static func set_override(path: String, data: Dictionary) -> void:
+	if data.is_empty():
+		_overrides.erase(path)
+	else:
+		_overrides[path] = data
+
+
+## Taller: relee un JSON del disco saltandose la cache (tras guardar o descartar).
+## Se llama `reread` y no `reload` porque AssetDefs es un Script y `reload()` ya existe.
+static func reread(path: String) -> Dictionary:
+	_cache.erase(path)
+	return _load_file(path)
+
+
 static func _load_file(path: String) -> Dictionary:
+	if _overrides.has(path):
+		return _overrides[path]
 	if _cache.has(path):
 		return _cache[path]
 	if not FileAccess.file_exists(path):

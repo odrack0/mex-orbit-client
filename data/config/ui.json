@@ -4,10 +4,22 @@
     "_palette": "§2 del sistema N. glass y glass_2 son rgba(13,17,29,...), edge es el cian al 35 %, edge_soft es rgba(120,140,180,.22).",
     "palette": {
       "bg": "07070F",
-      "glass": { "rgb": "0D111D", "alpha": 0.74 },
-      "glass_2": { "rgb": "0D111D", "alpha": 0.55 },
-      "edge": { "rgb": "00E5FF", "alpha": 0.35 },
-      "edge_soft": { "rgb": "788CB4", "alpha": 0.22 },
+      "glass": {
+        "rgb": "0D111D",
+        "alpha": 0.74
+      },
+      "glass_2": {
+        "rgb": "0D111D",
+        "alpha": 0.55
+      },
+      "edge": {
+        "rgb": "00E5FF",
+        "alpha": 0.35
+      },
+      "edge_soft": {
+        "rgb": "788CB4",
+        "alpha": 0.22
+      },
       "cyan": "00E5FF",
       "violet": "A78BFA",
       "warn": "FFC85C",
@@ -128,11 +140,20 @@
   "minimap": {
     "icon": "res://assets/ui/icons/map.svg",
     "_widths": "Anchos de los pasos de zoom (§8); el alto sale del ratio del mapa.",
-    "widths": [180, 238, 300, 380, 460],
+    "widths": [
+      180,
+      238,
+      300,
+      380,
+      460
+    ],
     "default_zoom_index": 2,
     "_fit_tolerance": "Px de diferencia entre el canvas y el mapa dibujado a partir de los que el autotest lo da por deformado.",
     "fit_tolerance": 2.0,
-    "canvas_bg": { "rgb": "05080E", "alpha": 0.9 },
+    "canvas_bg": {
+      "rgb": "05080E",
+      "alpha": 0.9
+    },
     "grid_columns": 5,
     "grid_rows": 4,
     "station_radius": 4.0,
@@ -203,7 +224,10 @@
     "button": {
       "font_size": 7,
       "height": 26,
-      "sell_size": [96, 22]
+      "sell_size": [
+        96,
+        22
+      ]
     }
   },
   "settings": {
@@ -291,12 +315,55 @@
     "_vignette_inner": "Desde que fraccion del radio empieza a teniirse el borde (0 = centro, 1 = borde).",
     "vignette_inner": 0.45,
     "vignette_texture_size": 256,
-    "panel_bg": { "rgb": "070A12", "alpha": 0.85 },
+    "panel_bg": {
+      "rgb": "070A12",
+      "alpha": 0.85
+    },
     "_border_alpha": "El `--edge` del toast, en hostil.",
     "border_alpha": 0.35,
     "padding_x": 18,
     "padding_y": 9,
     "caption_font_size": 10,
     "caption_tracking": 1
+  },
+  "asset_lab": {
+    "_comment": "TALLER DE ASSETS (solo builds de desarrollo, OS.is_debug_build): ventana que carga el JSON de un asset, deja tocar sus diales en vivo (override en memoria + rebuild), guardarlos al archivo y simular a un dummy (reposo, patrulla, ataque, bajo ataque, huida). Cerrada por defecto; F8 o el icono de la sysbar.",
+    "icon": "res://assets/ui/icons/lab.svg",
+    "width": 440,
+    "rows_height": 320,
+    "_rows_height": "Alto del area de diales con scroll.",
+    "categories": {
+      "npcs": "NPC",
+      "ships": "Naves",
+      "props": "Props"
+    },
+    "skip_keys": [
+      "code",
+      "model",
+      "modelo",
+      "display_name"
+    ],
+    "_skip_keys": "Claves que no se editan (identidad y rutas); las que empiezan por _ son comentarios y salen como tooltip.",
+    "apply_delay_sec": 0.15,
+    "_apply_delay_sec": "Cuanto se espera tras el ultimo cambio antes de reconstruir la malla (evita rehacer el GLB en cada tick del spinbox).",
+    "label_width": 150,
+    "indent_px": 14,
+    "sim": {
+      "speed": 250.0,
+      "_speed": "Velocidad del dummy en unidades/s (el server no interviene: es local).",
+      "spawn_offset": [
+        420.0,
+        0.0
+      ],
+      "_spawn_offset": "Donde aparece el dummy respecto al heroe.",
+      "patrol_radius": 900.0,
+      "patrol_interval_sec": 3.0,
+      "attack_interval_sec": 0.8,
+      "hit_pct": 0.06,
+      "_hit_pct": "Cuanto baja el casco del dummy por impacto en 'bajo ataque' (se reinicia al llegar a 0).",
+      "damage_number": 120,
+      "flee_dist": 1500.0,
+      "ammo": "ammo_cel_1"
+    }
   }
 }

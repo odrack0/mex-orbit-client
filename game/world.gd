@@ -33,6 +33,9 @@ static var DOUBLE_CLICK_MS: int = int(AssetDefs.num(CFG, "double_click_ms", 500)
 var _conn: GameConnection
 var _entities := {}          # entity_id -> EntityNode
 var _hero: EntityNode
+## El TALLER de assets (solo builds de desarrollo) y sus dummies de simulacion.
+var _lab: AssetLabWindow
+var _lab_dummies: Array[EntityNode] = []
 var _stage: Stage3D
 var _game_layer: Node2D       # HUD del mundo (barras, nombres, numeros), proyectado
 var _radiation_warning: RadiationWarning   # peligro persistente: fuera de los limites
@@ -496,6 +499,10 @@ func _build_settings() -> void:
 
 	_settings = SettingsWindow.create()
 	layer_node.add_child(_settings)
+	# el taller de assets solo existe en builds de desarrollo: ni icono ni tecla en release
+	if OS.is_debug_build():
+		_lab = AssetLabWindow.create(self)
+		layer_node.add_child(_lab)
 	_settings.preset_chosen.connect(func(entry_name: String):
 		var keys := Quality.apply(entry_name)
 		if not keys.is_empty():
@@ -528,6 +535,9 @@ func _build_settings() -> void:
 	# §1.3: el icono se pone ambar cuando su ventana esta abierta, y vuelve a
 	# neutro tanto si se cierra desde el icono como desde la `×` de la ventana.
 	_settings.closed.connect(func(): _sysbar.mark("ajustes", false))
+	if _lab != null:
+		_sysbar.add_entry("taller", AssetLabWindow.ICON, "Taller de assets (F8)", _toggle_lab)
+		_lab.closed.connect(func(): _sysbar.mark("taller", false))
 
 
 ## §1.5: el icono ABRE y CIERRA su ventana. Y al reabrirla vuelve al frente, que
@@ -539,6 +549,15 @@ func _toggle_window(key: String, v: NWindow) -> void:
 	if v.visible:
 		v.move_to_front()
 	_taskbar.mark(key, v.visible)
+
+
+func _toggle_lab() -> void:
+	if _lab == null:
+		return
+	_lab.visible = not _lab.visible
+	if _lab.visible:
+		_lab.move_to_front()
+	_sysbar.mark("taller", _lab.visible)
 
 
 func _toggle_settings() -> void:
@@ -1116,6 +1135,10 @@ func _on_error(e) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_F8 \
+			and _lab != null:
+		_toggle_lab()
+		return
 	# J: saltar de sector. Es tecla y no clic a proposito — ver `_handle_click`.
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_J \
 			and (_chat == null or not _chat.is_focused()):
@@ -1957,9 +1980,20 @@ func _autotest(delta: float) -> void:
 				# retrataria un encuadre que ya no existe, que es peor que no
 				# retratar nada.
 				_stage.zoom_direct(Stage3D.ZOOM_MAX)
+				# el TALLER (solo dev) se abre como lo abre el desarrollador, por su
+				# tecla, y se retrata en la fase siguiente junto al zoom
+				if _lab != null and not _lab.visible:
+					_toggle_lab()
 				_at_phase = 96
 		96:
 			if _autotest_t - _at_last_flight > AT_ZOOM_WAIT_SEC:
+				if _lab != null and _lab.visible:
+					var img_l := get_viewport().get_texture().get_image()
+					img_l.save_png(Session.autotest_screenshot.replace(".png", "-taller.png"))
+					_toggle_lab()
+					if _lab.visible or _sysbar.is_marked("taller"):
+						_at_capture("AUTOTEST FALLO — el taller no se cerro o su icono no volvio a neutro", 1)
+						return
 				var img_z := get_viewport().get_texture().get_image()
 				img_z.save_png(Session.autotest_screenshot.replace(".png", "-zoom.png"))
 				_stage.zoom_direct(Stage3D.ZOOM_MIN)
@@ -2584,3 +2618,64 @@ static func _thousands(n) -> String:
 		if tally % 3 == 0 and i > 0:
 			output = "." + output
 	return output
+
+
+# ---------------------------------------------------------------- TALLER (dev)
+## Reconstruye en vivo todo lo que usa el JSON de `category`/`code`: entidades
+## de esa especie (incluido el heroe si es su nave), portales, o los dummies.
+func lab_rebuild(category: String, code: String) -> void:
+	if category == "props":
+		if code == "portal":
+			for id in _portals:
+				_portals[id].rebuild()
+		return
+	for id in _entities:
+		var e: EntityNode = _entities[id]
+		if e.type_id == code:
+			e.rebuild()
+	for d in _lab_dummies:
+		if is_instance_valid(d) and d.type_id == code:
+			d.rebuild()
+
+
+## Un dummy local de la especie, cerca del heroe, con velocidad propia (no hay
+## server detras): el taller lo conduce con set_goal / set_attack_target.
+func lab_spawn(code: String, offset: Vector2, sim_speed: float) -> EntityNode:
+	var sp := MexProtocol.EntitySpawn.new()
+	sp.entity_id = 0
+	sp.kind = MexProtocol.EntityKind.NPC
+	sp.type_id = code
+	sp.name = code.to_upper()
+	sp.faction = 0
+	var at := (_hero.position if _hero != null else _bounds * 0.5) + offset
+	sp.x = int(at.x)
+	sp.y = int(at.y)
+	sp.hp_pct = 1.0
+	sp.shield_pct = 1.0
+	sp.speed = int(sim_speed)
+	var node := EntityNode.new()
+	node.setup(sp, false)
+	node.speed = sim_speed
+	add_child(node)
+	_lab_dummies.append(node)
+	return node
+
+
+func lab_despawn() -> void:
+	for d in _lab_dummies:
+		if is_instance_valid(d):
+			d.queue_free()
+	_lab_dummies.clear()
+
+
+func lab_hero() -> EntityNode:
+	return _hero
+
+
+func lab_clamp(p: Vector2) -> Vector2:
+	return p.clamp(Vector2.ZERO, _bounds)
+
+
+## Numero de combate flotante, sin tocar el estado real de nadie.
+func lab_hit_number(over: EntityNode, txt: String, taken: bool) -> void:
+	_floating_number(over, txt, HIT_TAKEN if taken else HIT_DEALT)

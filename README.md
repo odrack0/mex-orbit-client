@@ -246,6 +246,35 @@ radiancia de 64 (basta para un gradiente, y cuesta nada). Con algo que reflejar,
 sube de 0,35 a **0,6** sin que el ACI-01 se ennegrezca: se lee un punto más metálico y conserva el
 óxido. `enabled: false` lo apaga. Gate: autotest y bestiario OK; el héroe no cambia a la vista.
 
+### El Taller de assets: diales en vivo y simulación (solo dev, 2-sep-2026)
+
+`ui/asset_lab_window.gd`, una ventana N que **solo existe en builds de desarrollo**
+(`OS.is_debug_build()`: ni icono ni tecla en release). Cerrada por defecto; se abre con **F8** o con su
+icono en la sysbar (ámbar mientras está abierta, como manda el §1.3).
+
+- **Qué hace.** Eliges categoría (NPC / Naves / Props) y asset; carga su JSON de `data/` y pinta una
+  fila por dial: número → spinbox (paso 0,01 / 0,1 / 1 según la magnitud), booleano → casilla, texto
+  → campo, lista de números → una caja por elemento, sub-objeto → cabecera y sus filas sangradas. Las
+  claves `_x` no se editan: son el comentario de `x` y salen como **tooltip** de su fila. `code` y
+  `model` no se tocan.
+- **En vivo.** Cada cambio pisa el JSON en memoria (`AssetDefs.set_override`) y, tras 0,15 s sin más
+  cambios, el mundo reconstruye lo que lo usa (`World.lab_rebuild`: las entidades de esa especie,
+  el héroe si es su nave, los portales si es el portal). Orientación, pulso, alas, cola, brazos,
+  cuernos, lava, llamas: todo lo que lee `EntityNode` al montarse.
+- **Guardar / Descartar.** Guardar escribe el JSON al archivo (`res://data/...`, que en dev es la
+  carpeta del proyecto) con los floats enteros devueltos a int para no ensuciar el diff; el botón
+  se pone ámbar cuando hay cambios sin guardar. Descartar relee el disco y reconstruye.
+- **Simulación (NPC y naves).** Un dummy local junto al héroe, con velocidad propia (no hay server
+  detrás): REPOSO (giro perezoso), PATRULLA (destinos aleatorios en un radio), ATACA (encara al
+  héroe y dispara haces con impacto de escudo y número de daño; el estado real del héroe no se
+  toca), BAJO ATAQUE (el héroe le dispara, cae el casco en pasos, impactos de escudo y casco) y
+  HUYE (se aleja del héroe). QUITAR lo retira; cerrar la ventana también.
+- **Diales de la herramienta** en `ui.json` → `asset_lab`: ancho, alto del área con scroll, claves
+  que no se editan, retardo de aplicación, y `sim` (velocidad, offset de aparición, radio e
+  intervalo de patrulla, cadencia de disparo, daño por impacto, distancia de huida, munición).
+- **QA.** El autotest la abre por su tecla en la fase de ventanas, la retrata en `autotest-taller.png`
+  y comprueba que se cierra y que su icono vuelve a neutro.
+
 ### Código en inglés, comentarios en español (2-sep-2026)
 
 El mismo día el código pasó entero a inglés en tres fases con gate (autotest + bestiario) cada una:
