@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dmb3hiyd7k7p3"
-path="res://.godot/imported/skarn_emissive_material.png-561fde4b771be2e1d8dceeaee913fdc3.ctex"
+uid="uid://cpift3vonfg1w"
+path="res://.godot/imported/skarn_normal_horneada.png-e5914012cc5cbc1c5174d980af36235f.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "e90aa83113c97a78d48238c302ae55c3"
+"md5": "f905cfabd3f81fe8425b5c208a590b7e"
 }
 
 [deps]
 
-source_file="res://assets/npcs/skarn_emissive_material.png"
-dest_files=["res://.godot/imported/skarn_emissive_material.png-561fde4b771be2e1d8dceeaee913fdc3.ctex"]
+source_file="res://assets/npcs/skarn_normal_horneada.png"
+dest_files=["res://.godot/imported/skarn_normal_horneada.png-e5914012cc5cbc1c5174d980af36235f.ctex"]
 
 [params]
 
