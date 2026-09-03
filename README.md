@@ -236,8 +236,15 @@ Dos diales en `lighting.json` → `material`, que solo actúan cuando la textura
 | `metallic_scale` | 0,35 | Multiplicador del mapa metálico. Conserva el brillo de metal sin que el cuerpo sea un reflejo del vacío |
 
 Comparado en el bestiario: el ACI-01 pasa de bola negra a chapa gris con placas y óxido; el ACI-04
-de negro a gris mate; el Skarn (sin metálico) apenas cambia. Si algún día se quiere metal de verdad,
-la pieza que falta es un cielo de reflexión (`reflected_light_source`), no subir estos diales.
+de negro a gris mate; el Skarn (sin metálico) apenas cambia.
+
+**Y el cielo de reflexión (misma noche).** `lighting.json` → `reflection_sky`: un `ProceduralSkyMaterial`
+que el entorno usa **solo para el especular** (`reflected_light_source = SKY`); el fondo sigue siendo
+color y el ambiente el rosado plano, así que la luz difusa no cambia. Es un gradiente oscuro —frío
+arriba (`1c2434`), cálido en el horizonte por la nebulosa (`3b2d28`), negro abajo— a energía 0,6, con
+radiancia de 64 (basta para un gradiente, y cuesta nada). Con algo que reflejar, `metallic_scale`
+sube de 0,35 a **0,6** sin que el ACI-01 se ennegrezca: se lee un punto más metálico y conserva el
+óxido. `enabled: false` lo apaga. Gate: autotest y bestiario OK; el héroe no cambia a la vista.
 
 ### Código en inglés, comentarios en español (2-sep-2026)
 

@@ -21,6 +21,7 @@ static var _WORLD_LIGHT: Dictionary = CFG.get("world_light", {})
 static var _HERO_LIGHT: Dictionary = CFG.get("hero_light", {})
 static var _MATERIAL: Dictionary = CFG.get("material", {})
 static var _GLOW: Dictionary = CFG.get("glow", {})
+static var _REFLECTION_SKY: Dictionary = CFG.get("reflection_sky", {})
 static var _MEASURE_CAMERA: Dictionary = CFG.get("measure_camera", {})
 
 ## De donde viene la luz del mundo, en grados de pantalla (0 = derecha, 90 =
@@ -115,6 +116,23 @@ static func world_ambient(ent: Environment) -> void:
 	# FILMIC y no lineal: el lineal recorta el hombro y aplana los medios — es
 	# la otra mitad de "se ve mas muerto que en el visor", que tonemapea filmico.
 	ent.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# CIELO DE REFLEXION (2-sep-2026): solo para el especular. El fondo sigue
+	# siendo color y el ambiente el rosado plano; sin esto un metal refleja el
+	# espacio negro y sale negro. Dial `reflection_sky` de lighting.json.
+	if bool(_REFLECTION_SKY.get("enabled", false)):
+		var mat := ProceduralSkyMaterial.new()
+		mat.sky_top_color = color(_REFLECTION_SKY.get("top_color", "1c2434"))
+		mat.sky_horizon_color = color(_REFLECTION_SKY.get("horizon_color", "3b2d28"))
+		mat.ground_horizon_color = color(_REFLECTION_SKY.get("ground_horizon_color", "1a1412"))
+		mat.ground_bottom_color = color(_REFLECTION_SKY.get("ground_color", "050608"))
+		mat.sky_energy_multiplier = num(_REFLECTION_SKY, "energy", 0.6)
+		mat.ground_energy_multiplier = num(_REFLECTION_SKY, "energy", 0.6)
+		mat.sun_angle_max = 0.0     # el sol real es la DirectionalLight, no un disco pintado
+		var sky := Sky.new()
+		sky.sky_material = mat
+		sky.radiance_size = Sky.RADIANCE_SIZE_64   # basta para un gradiente
+		ent.sky = sky
+		ent.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 
 
 ## El SOL del mundo 3D como nodo listo, HERMANO de ambiente_mundo(): color, energia

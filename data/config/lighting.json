@@ -27,7 +27,7 @@
     "_rim": "El FresnelSpecularMethod del legacy (fresnelPower 5): realza el borde y separa la silueta del negro del espacio.",
     "roughness_scale": 0.9,
     "_roughness_scale": "Multiplicador del mapa de rugosidad de la textura PBR (Meshy). Antes se forzaba 0,35 absoluto tambien con mapa: 0,35 x 0,47 = 0,16, un espejo negro que borraba el oxido y las placas (ACI-01, 2-sep).",
-    "metallic_scale": 0.35,
+    "metallic_scale": 0.6,
     "_metallic_scale": "Multiplicador del mapa metalico. Meshy pinta metallic 0,6-0,9 y en PBR un metal es lo que refleja: aqui refleja el espacio negro (fondo y ambiente de color plano, sin cielo), asi que sale negro. A 0,35 conserva el brillo metalico sin perder el albedo. Solo aplica con mapa metalico presente."
   },
   "glow": {
@@ -39,5 +39,15 @@
   "measure_camera": {
     "distance": 8.0,
     "_distance": "Distancia de la camara ORTOGRAFICA de medicion/encuadre (stage_3d y view_extent) al origen, en unidades del mundo del asset."
+  },
+  "reflection_sky": {
+    "_comment": "Cielo SOLO para reflexiones (Environment.reflected_light_source = SKY): el fondo sigue siendo color y el ambiente el rosado plano, asi que la luz difusa no cambia. Sin esto un material metalico refleja el espacio negro y sale negro (ACI-01, 2-sep). Es un gradiente oscuro: frio arriba, calido en el horizonte por la nebulosa, negro abajo. enabled=false lo apaga.",
+    "enabled": true,
+    "top_color": "1c2434",
+    "horizon_color": "3b2d28",
+    "ground_horizon_color": "1a1412",
+    "ground_color": "050608",
+    "energy": 0.6,
+    "_energy": "Multiplicador del cielo de reflexion. A 1 el metal se lee gris claro; 0,6 lo deja como cromo oscuro."
   }
 }
