@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bt0vhqbt3u78p"
-path="res://.godot/imported/aci-03_metallic_roughness.jpg-72793a7303823553d4f60e523c3afd43.ctex"
+uid="uid://dtfnkhgcq7y6n"
+path="res://.godot/imported/aci-03_metallic_roughness.png-e3716511567a7734efee1c86c9dfe18d.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "e60547aa082cb045bb2a0caba0cbf081"
+"md5": "f341e6afc827ced94937d4748ddd939a"
 }
 
 [deps]
 
-source_file="res://assets/npcs/aci-03_metallic_roughness.jpg"
-dest_files=["res://.godot/imported/aci-03_metallic_roughness.jpg-72793a7303823553d4f60e523c3afd43.ctex"]
+source_file="res://assets/npcs/aci-03_metallic_roughness.png"
+dest_files=["res://.godot/imported/aci-03_metallic_roughness.png-e3716511567a7734efee1c86c9dfe18d.ctex"]
 
 [params]
 

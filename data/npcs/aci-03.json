@@ -25,6 +25,6 @@
     "pitch": 0.0,
     "roll": 0.0
   },
-  "_model": "Malla 3D v2 del 3-sep-2026: remesh y retextura nuevos de Meshy (56 265 tris; medido que los triangulos no cuestan fps) con normales horneadas desde el alto de 1,94 M (hornear-normales.py), emisiva cian saturada de serie (4,8 %, p99 0,96) con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
+  "_model": "Malla 3D v3 del 3-sep-2026, primer caso de la cadena decimar-y-vestir: 99 992 tris decimados en Blender del alto de Meshy (1,94 M), vestidos con la textura del remesh adaptativo Ultra (121 k) y con normales horneadas del alto. Emisiva cian (3,7 %) con albedo apagado. Sin esqueleto. Diales: ver README de arte.",
   "model": "res://assets/npcs/aci-03.glb"
 }
