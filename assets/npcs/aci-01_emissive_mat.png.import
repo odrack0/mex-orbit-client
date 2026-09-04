@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dwwrghplarxth"
-path="res://.godot/imported/aci-01_emissive_bajo_mat.png-c14e3ada351b5f0628689a2ab14d21e2.ctex"
+uid="uid://d4nyxd0cnwa4x"
+path="res://.godot/imported/aci-01_emissive_mat.png-950f6c66a4454c8fd2b5494690f6c4a8.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "3170be07c9d7706925986e2eff159f1c"
+"md5": "78063bae78fc1828d87ad69d20fd1748"
 }
 
 [deps]
 
-source_file="res://assets/npcs/aci-01_emissive_bajo_mat.png"
-dest_files=["res://.godot/imported/aci-01_emissive_bajo_mat.png-c14e3ada351b5f0628689a2ab14d21e2.ctex"]
+source_file="res://assets/npcs/aci-01_emissive_mat.png"
+dest_files=["res://.godot/imported/aci-01_emissive_mat.png-950f6c66a4454c8fd2b5494690f6c4a8.ctex"]
 
 [params]
 
