@@ -18,6 +18,7 @@ static var CFG: Dictionary = AssetDefs.config("entity")
 static var CFG_TURN: Dictionary = CFG.get("turn", {})
 static var CFG_BANK: Dictionary = CFG.get("bank", {})
 static var CFG_HOVER: Dictionary = CFG.get("hover", {})
+static var CFG_ALTITUDE: Dictionary = CFG.get("altitude", {})
 static var CFG_HERO_LIGHT: Dictionary = CFG.get("hero_light", {})
 static var CFG_IDLE_TURN: Dictionary = CFG.get("idle_turn", {})
 static var CFG_MOTION: Dictionary = CFG.get("motion", {})
@@ -59,6 +60,12 @@ static var HOVER_CYCLE: float = AssetDefs.num(CFG_HOVER, "cycle", 2.0)
 static var HOVER_FADE_SEC: float = AssetDefs.num(CFG_HOVER, "fade_sec", 0.5)
 static var HOVER_Z_FREQ_A: float = AssetDefs.num(CFG_HOVER, "z_freq_a", 1.13)
 static var HOVER_Z_FREQ_B: float = AssetDefs.num(CFG_HOVER, "z_freq_b", 0.87)
+## ALTURA DE VUELO (3-sep): el z-index del 3D. El heroe por encima de todo, las
+## otras naves en medio y cada NPC en una altura propia dentro de la banda,
+## para que dos cuerpos en el mismo punto se apilen en vez de atravesarse.
+static var ALT_HERO: float = AssetDefs.num(CFG_ALTITUDE, "hero", 80.0)
+static var ALT_PLAYER: float = AssetDefs.num(CFG_ALTITUDE, "player", 50.0)
+static var ALT_NPC_BAND: float = AssetDefs.num(CFG_ALTITUDE, "npc_band", 40.0)
 
 ## Llama al ralenti (G§6.2): jugador parado FLAME_IDLE, NPC 0, en vuelo 1.
 static var FLAME_IDLE: float = AssetDefs.num(CFG_FLAME, "idle", 0.7)
@@ -181,6 +188,9 @@ var goal := Vector2.ZERO
 var is_hero := false
 var is_npc := false
 var click_radius: float = DEFAULT_CLICK_RADIUS
+## Altura de vuelo sobre el plano del juego (unidades de mundo): solo visual,
+## la posicion logica sigue siendo `position` en el plano.
+var altitude := 0.0
 ## Giro: velocidad angular (>0 = bicho, giro continuo a su peso;
 ## 0 = nave, ease fijo TURN_TIME del original 3D).
 var turn_deg_per_sec := 0.0
@@ -323,6 +333,14 @@ func setup(spawn, hero: bool) -> void:   # spawn: MexProtocol.EntitySpawn
 	entity_id = spawn.entity_id
 	is_hero = hero
 	is_npc = spawn.kind == MexProtocol.EntityKind.NPC
+	# la altura estable de un NPC sale de su id (razon aurea: ids consecutivos
+	# caen lejos entre si dentro de la banda)
+	if hero:
+		altitude = ALT_HERO
+	elif is_npc:
+		altitude = fposmod(entity_id * 0.618034, 1.0) * ALT_NPC_BAND
+	else:
+		altitude = ALT_PLAYER
 	type_id = spawn.type_id
 	speed = float(spawn.speed)
 	position = Vector2(spawn.x, spawn.y)
@@ -356,7 +374,7 @@ func _build_visual() -> void:
 	_spin3d = Node3D.new()
 	_body.add_child(_spin3d)
 	Stage3D.instance.add_child(_body)
-	_body.position = Vector3(position.x, 0.0, position.y)
+	_body.position = Vector3(position.x, altitude, position.y)
 	if str(d.get("model", "")) != "":
 		_build_mesh_3d(d)
 
@@ -789,7 +807,7 @@ func _process(delta: float) -> void:
 			_turn_to(_visual_angle + (randf() - 0.5) * 360.0)
 
 	# ---- sincronia del cuerpo 3D (el HUD se proyecta aparte, ver abajo) ----
-	_body.position = Vector3(position.x, 0.0, position.y)
+	_body.position = Vector3(position.x, altitude, position.y)
 	if not _frozen:
 		_process_turn(delta)
 	if turn_deg_per_sec == 0.0 and not _frozen:
@@ -809,7 +827,7 @@ func _process(delta: float) -> void:
 ## y las barras seguian, porque quedaron del lado que ahora leia viejo.
 func sync_hud() -> void:
 	if _hud != null and Stage3D.instance != null:
-		var sp := Stage3D.instance.to_screen(position)
+		var sp := Stage3D.instance.to_screen(position, altitude)
 		# HISTERESIS del snap (1-sep): el heroe cae SIEMPRE en el mismo punto
 		# de pantalla —el centro, un entero exacto— y la matriz de proyeccion
 		# lo devuelve con ruido de ~1e-6 distinto en cada frame en que la camara

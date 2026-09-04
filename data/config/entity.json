@@ -23,6 +23,12 @@
     "z_freq_a": 1.13,
     "z_freq_b": 0.87
   },
+  "_altitude": "ALTURA DE VUELO por tipo (3-sep-2026, el z-index del 3D). Todo volaba a 0 y dos cuerpos en el mismo punto se atravesaban (el original tambien iba a y=0, pero sus naves eran planas; nuestros bichos son esferas). `hero`: la nave propia, por encima de todo (mas que el semialto del bicho mas gordo). `player`: las demas naves de jugador, entre medias. `npc_band`: cada NPC recibe una altura estable dentro de [0, banda) sacada de su id, para que dos que se rocen queden apilados y no fundidos. Unidades de mundo. La camara enfoca al heroe A SU ALTURA (sigue centrado), y clic, HUD, numeros de danio, rayo y explosion se proyectan a la altura de cada entidad; la posicion logica (server, alcance, danio) no cambia.",
+  "altitude": {
+    "hero": 80.0,
+    "player": 50.0,
+    "npc_band": 40.0
+  },
   "_glow_hp_min": "El brillo emisivo acompania al casco (G§7.1): factor de emision a 0% de HP (1.0 a HP pleno).",
   "glow_hp_min": 0.35,
   "_hero_light": "La luz del heroe (G§7.2): altura sobre el cuerpo y radio, en unidades de mundo. Color y energia viven en AssetDefs (son del mundo).",

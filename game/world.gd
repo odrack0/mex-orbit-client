@@ -703,7 +703,7 @@ func _on_spawn(sp) -> void:
 			if _chat != null:
 				_chat.add_system("Nave reparada en la base", NTheme.HP)
 		_focus = node.position
-		_stage.refresh(_focus)
+		_stage.refresh(_focus, node.altitude)
 
 
 func _on_despawn(dp) -> void:
@@ -822,7 +822,7 @@ func _floating_number(over: EntityNode, txt: String, color: Color) -> void:
 	if alive != null and is_instance_valid(alive) and txt.is_valid_int():
 		alive.set_meta("suma", int(alive.get_meta("suma", 0)) + int(txt))
 		alive.text = str(alive.get_meta("suma"))
-		alive.position = _stage.to_screen(over.position) + DMG_OFFSET
+		alive.position = _stage.to_screen(over.position, over.altitude) + DMG_OFFSET
 		return
 
 	# 24: registrado en el §9 del sistema de diseño. Desde F1 el numero vive en
@@ -833,7 +833,7 @@ func _floating_number(over: EntityNode, txt: String, color: Color) -> void:
 	label.custom_minimum_size = Vector2(DMG_MIN_WIDTH, 0)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	# el numero vive en el HUD proyectado (pixeles): el zoom ya no lo encoge
-	label.position = _stage.to_screen(over.position) + DMG_OFFSET
+	label.position = _stage.to_screen(over.position, over.altitude) + DMG_OFFSET
 	label.z_index = DMG_Z_INDEX
 	if txt.is_valid_int():
 		label.set_meta("suma", int(txt))
@@ -857,7 +857,7 @@ func _on_destroyed(msg) -> void:
 			# sin explosión dibujada, una muerte se ve EXACTAMENTE como una
 			# desaparición: si el bicho que se esfumó fue esto, hay que saberlo
 			_note_if_visible(node, "EntityDestroyed sin explosión (calidad)")
-		_explode(node.position, node.click_radius)
+		_explode(node.position, node.click_radius, node.altitude)
 		node.queue_free()
 		_entities.erase(msg.entity_id)
 	if _selected == msg.entity_id:
@@ -954,7 +954,8 @@ static func _rgba(v: Variant, fallback: Color) -> Color:
 	return fallback
 
 
-func _explode(pos: Vector2, radius: float) -> void:
+## `alt`: altura de vuelo del que revienta (la explosion sale de donde estaba).
+func _explode(pos: Vector2, radius: float, alt := 0.0) -> void:
 	if Quality.level("explosion") < 1:
 		return                    # el evento sigue ocurriendo; solo no se dibuja
 	var anim := AnimatedSprite3D.new()
@@ -962,7 +963,7 @@ func _explode(pos: Vector2, radius: float) -> void:
 	anim.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	anim.shaded = false
 	anim.pixel_size = EXPLOSION_PIXEL_SIZE
-	anim.position = Vector3(pos.x, EXPLOSION_HEIGHT, pos.y)
+	anim.position = Vector3(pos.x, EXPLOSION_HEIGHT + alt, pos.y)
 	_stage.add_child(anim)
 	anim.play("boom")
 	anim.animation_finished.connect(anim.queue_free)
@@ -1036,7 +1037,7 @@ func _explode(pos: Vector2, radius: float) -> void:
 	sparks.lifetime = SPARKS_LIFETIME_SEC
 	sparks.process_material = _pm_sparks
 	sparks.draw_pass_1 = _spark_mesh()
-	sparks.position = Vector3(pos.x, EXPLOSION_HEIGHT, pos.y)
+	sparks.position = Vector3(pos.x, EXPLOSION_HEIGHT + alt, pos.y)
 	sparks.emitting = true
 	_stage.add_child(sparks)
 	sparks.finished.connect(sparks.queue_free)
@@ -1168,9 +1169,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
-				var point := _stage.to_world(get_viewport().get_mouse_position())
+				var px := get_viewport().get_mouse_position()
+				var point := _stage.to_world(px)
 				if point != Vector2.INF:
-					_handle_click(point)
+					_handle_click(point, px)
 			MOUSE_BUTTON_WHEEL_UP:
 				_stage.zoom_by_wheel(true)
 			MOUSE_BUTTON_WHEEL_DOWN:
@@ -1195,7 +1197,10 @@ func _toggle_laser() -> void:
 	_conn.send(msg.encode())
 
 
-func _handle_click(world_pos: Vector2) -> void:
+## `px`: el pixel del clic, para acertar a las entidades A SU ALTURA (una nave
+## elevada se ve desplazada de su punto en el plano). Sin pixel (autotest),
+## se busca en el plano.
+func _handle_click(world_pos: Vector2, px := Vector2.INF) -> void:
 	if _dead:
 		return                     # destruido: el mundo no acepta ordenes
 	# las cajas tienen prioridad (flujo del prototipo): volar hasta ella y
@@ -1210,7 +1215,7 @@ func _handle_click(world_pos: Vector2) -> void:
 		return
 	# ¿click sobre una entidad? seleccionar, no volar (como el prototipo).
 	# DOBLE click sobre la misma = fijarla y ATACAR, el gesto canonico del original.
-	var low := _entity_at(world_pos)
+	var low := _entity_at(world_pos, px)
 	if low != null:
 		var now := Time.get_ticks_msec()
 		var is_double: bool = low.entity_id == _last_click_ent \
@@ -1241,7 +1246,7 @@ func _handle_click(world_pos: Vector2) -> void:
 	_autopilot = Vector2.INF
 	_hold_move = true
 	_hold_timer = 0.0
-	if not _near_hero(world_pos):
+	if not _near_hero(world_pos, px):
 		_fly_to(world_pos)
 
 
@@ -1336,7 +1341,7 @@ func _box_at(world_pos: Vector2) -> int:
 ## Entidad interactuable bajo el punto. Cada entidad trae su radio de click del
 ## JSON, con el minimo del prototipo escalado por zoom (sin esto, con zoom lejano
 ## nada era clickable).
-func _entity_at(world_pos: Vector2) -> EntityNode:
+func _entity_at(world_pos: Vector2, px := Vector2.INF) -> EntityNode:
 	var best: EntityNode = null
 	var best_dist := INF
 	var min_radius := CLICK_RADIUS * _stage.units_per_pixel()
@@ -1344,7 +1349,7 @@ func _entity_at(world_pos: Vector2) -> EntityNode:
 		var e: EntityNode = _entities[id]
 		if e == _hero:
 			continue
-		var d := e.position.distance_to(world_pos)
+		var d := e.position.distance_to(_click_at_altitude(world_pos, px, e.altitude))
 		if d < maxf(e.click_radius, min_radius) and d < best_dist:
 			best = e
 			best_dist = d
@@ -1384,7 +1389,8 @@ func _process_hold_move(delta: float) -> void:
 		return
 	_hold_timer = 0.0
 	var target := _world_cursor()
-	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA and not _near_hero(target):
+	if target.distance_to(_last_sent_target) >= HOLD_MIN_DELTA \
+			and not _near_hero(target, get_viewport().get_mouse_position()):
 		_fly_to(target)
 
 
@@ -1397,8 +1403,19 @@ func _process_hold_move(delta: float) -> void:
 ## quieto) y cada eco del server se aplicaba directo. `_entity_at` ya excluye
 ## al heroe de la seleccion (linea de arriba, "if e == _hero: continue");
 ## esto es el mismo criterio aplicado al vuelo libre.
-func _near_hero(point: Vector2) -> bool:
-	return _hero != null and _hero.position.distance_to(point) < _hero.click_radius
+func _near_hero(point: Vector2, px := Vector2.INF) -> bool:
+	return _hero != null and _hero.position.distance_to(
+		_click_at_altitude(point, px, _hero.altitude)) < _hero.click_radius
+
+
+## El punto del clic llevado al plano de vuelo de una entidad: el mismo pixel
+## corta el plano y=altura en otro sitio que el plano del suelo. Sin pixel
+## (autotest) o sin altura, el punto del suelo tal cual.
+func _click_at_altitude(world_pos: Vector2, px: Vector2, alt: float) -> Vector2:
+	if px == Vector2.INF or alt == 0.0:
+		return world_pos
+	var p := _stage.to_world(px, alt)
+	return p if p != Vector2.INF else world_pos
 
 
 func _still_pressed() -> bool:
@@ -1503,7 +1520,7 @@ func _process(delta: float) -> void:
 	if _hero != null and not _at_free_camera:
 		_focus = _hero.position
 		_ship.set_text("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
-	_stage.refresh(_focus)
+	_stage.refresh(_focus, _hero.altitude if (_hero != null and not _at_free_camera) else 0.0)
 	_process_radiation(delta)
 	# El HUD (nombre/barras) se proyecta AQUI, explicitamente despues de mover
 	# la camara — nunca dentro del _process de cada EntityNode (ver el

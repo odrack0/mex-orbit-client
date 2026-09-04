@@ -41,6 +41,8 @@ var _target: EntityNode
 var _local_cannon := Vector2.ZERO
 var _since := Vector2.ZERO       # ultimas posiciones conocidas (por si mueren)
 var _until := Vector2.ZERO
+var _alt_since := 0.0            # alturas de vuelo de atacante y blanco
+var _alt_until := 0.0
 var _pattern_length: float = AssetDefs.num(DEFAULTS, "length", 96.0)
 var _quad: MeshInstance3D
 var _mat: ShaderMaterial
@@ -90,7 +92,7 @@ static func fire(attacker: EntityNode, target: EntityNode,
 
 
 func _origin3() -> Vector3:
-	return Vector3(_since.x, HEIGHT, _since.y)
+	return Vector3(_since.x, HEIGHT + _alt_since, _since.y)
 
 
 ## Reapunta el haz a donde ESTAN las naves ahora mismo.
@@ -98,13 +100,22 @@ func _follow() -> void:
 	if _attacker != null and is_instance_valid(_attacker):
 		_since = _attacker.position \
 			+ _local_cannon.rotated(deg_to_rad(_attacker.visual_angle()))
+		_alt_since = _attacker.altitude
 	if _target != null and is_instance_valid(_target):
 		_until = _target.position
-	var delta := _until - _since
-	position = Vector3(_since.x, HEIGHT, _since.y)
-	rotation.y = -delta.angle()
+		_alt_until = _target.altitude
+	# el haz une las dos naves A SU ALTURA (3-sep): el eje X del nodo va del
+	# canion al blanco en 3D, con el quad tumbado sobre la horizontal
+	# perpendicular al haz; con las dos alturas iguales es el giro plano de antes
+	var delta := Vector3(_until.x - _since.x, _alt_until - _alt_since, _until.y - _since.y)
 	var dist := maxf(delta.length(), 1.0)
-	scale = Vector3(dist, 1.0, 1.0)
+	var x_axis := delta / dist
+	var z_axis := x_axis.cross(Vector3.UP)
+	if z_axis.length_squared() < 0.000001:
+		z_axis = Vector3.FORWARD
+	z_axis = z_axis.normalized()
+	transform = Transform3D(Basis(x_axis * dist, z_axis.cross(x_axis), z_axis),
+		Vector3(_since.x, HEIGHT + _alt_since, _since.y))
 	_mat.set_shader_parameter("repeticiones", dist / _pattern_length)
 
 

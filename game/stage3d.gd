@@ -185,14 +185,16 @@ func effect_light(pos: Vector3, color: Color, energy_val: float, rango: float,
 ## de proa, solo mi nave, incluso sin tocar el mouse" — dos pruebas lo
 ## aislaron: seguia sin input (no es del control) y no le pasaba a los NPC
 ## (no los sigue la camara). Foco CONTINUO: sin el desajuste no hace falta.
-func refresh(focus: Vector2) -> void:
+## `alt`: altura del foco (la del heroe): asi la nave, que vuela por encima
+## del plano, sigue cayendo en el centro exacto de la pantalla.
+func refresh(focus: Vector2, alt := 0.0) -> void:
 	_focus = focus
 	var reduc := clampf((zoom - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN) * TILT_ZOOM_REDUCTION,
 		0.0, TILT_ZOOM_REDUCTION)
 	var t := deg_to_rad(TILT - reduc)
 	var p := deg_to_rad(pan_deg)
 	var d := DIST / zoom
-	var aim := Vector3(_focus.x, 0.0, _focus.y)
+	var aim := Vector3(_focus.x, alt, _focus.y)
 	# la camara queda del lado del ESPECTADOR (z+, el borde inferior de la
 	# pantalla) mirando hacia el fondo: x->derecha, y de juego->abajo, como el
 	# minimapa y el original
