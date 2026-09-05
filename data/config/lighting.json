@@ -1,18 +1,19 @@
 {
-  "_comment": "La luz del MUNDO y el material 3D (game/asset_defs.gd). UNA sola luz para todo lo que se ilumine: dos objetos con su propia luz se leen como dos recortes pegados. Es la luz del display3D del original (dictamen 31-ago-2026): defaults del XML <light>.",
+  "_comment": "La luz del MUNDO y el material 3D (game/asset_defs.gd). UNA sola luz para todo lo que se ilumine: dos objetos con su propia luz se leen como dos recortes pegados. Es la luz del display3D del original (dictamen 31-ago-2026; valores revisados el 5-sep-2026 contra maps-config.xml).",
+  "_correccion_5sep": "Hasta hoy esto portaba los defaults del PARSER de <light> (Map3D.as L226-232: blanco/1/0.7, ambientColor 16756398 = 0xFFAEAE, 0.2) — la rama que solo corre si al elemento le falta el atributo. Los 6 mapas 3D de maps-config.xml traen los siete atributos escritos y todos usan color 0xA3FFFF, diffuse 0.8, specular 1.1, ambientColor 0xFF855C, ambient 0.5, tilt 100, pan 35. Solo map_666 (sin <light>) caia al default. Ademas el ambient_color que teniamos, ffa5ae, no era ninguno de los dos: errata heredada del doc de guidelines.",
   "world_light": {
-    "deg": 315.0,
-    "_deg": "De donde viene la luz en grados de pantalla para el relieve 2D (0 = derecha, 90 = abajo): 315 = arriba y a la izquierda, la convencion del arte 2D.",
-    "color": "ffffff",
+    "color": "a3ffff",
+    "_color": "Cian palido del <light> real. Con el ambiente calido forma el par frio/cierra-calido del original: da color a un casco gris y despega la nave de la nebulosa naranja del fondo.",
     "energy": 1.0,
+    "_energy": "El original trae diffuse 0.8, pero ese 0.8 vive en Away3D sin tonemap filmico ni rim: portado tal cual dejaba la escena un 6% mas oscura que antes (medido en el bestiario, 5-sep). Se queda en 1.0 — el par frio/calido del color es lo que si portamos.",
     "specular": 0.7,
-    "_specular": "diffuse 1 / specular 0.7 del <light> original.",
+    "_specular": "El original trae specular 1.1, pero ese numero alimenta el BasicSpecularMethod de Away3D, no un material PBR con roughness_scale/metallic_scale encima: NO es portable. Se queda en 0.7 hasta que haya motivo medido para moverlo; si los metales se ven apagados, el sitio es metallic_scale o reflection_sky.",
     "tilt": 100.0,
     "pan": 35.0,
     "_tilt": "Direccion por la formula esferica del original: offset = (sin t sin p, -cos t, -sin t cos p) con t = tilt y p = pan, apuntando al origen y con la z espejada a Godot.",
-    "ambient_color": "ffa5ae",
-    "ambient": 0.2,
-    "_ambient": "El AMBIENTE del display3D (0xFFA5AE a 0.2): el relleno rosado tenue del original. Mas alto lava los colores de los props."
+    "ambient_color": "ff855c",
+    "ambient": 0.55,
+    "_ambient": "El AMBIENTE del display3D (0xFF855C a 0.5 en el original). Aqui a 0.55, elegido midiendo el bestiario a 0.2 / 0.4 / 0.55 / 0.7 (5-sep): con 0.2 la cara en sombra se hundia — 9 de 15 de nuestros assets tienen base color con luminancia mediana 0.13-0.22 y el unico relleno es este. A 0.4 el key cian se comia la saturacion (0.241 contra 0.268 del original); a 0.55 vuelve a 0.264 y los bichos oscuros (vexor, skarnox, mordax) recuperan forma; a 0.7 tine de crema los albedos neutros como el aci-01. Las diferencias de LUMINANCIA entre 0.4 y 0.55 quedaron dentro del ruido entre corridas: lo que se midio limpio fue la calidez y la saturacion."
   },
   "hero_light": {
     "color": "2e7dff",

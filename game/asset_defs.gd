@@ -27,16 +27,15 @@ static var _GLOW: Dictionary = CFG.get("glow", {})
 static var _REFLECTION_SKY: Dictionary = CFG.get("reflection_sky", {})
 static var _MEASURE_CAMERA: Dictionary = CFG.get("measure_camera", {})
 
-## De donde viene la luz del mundo, en grados de pantalla (0 = derecha, 90 =
-## abajo). UNA sola para todo lo que se ilumine, o el mundo se rompe: dos objetos
+## UNA sola luz para todo lo que se ilumine, o el mundo se rompe: dos objetos
 ## con su propia luz se leen como dos recortes pegados, no como dos cosas en el
 ## mismo sitio. Es la razon de que viva aqui y no en el JSON de cada asset — un
 ## dial por asset invitaria justo a eso.
 ##
-## 315 grados = arriba y a la izquierda. Es la convencion de toda la vida en arte
-## 2D, y no por capricho: el ojo humano da por supuesta la luz de arriba, y el
-## sesgo a la izquierda desambigua bulto de hueco.
-static var WORLD_LIGHT_DEG: float = num(_WORLD_LIGHT, "deg", 315.0)
+## (Aqui vivia WORLD_LIGHT_DEG, el azimut en grados de PANTALLA de la era 2D:
+## 315 = arriba y a la izquierda, la convencion del relieve de sprites. Con el
+## cliente 3D la direccion la llevan tilt/pan, y la variable ya no la leia nadie:
+## retirada el 5-sep-2026 junto con su dial `deg` en lighting.json.)
 
 ## Color, elevacion y energia de esa misma luz, para el camino 3D. Viven AQUI y no
 ## en entity_node por el motivo de arriba: son del MUNDO, no del asset. Estaban
