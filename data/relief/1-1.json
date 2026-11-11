@@ -1,0 +1,114 @@
+{
+  "_comment": "PRUEBA DE CONCEPTO del relieve en el 1-1 (ver data/config/relief.json). Un canion que sale de la zona segura de la base (2000,2000 radio 1500) hacia el centro del mapa, con un codo, un pecio atravesado por encima y rocas hondas debajo. Coordenadas: x = x de juego, z = y de juego, y = altura (positivo = hacia la camara).",
+  "start": [3700, 2330],
+  "_start": "Donde arranca la nave en la escena de prueba (tests/view_relief.tscn).",
+  "variant": "trench",
+  "_variant": "Que lectura del trazado se monta: `rocks` (dos filas de rocas sueltas) o `trench` (superficie continua con la zanja excavada). En el banco se alterna con T.",
+  "terrain": {
+    "_comment": "La TRINCHERA: una superficie generada desde el path de canyons[0]. Alturas en unidades de mundo; la nave vuela a +80.",
+    "colors": ["2e1a13", "7a4630", "b89478"],
+    "_colors": "Rampa de la roca procedural (oscuro, medio, claro). Con `tex` se usaria una textura enlosable en su lugar; las de assets/do-ref NO lo son (son atlas UV).",
+    "tex_scale": 420.0,
+    "_tex_scale": "Unidades de mundo que cubre una repeticion de la textura (triplanar).",
+    "top_fill": 0.35,
+    "_top_fill": "Relleno cenital propio del terreno: la luz del mundo llega casi horizontal y una meseta plana recibe ~17 %.",
+    "cell": 55.0,
+    "_cell": "Lado de la celda de la rejilla. Mas chico = pared mas definida y mas triangulos.",
+    "floor_y": -300.0,
+    "rim_far": 240.0,
+    "rim_near": 110.0,
+    "_rim": "Altura del borde. `far` es la pared del fondo; `near` la del lado de la camara, mas baja para que no tape el pasillo.",
+    "wall_width": 150.0,
+    "_wall_width": "Recorrido horizontal de la pared, del suelo al borde: menos = mas vertical.",
+    "outer": 1250.0,
+    "outer_fall": 500.0,
+    "deep_y": -1600.0,
+    "_outer": "A `outer` del eje el macizo empieza a desplomarse y en `outer_fall` mas llega a `deep_y`, donde la malla se corta: es una isla.",
+    "mouth_extend": 3000.0,
+    "_mouth_extend": "Cuanto se prolonga la zanja mas alla de cada extremo del trazado, para que las bocas queden abiertas.",
+    "light_y": 120.0,
+    "dark": 0.1,
+    "_dark": "Brillo del fondo de la zanja (en floor_y) respecto al borde (en light_y): el hueco se lee por esto, no por sombras.",
+    "strata": 0.5,
+    "strata_period": 70.0,
+    "_strata": "Bandas horizontales en las caras empinadas (fuerza 0-1 y alto de la banda en unidades): la pista que distingue pared de suelo.",
+    "wall_tint": "9E7A70",
+    "_wall_tint": "Las caras empinadas se multiplican por este color: mas oscuras y rojizas que lo plano.",
+    "noise": {
+      "edge_amp": 70.0, "edge_freq": 0.0035,
+      "plateau_amp": 130.0, "plateau_freq": 0.0016,
+      "floor_amp": 40.0
+    }
+  },
+  "terrain_profiles": {
+    "_comment": "Juegos de valores que pisan los de `terrain`. `chase` es el de la camara de persecucion del banco (tecla V): vista desde atras, la pared cercana baja de la cenital es un bordillo, asi que las dos suben igual y bien por encima de la nave; y el suelo se ve mucho, asi que se apaga menos.",
+    "chase": {
+      "_montana": "Aqui el macizo es una MONTANA que sale del plano de vuelo (+80), no una zanja bajo el: el suelo del canion ondula por encima de 0 y la nave lo sigue; la meseta queda a +780 y solo se sube por la rampa.",
+      "rim_far": 780.0,
+      "rim_near": 780.0,
+      "floor_y": 70.0,
+      "wall_width": 240.0,
+      "light_y": 620.0,
+      "dark": 0.38,
+      "strata_period": 90.0,
+      "mouth_ramp": 700.0,
+      "mouth_y": -150.0,
+      "_mouth": "El suelo baja suave hasta mouth_y (bajo el plano) en los ultimos mouth_ramp + outer_fall del macizo: la boca es una rampa, no un escalon.",
+      "ramps": [
+        { "from": [5200, 2688], "to": [5822, 1809], "half_width": 250.0 }
+      ],
+      "_ramps": "Corredores de pendiente constante del suelo de la zanja (from, sobre el eje) al borde (to, en la meseta). 1077 u para subir ~700: pendiente 0,65.",
+      "noise": {
+        "plateau_amp": 90.0, "plateau_freq": 0.001, "plateau_ridged": false,
+        "edge_amp": 40.0, "floor_amp": 15.0,
+        "floor_wave": 170.0, "floor_wave_scale": 0.1
+      },
+      "_noise": "Todo lo que se pisa tiene que quedar BAJO la pendiente maxima (1,0): la pendiente de un ruido es ~amplitud x 2pi x frecuencia. Meseta lisa (0,57), no en crestas; onda del suelo larga (170 u cada ~2850: 0,37); rugosidad fina 15 (0,33); y edge_amp 40 para que la pared no tenga bultos que suban hacia dentro (con 95 la nave se atoraba al bajar)."
+    }
+  },
+  "start_heading": 14,
+  "_start_heading": "Rumbo inicial de la nave en el banco, en grados (0 = +x): mirando a la boca del canion.",
+  "canyons": [
+    {
+      "seed": 11,
+      "path": [[4000, 2400], [6500, 3000], [8000, 4600]],
+      "pieces": ["rock_a", "rock_a", "rock_a", "rock_b"],
+      "back_row": {
+        "_comment": "Segunda fila: rocas mas grandes y mas hondas detras de la pared, para que el canion tenga espesor y no sea una cerca.",
+        "chance": 0.6,
+        "offset": 560.0,
+        "size": [900.0, 1500.0],
+        "y": [-750.0, -250.0]
+      }
+    }
+  ],
+  "pieces": [
+    {
+      "_note": "El pecio: una estructura atravesada sobre el pasillo. Su panza queda por encima de la nave; se pasa por debajo.",
+      "piece": "wreck",
+      "x": 5350, "y": 600, "z": 2720,
+      "size": 1500,
+      "rot_x": 8, "rot_y": 14, "rot_z": -6
+    },
+    {
+      "_note": "Rocas hondas bajo el canion: el fondo que se ve entre las paredes.",
+      "piece": "rock_b",
+      "x": 5200, "y": -2300, "z": 3100,
+      "size": 3400,
+      "rot_y": 40
+    },
+    {
+      "piece": "rock_a",
+      "x": 7400, "y": -1900, "z": 4300,
+      "size": 2600,
+      "rot_x": 30, "rot_y": 110
+    },
+    {
+      "_note": "El hito del final: una roca enorme que asoma sobre el plano y se ve desde lejos al salir del codo.",
+      "piece": "rock_a",
+      "x": 8900, "y": -500, "z": 5500,
+      "size": 2400,
+      "rot_x": -20, "rot_y": 65, "rot_z": 15
+    }
+  ]
+}

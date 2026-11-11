@@ -29,6 +29,10 @@ var autotest_mode := "loop"
 ## Lo usa la prueba para retratar la MISMA escena en los tres niveles; vacio =
 ## se respeta lo que el jugador tenga guardado.
 var forced_quality := ""
+## PRUEBA DE CONCEPTO del relieve (--relief): monta el terreno con volumen de
+## data/relief/<mapa>.json sobre el mapa. Apagado por defecto: el juego normal no
+## cambia. Ver game/relief3d.gd.
+var relief_poc := false
 
 
 func _ready() -> void:
@@ -42,6 +46,8 @@ func _ready() -> void:
 			autotest_mode = arg.trim_prefix("--mode=")
 		elif arg.begins_with("--quality="):
 			forced_quality = arg.trim_prefix("--quality=")
+		elif arg == "--relief":
+			relief_poc = true
 
 
 ## A donde llama el cliente.

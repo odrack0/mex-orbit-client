@@ -42,6 +42,7 @@ var _radiation_warning: RadiationWarning   # peligro persistente: fuera de los l
 var _in_radiation := false                # edge-trigger para el Registro
 var _focus := Vector2.ZERO     # a donde mira la camara, en coordenadas de juego
 var _backdrop3d: Backdrop3D         # el fondo completo del original (F3)
+var _relief: Relief3D               # prueba de concepto: terreno con volumen (--relief)
 var _seq := 0
 static var MAP_CFG: Dictionary = CFG.get("map", {})
 static var DEFAULT_BOUNDS: Vector2 = AssetDefs.vec2(MAP_CFG.get("default_bounds"), Vector2(20800, 12800))
@@ -200,6 +201,12 @@ func _build_backdrop(map_code: String) -> void:
 	# compuesto para esa camara), 0 en mapas planos
 	_stage.pan_deg = float(config.get("pan", 0.0))
 	_backdrop3d.build(config, _bounds, map_code.hash())
+	# PRUEBA DE CONCEPTO (--relief): terreno con volumen a la cota del juego.
+	# Solo visual; sin la bandera el mapa queda exactamente como siempre.
+	if Session.relief_poc and Relief3D.exists_for(map_code):
+		_relief = Relief3D.new()
+		_stage.add_child(_relief)
+		_relief.build(map_code)
 
 
 ## Diales del HUD (data/config/world.json, "hud"): capas, ventana Nave y linea
@@ -374,6 +381,9 @@ func _teardown_map() -> void:
 	if _backdrop3d != null:
 		_backdrop3d.queue_free()
 		_backdrop3d = null
+	if _relief != null:
+		_relief.queue_free()
+		_relief = null
 	_hero = null
 	_at_target = 0
 	_pending_box = 0
@@ -1521,6 +1531,10 @@ func _process(delta: float) -> void:
 		_focus = _hero.position
 		_ship.set_text("posicion", "(%d, %d)" % [_hero.position.x, _hero.position.y])
 	_stage.refresh(_focus, _hero.altitude if (_hero != null and not _at_free_camera) else 0.0)
+	if _relief != null:
+		# el recorte sigue a la nave: lo que quede entre ella y la camara se abre
+		var cut := _hero != null and not _at_free_camera
+		_relief.update(Vector3(_focus.x, _hero.altitude if cut else 0.0, _focus.y), cut)
 	_process_radiation(delta)
 	# El HUD (nombre/barras) se proyecta AQUI, explicitamente despues de mover
 	# la camara — nunca dentro del _process de cada EntityNode (ver el

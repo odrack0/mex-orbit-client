@@ -8,6 +8,7 @@
 #       .\tools\dev-run.ps1 -Autotest        (pasada e2e completa del loop, ~3 min)
 #       .\tools\dev-run.ps1 -Bestiario       (solo los retratos de los NPC, ~20 s)
 #       .\tools\dev-run.ps1 -Bestiario -Calidad baja   (los mismos, forzando un nivel)
+#       .\tools\dev-run.ps1 -Relieve         (cliente con la prueba de concepto del relieve)
 #       .\tools\dev-run.ps1 -Detener         (apaga api y game server)
 param(
     [switch]$SoloServicios,
@@ -15,6 +16,7 @@ param(
     [switch]$Bestiario,
     [switch]$Salto,
     [ValidateSet('', 'baja', 'media', 'alta')][string]$Calidad = '',
+    [switch]$Relieve,
     [switch]$Detener
 )
 
@@ -156,6 +158,11 @@ if ($Autotest -or $Bestiario -or $Salto) {
 }
 
 Push-Location $cliente
-Start-Process godot -ArgumentList '--path', '.'
+if ($Relieve) {
+    # prueba de concepto: terreno con volumen sobre el 1-1 (game/relief3d.gd)
+    Start-Process godot -ArgumentList '--path', '.', '--', '--relief'
+} else {
+    Start-Process godot -ArgumentList '--path', '.'
+}
 Pop-Location
 Write-Host 'Cliente lanzado (entra con las credenciales de dev_login.cfg).'

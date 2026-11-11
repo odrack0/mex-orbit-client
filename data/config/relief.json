@@ -1,0 +1,44 @@
+{
+  "_comment": "PRUEBA DE CONCEPTO (10-nov-2026): terreno con VOLUMEN sobre el plano del juego (game/relief3d.gd). La nave sigue volando en su plano; lo que cambia es que el mundo sube y baja alrededor. Solo visual: no hay colision ni huella en el servidor. Se activa con --relief (dev-run.ps1 -Relieve) o en la escena tests/view_relief.tscn. El trazado de cada mapa vive en data/relief/<code>.json.",
+  "pieces": {
+    "_comment": "Catalogo de piezas reutilizables. Cada una se normaliza: se centra en su caja y se escala para que su lado mayor mida el `size` que pide el trazado. Las mallas son las de referencia de assets/do-ref (TEMPORALES, como todo lo de esa carpeta).",
+    "rock_a": {
+      "mesh": "res://assets/do-ref/asset-mmo-phobos.obj",
+      "tex": "res://assets/do-ref/phobos.png"
+    },
+    "rock_b": {
+      "mesh": "res://assets/do-ref/cluster_mars_small_asteroid04.obj",
+      "tex": "res://assets/do-ref/asteroid.png"
+    },
+    "wreck": {
+      "mesh": "res://assets/do-ref/asset-mmo-miningstation-c.obj",
+      "tex": "res://assets/do-ref/miningstation.png"
+    }
+  },
+  "material": {
+    "roughness": 0.9,
+    "interior": 0.25,
+    "_interior": "Factor de oscurecido de la cara interior que el recorte deja a la vista (se lee como corte, no como cascara hueca)."
+  },
+  "cutaway": {
+    "_comment": "El recorte que deja ver la nave cuando una pared la tapa: cilindro alrededor de la linea camara -> heroe, solo por delante del heroe. En unidades de mundo.",
+    "radius": 170.0,
+    "feather": 70.0,
+    "_feather": "Ancho del borde tramado del agujero.",
+    "margin": 40.0,
+    "_margin": "El recorte termina esta distancia ANTES del heroe: lo que esta a su altura o detras no se toca."
+  },
+  "canyon_defaults": {
+    "half_width": 300.0,
+    "_half_width": "Semiancho libre del pasillo, del eje del trazado a la cara de la roca.",
+    "size": [520.0, 900.0],
+    "_size": "Lado mayor de cada roca de pared, sorteado en este rango.",
+    "spacing": 0.5,
+    "_spacing": "Paso entre rocas a lo largo del trazado, en fracciones del tamanio medio: menos de 1 = se solapan y la pared se lee continua.",
+    "edge_factor": 0.4,
+    "_edge_factor": "El centro de la roca se aleja del pasillo esta fraccion de su tamanio (0.5 = su cara mas saliente roza el borde).",
+    "jitter": 70.0,
+    "y": [-260.0, 40.0],
+    "_y": "Cota del CENTRO de cada roca. La nave vuela a +80: una roca de 800 centrada en -100 sube hasta +300 y baja hasta -500."
+  }
+}

@@ -1,0 +1,265 @@
+{
+  "_comment": "MINI UNIVERSO de la prueba de concepto (10-nov-2026): tres planetas —Marte, la Tierra y Venus, en ese orden hacia el sol— separados por espacio abierto, cada uno con su tematica, su relieve y sus bichos. Se abre con tests/view_relief.tscn (es su mapa por defecto; --map=1-1 vuelve al canion suelto). Coordenadas: x, y de juego (y crece hacia abajo en el minimapa); las alturas son sobre el plano de vuelo. Cada planeta es una PLACA sobre la que se vuela a ras; fuera de ellas, el plano de siempre.",
+  "bounds": [35500, 14000],
+  "start": [1950, 7250],
+  "start_heading": -35,
+  "variant": "trench",
+
+  "worlds": [
+    {
+      "name": "Marte",
+      "_tema": "Roca roja y seca. Un desfiladero que parte una meseta, un crater con su elite, una cordillera que cierra una esquina y una aguja que se ve desde todo el planeta. El planeta de arranque.",
+      "seed": 7,
+      "rect": [1200, 900, 11400, 8500],
+      "cell": 60.0,
+      "base_y": 20.0,
+      "deep_y": -1500.0,
+      "fine_amp": 10.0,
+      "wave_amp": 55.0,
+      "shore_y": -12.0,
+      "shore_width": 800.0,
+      "_shore": "La costa: en los ultimos shore_width antes del acantilado el suelo baja hasta shore_y, justo bajo el plano de vuelo. Asi se entra a la tierra desde el espacio por cualquier punto, sin escalon.",
+      "_noise": "Rugosidad fina (10 u, pendiente 0,22) y onda larga (55 u cada ~2800: 0,12). Todo lo que se pisa va bajo la pendiente maxima.",
+      "colors": ["33201a", "7d4b34", "c09c80"],
+      "tex_scale": 420.0,
+      "top_fill": 0.38,
+      "dark_y": -650.0,
+      "light_y": 40.0,
+      "dark": 0.04,
+      "_dark": "El acantilado de la costa se apaga hasta casi negro hacia abajo: tiene que leerse como el canto de una losa que flota a tu altura, no como una pared que hay que subir.",
+      "strata": 0.5,
+      "strata_period": 90.0,
+      "wall_tint": "9E7A70",
+      "plates": [ { "at": [6300, 4700], "radii": [4700, 3400], "edge": 320.0, "edge_noise": 260.0 } ],
+      "hills": [
+        { "_name": "loma del sur de la llanura", "at": [4300, 6700], "height": 150.0, "spread": 480.0 },
+        { "_name": "loma del oeste", "at": [2900, 5100], "height": 190.0, "spread": 520.0 },
+        { "_name": "otero del yermo", "at": [3300, 3300], "height": 230.0, "spread": 560.0 }
+      ],
+      "craters": [
+        { "_name": "Cuenca del Coloso", "at": [8700, 5700], "radius": 1150.0, "depth": 380.0, "rim": 90.0, "rim_width": 170.0 }
+      ],
+      "mesas": [
+        {
+          "_name": "Meseta Rota: la corta el desfiladero en dos mitades, cada una con su rampa",
+          "at": [5700, 4200], "radius": 1500.0, "height": 640.0, "edge": 230.0,
+          "ramps": [
+            { "_name": "rampa sur, desde la llanura", "toward_deg": 100.0, "half_deg": 9.0, "length": 1050.0 },
+            { "_name": "rampa norte, desde el yermo", "toward_deg": -82.0, "half_deg": 9.0, "length": 1050.0 }
+          ]
+        },
+        { "_name": "La Aguja: el hito. No se sube; se ve desde todo el planeta", "at": [4200, 2700], "radius": 150.0, "height": 1400.0, "edge": 300.0, "edge_noise": 10.0 }
+      ],
+      "ridges": [
+        {
+          "_name": "La Espina: cierra la esquina noreste; por tierra solo se cruza por el paso",
+          "path": [[7300, 1350], [8200, 2600], [9300, 3500], [11000, 4200]],
+          "height": 520.0, "core": 60.0, "width": 260.0,
+          "passes": [ { "at": [8750, 3050], "radius": 620.0 } ]
+        }
+      ],
+      "canyons": [
+        { "_name": "Desfiladero Roto", "path": [[3900, 4750], [5200, 4450], [6100, 3850], [7500, 3600]], "half_width": 280.0, "wall_width": 230.0, "depth": 0.0 }
+      ]
+    },
+
+    {
+      "name": "Tierra",
+      "_tema": "Verde y agua. Praderas onduladas, un mar interior que se sobrevuela, una cordillera nevada con un solo paso y, detras, la tundra. Bichos mansos en la pradera, manadas en el frio y un guardian en las ruinas del altiplano.",
+      "seed": 23,
+      "rect": [14000, 4500, 23600, 12700],
+      "cell": 60.0,
+      "base_y": 20.0,
+      "deep_y": -1500.0,
+      "fine_amp": 9.0,
+      "wave_amp": 60.0,
+      "shore_y": -12.0,
+      "shore_width": 800.0,
+      "colors": ["1c2616", "476a38", "a9b97c"],
+      "tex_scale": 420.0,
+      "top_fill": 0.36,
+      "dark_y": -650.0,
+      "light_y": 40.0,
+      "dark": 0.04,
+      "strata": 0.45,
+      "strata_period": 100.0,
+      "wall_tint": "8B8D84",
+      "sea": { "name": "agua", "y": -60.0, "color": "1d5fa8", "emission": 0.12 },
+      "_sea": "Lo que queda bajo y = -60 se llena y queda plano: el mar se sobrevuela. Tiene que quedar por debajo de shore_y o se inundaria la costa.",
+      "snow": { "y": 480.0, "color": "f2f4f7" },
+      "plates": [ { "at": [18800, 8600], "radii": [4300, 3600], "edge": 320.0, "edge_noise": 240.0 } ],
+      "hills": [
+        { "at": [16200, 9800], "height": 220.0, "spread": 600.0 },
+        { "at": [20600, 9300], "height": 260.0, "spread": 650.0 },
+        { "at": [17400, 11000], "height": 180.0, "spread": 520.0 },
+        { "at": [21300, 7800], "height": 200.0, "spread": 560.0 },
+        { "at": [15700, 8000], "height": 160.0, "spread": 500.0 }
+      ],
+      "craters": [
+        { "_name": "Mar Interior: una cuenca ancha que el agua llena", "at": [18300, 8900], "radius": 1500.0, "depth": 420.0, "rim": 0.0, "rim_width": 200.0 }
+      ],
+      "mesas": [
+        {
+          "_name": "Altiplano de las Ruinas",
+          "at": [21000, 10600], "radius": 800.0, "height": 420.0, "edge": 200.0,
+          "ramps": [ { "_name": "rampa oeste", "toward_deg": 195.0, "half_deg": 13.0, "length": 800.0 } ]
+        }
+      ],
+      "ridges": [
+        {
+          "_name": "Cordillera Blanca: separa la pradera de la tundra; nevada en lo alto",
+          "path": [[14200, 6900], [15600, 6400], [17200, 5900], [19000, 6200], [20600, 5700], [22300, 6600], [23500, 7000]],
+          "height": 760.0, "core": 80.0, "width": 320.0,
+          "passes": [ { "at": [18100, 6050], "radius": 720.0 } ]
+        }
+      ],
+      "canyons": []
+    },
+
+    {
+      "name": "Venus",
+      "_tema": "Azufre y fuego. Suelo amarillo, lagos y un rio de lava que QUEMAN al sobrevolarlos, y un volcan que se sube andando hasta la caldera donde vive la Matriarca. El planeta mas duro.",
+      "seed": 41,
+      "rect": [26100, 2100, 34300, 9100],
+      "cell": 60.0,
+      "base_y": 20.0,
+      "deep_y": -1500.0,
+      "fine_amp": 12.0,
+      "wave_amp": 45.0,
+      "shore_y": -12.0,
+      "shore_width": 700.0,
+      "colors": ["3b2508", "a9761d", "ead062"],
+      "tex_scale": 380.0,
+      "top_fill": 0.46,
+      "dark_y": -650.0,
+      "light_y": 40.0,
+      "dark": 0.04,
+      "strata": 0.5,
+      "strata_period": 70.0,
+      "wall_tint": "A07A40",
+      "sea": { "name": "lava", "y": -70.0, "color": "ff5a10", "emission": 2.4, "damage_per_sec": 170.0 },
+      "_sea": "Lava: misma mecanica que el mar de la Tierra, pero encendida y con danio por segundo mientras la sobrevuelas. Cruzar el rio cuesta casco.",
+      "plates": [ { "at": [30200, 5600], "radii": [3600, 3000], "edge": 300.0, "edge_noise": 220.0 } ],
+      "hills": [
+        { "_name": "Monte Azufre: un volcan que se sube (pendiente 0,6)", "at": [30800, 5000], "height": 760.0, "spread": 780.0 },
+        { "at": [28000, 4200], "height": 240.0, "spread": 520.0 },
+        { "at": [32400, 6000], "height": 200.0, "spread": 480.0 }
+      ],
+      "craters": [
+        { "_name": "La Caldera, en la cima del volcan", "at": [30800, 5000], "radius": 380.0, "depth": 230.0, "rim": 60.0, "rim_width": 110.0 },
+        { "_name": "Lago de Fuego", "at": [28600, 6600], "radius": 700.0, "depth": 260.0, "rim": 30.0, "rim_width": 150.0 },
+        { "_name": "lago del este", "at": [31900, 7300], "radius": 600.0, "depth": 240.0, "rim": 30.0, "rim_width": 140.0 },
+        { "_name": "lago del norte", "at": [29300, 3900], "radius": 550.0, "depth": 230.0, "rim": 30.0, "rim_width": 140.0 }
+      ],
+      "mesas": [],
+      "ridges": [
+        { "_name": "Los Dientes: una cresta corta; se rodea", "path": [[31800, 3300], [32700, 4300], [33000, 5600]], "height": 420.0, "core": 50.0, "width": 240.0, "passes": [] }
+      ],
+      "canyons": [
+        { "_name": "Rio de Lava: un cauce hundido que la lava llena", "path": [[27300, 5200], [28500, 5000], [29400, 5600], [29700, 6900], [30600, 8000]], "half_width": 200.0, "wall_width": 260.0, "depth": 160.0, "edge_noise": 25.0 }
+      ]
+    }
+  ],
+
+  "zones": [
+    { "name": "Puesto Umbral", "note": "zona segura · orbita de Marte", "x": 1500, "y": 7700, "r": 950 },
+    { "name": "Llanura de Ceniza", "note": "Marte · Vex: no atacan si no los tocas", "x": 3600, "y": 5900, "r": 1450 },
+    { "name": "Yermo de la Aguja", "note": "Marte · Skarn", "x": 4200, "y": 2800, "r": 1300 },
+    { "name": "Desfiladero Roto", "note": "Marte · Vexor: emboscan dentro del canion", "x": 5650, "y": 4130, "r": 820 },
+    { "name": "Mirador de la Meseta", "note": "Marte · se sube por la rampa sur", "x": 5800, "y": 5000, "r": 600 },
+    { "name": "Cuenca del Coloso", "note": "Marte · elite", "x": 8700, "y": 5700, "r": 1250 },
+    { "name": "El Nido", "note": "Marte · Mordax: peligro alto. Por tierra, solo por el paso de La Espina", "x": 9700, "y": 2700, "r": 1000 },
+
+    { "name": "Campo de Escombros", "note": "espacio abierto entre Marte y la Tierra · Vorax", "x": 12700, "y": 7500, "r": 1500 },
+
+    { "name": "Estacion Gaia", "note": "zona segura · orbita de la Tierra", "x": 14300, "y": 11700, "r": 950 },
+    { "name": "Praderas de Gaia", "note": "Tierra · Gravit: mansos", "x": 16300, "y": 9300, "r": 1500 },
+    { "name": "Mar Interior", "note": "Tierra · se sobrevuela", "x": 18300, "y": 8900, "r": 1000 },
+    { "name": "Paso Blanco", "note": "Tierra · el unico cruce de la cordillera", "x": 18100, "y": 6050, "r": 520 },
+    { "name": "Tundra del Norte", "note": "Tierra · manadas de Ferox", "x": 18800, "y": 5300, "r": 700 },
+    { "name": "Altiplano de las Ruinas", "note": "Tierra · elite: el Guardian", "x": 21000, "y": 10600, "r": 850 },
+
+    { "name": "Cementerio de Naves", "note": "espacio abierto entre la Tierra y Venus", "x": 25000, "y": 7300, "r": 1500 },
+
+    { "name": "Llanos de Azufre", "note": "Venus · la lava quema al sobrevolarla", "x": 28200, "y": 5400, "r": 1300 },
+    { "name": "Lago de Fuego", "note": "Venus · lava", "x": 28600, "y": 6600, "r": 720 },
+    { "name": "Monte Azufre", "note": "Venus · el volcan se sube andando", "x": 30800, "y": 5000, "r": 1100 },
+    { "name": "La Caldera", "note": "Venus · elite: la Matriarca", "x": 30800, "y": 5000, "r": 400 },
+    { "name": "Costa Ardiente", "note": "Venus", "x": 32000, "y": 7200, "r": 900 }
+  ],
+  "safe_zones": [ { "x": 1500, "y": 7700, "r": 950 }, { "x": 14300, "y": 11700, "r": 950 } ],
+
+  "npcs": [
+    { "_planeta": "MARTE", "code": "vex", "x": 3100, "y": 5800, "aggressive": false },
+    { "code": "vex", "x": 3700, "y": 6300, "aggressive": false },
+    { "code": "vex", "x": 4100, "y": 5600, "aggressive": false },
+    { "code": "vex", "x": 3400, "y": 5300, "aggressive": false },
+    { "code": "vex", "x": 4500, "y": 6200, "aggressive": false },
+    { "code": "skarn", "x": 3900, "y": 3200 },
+    { "code": "skarn", "x": 4750, "y": 2450 },
+    { "code": "vexor", "x": 4950, "y": 4500 },
+    { "code": "vexor", "x": 5700, "y": 4110 },
+    { "code": "vexor", "x": 6500, "y": 3770 },
+    { "code": "vexor", "x": 5900, "y": 5100, "aggressive": false },
+    { "code": "skarn", "x": 8250, "y": 5300 },
+    { "code": "skarn", "x": 9150, "y": 6150 },
+    { "code": "skarnox", "x": 8700, "y": 5700, "name": "Coloso", "elite": true, "hp": 20000, "damage": 320 },
+    { "code": "mordax", "x": 9500, "y": 2500, "hp": 7000, "damage": 220 },
+    { "code": "mordax", "x": 10000, "y": 2900, "hp": 7000, "damage": 220 },
+    { "code": "mordax", "x": 9350, "y": 2250, "hp": 7000, "damage": 220 },
+
+    { "_lugar": "ESPACIO: Campo de Escombros", "code": "vorax", "x": 12400, "y": 7300, "hp": 6000, "damage": 180 },
+    { "code": "vorax", "x": 13100, "y": 7800, "hp": 6000, "damage": 180 },
+
+    { "_planeta": "TIERRA", "code": "gravit", "x": 16000, "y": 9500, "aggressive": false, "hp": 3000 },
+    { "code": "gravit", "x": 16600, "y": 10200, "aggressive": false, "hp": 3000 },
+    { "code": "gravit", "x": 15900, "y": 8300, "aggressive": false, "hp": 3000 },
+    { "code": "gravit", "x": 17000, "y": 10900, "aggressive": false, "hp": 3000 },
+    { "code": "gravit", "x": 16300, "y": 7600, "aggressive": false, "hp": 3000 },
+    { "code": "gravon", "x": 19950, "y": 8300, "aggressive": false, "hp": 9000, "damage": 200 },
+    { "code": "gravon", "x": 18500, "y": 10650, "aggressive": false, "hp": 9000, "damage": 200 },
+    { "code": "ferox", "x": 17100, "y": 5350, "hp": 5000, "damage": 160 },
+    { "code": "ferox", "x": 18800, "y": 5400, "hp": 5000, "damage": 160 },
+    { "code": "ferox", "x": 19200, "y": 5250, "hp": 5000, "damage": 160 },
+    { "code": "ferox", "x": 20300, "y": 5250, "hp": 5000, "damage": 160 },
+    { "code": "gravon", "x": 21000, "y": 10600, "name": "Guardian", "elite": true, "hp": 18000, "damage": 280 },
+
+    { "_lugar": "ESPACIO: Cementerio de Naves", "code": "aci-04", "x": 24700, "y": 7100, "hp": 6500, "damage": 200 },
+    { "code": "aci-04", "x": 25400, "y": 7600, "hp": 6500, "damage": 200 },
+
+    { "_planeta": "VENUS", "code": "aci-01", "x": 27800, "y": 5900, "hp": 6000, "damage": 190 },
+    { "code": "aci-01", "x": 28300, "y": 4500, "hp": 6000, "damage": 190 },
+    { "code": "aci-01", "x": 29900, "y": 4500, "hp": 6000, "damage": 190 },
+    { "code": "aci-01", "x": 29000, "y": 7700, "hp": 6000, "damage": 190 },
+    { "code": "aci-02", "x": 31300, "y": 6500, "hp": 8000, "damage": 240 },
+    { "code": "aci-02", "x": 32700, "y": 6700, "hp": 8000, "damage": 240 },
+    { "code": "aci-02", "x": 31000, "y": 8000, "hp": 8000, "damage": 240 },
+    { "code": "aci-03", "x": 30150, "y": 5650, "hp": 10000, "damage": 280 },
+    { "code": "aci-03", "x": 31550, "y": 4550, "hp": 10000, "damage": 280 },
+    { "code": "aci-05", "x": 30800, "y": 5000, "name": "Matriarca", "elite": true, "hp": 26000, "damage": 380 }
+  ],
+
+  "models": [
+    { "_note": "La estacion del puesto de Marte, en espacio abierto frente a su costa suroeste.", "prop": "station", "x": 1500, "z": 7700, "y": 0, "size": 1100 },
+    { "_note": "La estacion de la Tierra, frente a su costa suroeste.", "prop": "station", "x": 14300, "z": 11700, "y": 0, "size": 1100, "rot_y": 40 }
+  ],
+
+  "scatter": [
+    {
+      "_name": "Campo de Escombros: rocas sueltas entre Marte y la Tierra. Solo visuales (se atraviesan).",
+      "seed": 21, "at": [12700, 7500], "radius": 1400.0, "count": 30,
+      "pieces": ["rock_a", "rock_a", "rock_b"], "size": [260.0, 900.0], "y": [-380.0, 460.0]
+    },
+    {
+      "_name": "Cementerio de Naves: pecios y roca entre la Tierra y Venus.",
+      "seed": 34, "at": [25000, 7300], "radius": 1400.0, "count": 16,
+      "pieces": ["wreck", "wreck", "rock_a"], "size": [500.0, 1500.0], "y": [-420.0, 520.0]
+    }
+  ],
+
+  "pieces": [
+    { "_note": "El pecio, atravesado sobre el desfiladero de Marte a la altura de la meseta.", "piece": "wreck", "x": 5680, "y": 760, "z": 4120, "size": 1500, "rot_x": 6, "rot_y": 58, "rot_z": -5 },
+    { "_note": "La roca grande del campo de escombros: el hito entre Marte y la Tierra.", "piece": "rock_a", "x": 13300, "y": -250, "z": 8100, "size": 2100, "rot_x": -20, "rot_y": 65, "rot_z": 15 },
+    { "_note": "Las ruinas del altiplano de la Tierra.", "piece": "wreck", "x": 21000, "y": 640, "z": 10450, "size": 900, "rot_x": 18, "rot_y": 110, "rot_z": 9 }
+  ]
+}

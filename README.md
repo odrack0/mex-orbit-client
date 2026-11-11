@@ -1510,3 +1510,460 @@ firmar).
 - **`res://logs/` no funciona en un export.** `res://` es de solo lectura fuera del editor, así que
   `anomalias.log` no se escribe en el cliente nativo. Si ese log importa, tiene que mudarse a
   `user://`.
+
+## Terreno con volumen — prueba de concepto (10-nov-2026)
+
+**No es una función del juego: es una pregunta.** ¿Se sostiene un mundo con relieve —paredes que
+suben por encima de la nave, estructuras que se cruzan por arriba, rocas hondas debajo— bajo la
+cámara de siempre y sin tocar el movimiento? La nave sigue volando en su plano y el servidor no se
+entera de nada. Sale de la discusión de diseño de noviembre: que cada mapa sea un *lugar* con
+geografía, no un fondo con una tabla de spawns.
+
+Apagado por defecto. Dos formas de verlo:
+
+```bash
+# banco sin servidor ni login: el 1-1, el cañón y una Phoenix que vuela con el ratón
+godot --path . res://tests/view_relief.tscn
+
+# el cliente de verdad, con tu nave y el control real
+.\tools\dev-run.ps1 -Relieve        # = godot --path . -- --relief
+```
+
+En el banco: click = ir ahí · `W` avanzar · `S` frenar · `A`/`D` girar · `Q`/`E` de lado · rueda = zoom ·
+**`T` = rocas sueltas / trinchera** · **`V` = cámara cenital / de persecución** ·
+**`F` = altura fija / sigue el terreno** · `C` = recorte sí/no · `R` = relieve sí/no. Combate: click en
+un bicho = seleccionar (otra vez = atacar) · `TAB` = siguiente · `ESPACIO` = atacar / parar. En persecución se vuela con clicks como en DarkOrbit (la cámara no gira sola), el botón derecho gira
+la cámara, `G` decide si al atacar sigue al objetivo, `1`/`2` y `3`/`4` son diales en vivo y `X` los
+devuelve a fábrica.
+Argumentos: `--at=x,y`, `--zoom=`, `--heading=`, `--cam=chase`, `--pitch=`, `--variant=rocks|trench`,
+`--fight` (ataca sola al más cercano; `--fight=N` al bicho N), `--shot=ruta` (captura y sale),
+`--seconds=`, `--cut=0`, `--relief=0` (la línea base), `--follow=0`
+(altura fija), `--dest=x,y` (vuela ahí sola y al salir imprime `FINAL: pos … altura … BLOQUEADA|libre`:
+es como se verifica el terreno sin manos) y `--novsync` (para que los fps signifiquen algo).
+
+### Dónde vive cada cosa
+
+| Qué | Dónde |
+|---|---|
+| Montaje (cañón procedural + piezas sueltas) | `game/relief3d.gd` (`Relief3D`) |
+| Material de las rocas, con recorte | `game/shaders/relief_cutaway.gdshader` |
+| Material de la trinchera (triplanar, estratos, fondo oscuro, recorte) | `game/shaders/relief_terrain.gdshader` |
+| Diales y catálogo de piezas | `data/config/relief.json` |
+| Trazado del mapa | `data/relief/<code>.json` (**no** en `data/maps/`: el taller lista esa carpeta como mapas) |
+| Enganche al juego | `Session.relief_poc` (`--relief`) → `world.gd` `_build_backdrop` / `_process` |
+
+Vive **aparte del `Backdrop3D`** a propósito: el fondo está lejos y es decorado; el relieve está a la
+cota del juego y es lugar — si esto sigue, lleva huella de colisión, línea de visión y marca en el
+minimapa, y nada de eso es del fondo.
+
+### Dos lecturas del mismo trazado: `rocks` y `trench`
+
+La primera versión (`rocks`) sembraba rocas sueltas a los lados del eje, y volándola **no se leía
+como cañón sino como rocas gigantes flotando**. Cuatro causas, todas medibles en la captura: no hay
+superficie continua (entre roca y roca se ve el cielo), no hay suelo, todo está igual de iluminado
+arriba que abajo, y cada roca gira al azar.
+
+La segunda (`trench`, la que monta `variant` en `data/relief/1-1.json`) ataca las cuatro a la vez:
+**una sola superficie generada desde un mapa de alturas**, con la zanja excavada. `Relief3D._height()`
+es la función entera — suelo cerca del eje, pared que cruza el plano de vuelo a `half_width`, meseta
+rugosa más allá y desplome a `outer` (es una isla, no un piso infinito). Lo que importa de ella no es
+el dibujo: **donde la altura supera el plano de vuelo, no se pasa**, así que la huella del servidor,
+la línea de disparo y el minimapa saldrían de la misma función, sin trazar nada aparte.
+
+Lecciones de montarla, cada una costó una captura fea:
+
+- **Una pared que mira a la cámara se lee como piso.** Con la vista a 45° la cara del fondo se ve de
+  frente y ocupa media pantalla; sin pistas es «suelo con textura». Las pistas viven en el shader:
+  la cara empinada va más oscura y rojiza (`wall_tint`), lleva estratos horizontales marcados
+  (`strata` 0,5 cada `strata_period` 70 u) y el fondo se apaga con la profundidad (`dark` 0,1).
+- **La pared del lado de la cámara va más baja** (`rim_near` 110 contra `rim_far` 240): se ve por
+  detrás y taparía el pasillo. A +110 sigue por encima de la nave (+80) —no se pasa— y casi no tapa.
+- **Las texturas de `assets/do-ref` no sirven de roca enlosable**: son atlas UV de sus mallas, y en
+  triplanar salían como fotos de asteroides pegadas al suelo. La roca es procedural
+  (`_rock_texture`: ruido enlosable por una rampa de tres tonos, `colors`), a dos escalas para
+  romper la repetición.
+- **La luz del mundo llega casi horizontal** (tilt 100: está pensada para naves vistas de lado) y
+  una meseta plana recibe ~17 %. El terreno lleva un relleno cenital propio (`top_fill` 0,35). Es
+  una desviación consciente de «una sola luz para todo»: si esto sigue, hay que decidirla de verdad.
+- **Las bocas se abren prolongando el eje** (`mouth_extend`) solo para la zanja, no para el macizo;
+  si no, cada extremo del trazado cierra en fondo de saco.
+- **Menos desnivel se lee mejor**: con 700 u de pared (suelo −420, borde +280) la cara del fondo se
+  comía la pantalla; quedó en 540 (−300 / +240).
+
+### La otra pregunta: ¿y si lo que sobra es la cámara cenital? (`V` en el banco)
+
+Con la trinchera montada, el veredicto en vivo fue que el cañón «se ve bien pero se siente forzado»:
+bajo una vista desde arriba el relieve no destaca. Las tres cosas que fallaron —no hay horizonte, la
+pared que mira a la cámara se lee como piso, la pared cercana estorba— son la misma: **la vista
+cenital aplana justo lo que hace que un lugar sea un lugar**.
+
+El banco lleva por eso una segunda cámara, **de persecución**: detrás y por encima de la nave,
+mirando por delante de ella, FOV 60. **El movimiento no cambia**: la nave sigue en su plano, igual
+que un personaje de WoW camina sobre el suelo — es un mundo 3D recorrido en dos ejes y mirado en
+tercera persona. Servidor, combate y red se quedarían en 2D; lo que se rehace es cliente (cámara,
+control, selección, minimapa) y, sobre todo, **arte de mundo**: ver lejos obliga a llenar lo lejano.
+
+Lo que enseñan las capturas, con el mismo trazado y las mismas piezas:
+
+- Dentro de la zanja las paredes **son paredes**, el pecio se ve venir atravesado por encima y la
+  roca del final asoma al fondo del pasillo.
+- Desde 2 500 u de distancia el macizo entero se recorta contra el cielo con la boca del cañón a la
+  vista: **el hito se ve de lejos**, que es lo que el relieve solo no pudo dar.
+- Pide **otro terreno** que la cenital: desde atrás la pared cercana baja es un bordillo. El perfil
+  `terrain_profiles.chase` de `data/relief/1-1.json` sube las dos paredes a +520 (440 sobre la
+  nave) y apaga menos el suelo, que ahora se ve mucho. `Relief3D.build(mapa, "chase")`.
+- 44,2 fps en (4700, 2565), contra 30,5 de la cenital con trinchera en el mismo sitio: llena menos
+  pantalla de terreno. Una corrida, mismo ruido de ±3.
+
+La cámara vive **solo en el banco** (`tests/view_relief.gd`, constantes `CHASE_*`), pisando la de
+`Stage3D` después de su `refresh`. Son valores de primera pasada para juzgar la vista, no una
+calibración. El cliente real no la tiene. Adoptarla revierte el dictamen del 29-ago (replicar la
+cámara del cliente 3D de DarkOrbit) y todo lo calibrado contra él: es una decisión de diseño, no un
+ajuste.
+
+### La altura la pone el lugar (`F` en el banco)
+
+La tercera idea que salió de mirar WoW: allí el mundo es 3D completo, pero **casi siempre te mueves
+en dos ejes** — tú dices hacia dónde y el suelo dice a qué altura. Aquí igual: la nave sigue dando
+solo (x, y) y su altura es `max(altura_del_terreno + 80, 80)`. Fuera del macizo es el plano de
+siempre; dentro, sube y baja con el lugar. El servidor seguiría en 2D.
+
+- **La pendiente decide qué es rampa y qué es pared.** Subir más empinado que `MAX_SLOPE` (1,0 = 45°)
+  no se puede; bajar siempre (la nave se deja caer, la altura la alcanza con retraso). Pilotando con
+  `W` resbala a lo largo de la pared; yendo a un click, se detiene.
+- **El perfil `chase` es una montaña, no una zanja**: el suelo del cañón ondula por encima del plano
+  (+70 ± 170), la meseta queda a +780 y **solo se sube por la rampa** (`ramps`: un corredor de
+  pendiente constante 0,65 excavado en la pared norte). La boca es otra rampa (`mouth_ramp`).
+- **Todo lo que se pisa tiene que quedar bajo la pendiente máxima**, y la pendiente de un ruido es
+  ~amplitud × 2π × frecuencia. La primera versión no lo cumplía y la nave se atoraba en sitios que
+  parecían planos: la onda del suelo daba 1,1; las crestas (ridged) de la meseta, más de 3; y el
+  ruido del borde (95 u) le hacía bultos a la pared que **subían hacia dentro**, así que tampoco se
+  podía bajar por ahí. Quedó: onda larga 0,37, rugosidad fina 0,33, meseta lisa 0,57, borde 40.
+- `Relief3D.height_at(p)` es la consulta. Hoy las alturas salen de `FastNoiseLite`, que el servidor
+  (C#) no puede reproducir: si esto sigue, el mapa de alturas tiene que ser un **archivo compartido**,
+  no una función de Godot.
+- Un mapa de alturas da **una altura por punto**: no hay puentes con paso por debajo ni túneles. El
+  pecio se cruza por debajo porque es una pieza suelta, no terreno.
+
+Verificado con `--dest` (10-nov): sube la rampa entera (altura 859), la pared norte la detiene,
+recorre el cañón, entra por la boca, cruza la meseta y cae de la meseta al suelo del cañón. Cruzar
+en diagonal sobre el corredor de la rampa la detiene en su pared lateral — es terreno, no un fallo.
+
+### El combate con la cámara detrás (`tests/relief_combat.gd`)
+
+Era el riesgo mayor de la cámara de persecución: DarkOrbit se pelea seleccionando y disparando con
+todo el campo a la vista, y desde atrás solo se ve un cono. El banco lleva lo mínimo para juzgarlo —
+seis bichos (los modelos del bestiario), selección con click, `TAB` al siguiente por cercanía,
+`ESPACIO` para atacar, láser cada segundo a 650 u, y bichos que te ven, te siguen y devuelven el
+fuego. Todo local y de mentira: sin servidor, sin escudos, sin munición.
+
+Lo que la vista cenital da gratis y aquí hubo que construir:
+
+- **El objetivo puede estar fuera de cuadro.** Un indicador en el borde de la pantalla dice hacia
+  dónde y a qué distancia; también sale ahí cualquiera que te esté atacando aunque no lo tengas
+  seleccionado. Detrás de la cámara la proyección sale espejada: hay que invertirla.
+- **El terreno tapa.** `line_of_sight()` camina la recta entre los dos y la compara con
+  `height_at()`: sin visual no dispara nadie, ni tú ni ellos. Solo tapa el TERRENO; el pecio y las
+  rocas sueltas no. Esto no es un estorbo de la cámara: es la primera vez que el lugar entra en la
+  pelea (el bicho de la meseta no te alcanza en el fondo del cañón, y tú a él tampoco).
+- **El radio de click es el del bicho proyectado, con un mínimo de 26 px**: de lejos un bicho son
+  10 px y no se le atina.
+
+Verificado con `--fight` (ataca sola; al salir imprime `COMBATE: disparos … bajas … sin linea de
+vision …`): mata un Vex en espacio abierto y un Vexor dentro del cañón en 7 disparos; desde el pie
+de la pared norte el Skarnox de la meseta queda a 600 u, dentro de alcance, y los 15 intentos se
+niegan por línea de visión; con el objetivo a la espalda dispara igual.
+
+Lo que las capturas dejan ver y **no** está resuelto:
+
+- **Un enemigo a tu espalda queda entre la cámara y la nave**, enorme en primer plano. Se lee, pero
+  estorba; pide que la cámara se aparte o gire hacia la pelea.
+- **La diferencia de altura saca al objetivo de cuadro**: desde una ladera, un bicho 400 u más abajo
+  cae bajo el borde inferior aunque esté a 380 u en el plano.
+- **La nave no encara al objetivo.** En DarkOrbit tampoco hace falta, pero desde atrás un láser que
+  sale hacia la cámara se lee raro.
+- Lo que solo se sabe pilotando: si `TAB` y el indicador de borde bastan para pelear contra tres a la
+  vez, y si el click acierta con la nave en movimiento.
+
+### El movimiento: la primera pasada se sentía mal, y por qué
+
+Veredicto en vivo tras el combate: «la jugabilidad es muy mala, la nave se mueve extraño, muy
+rápido». Tenía cuatro causas, y ninguna era la velocidad del catálogo:
+
+- **La proporción que manda es velocidad / distancia de cámara.** En WoW se corre a 7 yardas/s
+  (dato de su wiki) con la cámara a unas 15 (de memoria, sin fuente): 0,47 distancias de cámara por
+  segundo. El banco tenía 320 u/s con la cámara a 430 y FOV 60: 0,74, un 60 % más rápido a la vista
+  que un personaje de WoW con la MISMA velocidad real. Con la cámara a 700, elevación 24° y FOV 50
+  queda en 0,46. **La velocidad no se tocó.**
+- **Mantener el click era perseguirse la cola**: la orden seguía al cursor, la nave giraba, la
+  cámara giraba detrás y el cursor volvía a quedar a un lado. En persecución el click es UNA orden;
+  en cenital mantenerlo sigue funcionando como siempre.
+- **La nave era un modelo pelado**: rumbo en seco, velocidad en seco, sin alabeo. Ahora lleva los
+  diales del cliente real (`entity.json`: `turn.time` 0,2 y `bank` 20°/0,2), acelera y frena
+  (1000 / 1400 u/s²) y se detiene a tiempo en el destino.
+- **La cámara giraba con la nave aunque estuviera parada.** Ahora sigue el rumbo solo en movimiento
+  (el «smart» de WoW) y más despacio (1,8).
+
+Control al estilo WoW: `W` avanza, `S` frena, `A`/`D` giran a 90°/s (WoW gira a 180°/s con teclado;
+una nave pide menos), `Q`/`E` desplazan de lado, y **el botón derecho gobierna la nave con el
+ratón**. Diales en vivo para calibrar por sensación en vez de recompilar: `1`/`2` velocidad, `3`/`4`
+campo de visión, rueda distancia, botón derecho arriba/abajo elevación, `X` valores de fábrica; los
+valores salen en pantalla.
+
+**Al atacar, la cámara gira hacia el objetivo** (`_chase_camera`): se coloca 22° por encima del
+hombro —justo detrás, la nave tapa al objetivo—, se aleja la mitad de la distancia que los separa
+(tope 520) y mira al 40 % del tramo nave → objetivo. La nave encara al objetivo aunque se desplace
+hacia otro lado, como en el juego. Además la cámara ya no se mete en el terreno: sube si la
+superficie queda por encima.
+
+Sin resolver: un enemigo que te persigue **sin estar seleccionado** sigue quedando entre la cámara y
+la nave; y estos valores son mi lectura de proporciones ajenas, no una calibración — la sensación la
+decide quien pilota, con los diales.
+
+### Volar con clicks, como DarkOrbit, con la cámara baja
+
+Probando lo anterior salió la petición que importa: conservar el movimiento de DarkOrbit — clicks
+cerca y lejos de la nave, en cualquier dirección, y el giro clásico alrededor de un bicho. Es
+compatible con la cámara de persecución con una condición: **la cámara no puede girar sola con la
+nave**. Si gira, el suelo «de atrás» nunca está en pantalla y mantener el click es perseguirse la cola.
+
+Así que el reparto quedó como en WoW:
+
+- **Click izquierdo (o mantenerlo) = volar ahí.** La cámara no se mueve. Mira casi a la nave
+  (`CHASE_LOOK_AHEAD` 60, no 200) para que quede suelo clicable detrás de ella.
+- **Botón derecho = girar la cámara**, sin tocar la nave.
+- Solo **pilotando con teclado** (`W`/`A`/`D`, órdenes relativas al rumbo) la cámara se alinea detrás.
+- Dos casos que la cenital no tiene (`_order_to`): cerca del horizonte el punto bajo el cursor cae
+  lejísimos y sobre el horizonte no cae en ninguna parte. En ambos la orden es «hacia allá»: la
+  dirección del click, a `ORDER_MAX` (2600) de la nave.
+
+**El giro alrededor de un bicho.** Al atacar la cámara sigue al objetivo (`G` lo quita) y se coloca
+exactamente detrás de la nave respecto a él — ya no ladeada: para que la nave no lo tape, sube 12°
+(`COMBAT_TILT_DEG`). Con eso el cursor mantenido **a un lado de la nave** es siempre «perpendicular
+al objetivo» y la nave lo rodea; más arriba en pantalla cierra el círculo, más abajo lo abre. No hay
+que dibujar el círculo con el ratón como en DarkOrbit: se mantiene el cursor en un sitio. Con `G`
+apagada la cámara queda fija y el giro se hace a la manera clásica, moviendo el cursor alrededor.
+
+Medido con `--hold=fx,fy` (cursor mantenido en esa fracción de pantalla) contra el Gravon, en
+espacio despejado, 8 s (al salir imprime `ORBITA: grados … entre … u`):
+
+| cursor | giro | distancia al objetivo | resultado |
+|---|---|---|---|
+| derecha, a media altura (0,72 · 0,50) | 462° | 213–331 u | lo mata |
+| derecha, algo más abajo (0,72 · 0,60) | 304° | 304–379 u | lo mata |
+| izquierda, misma fila (0,28 · 0,60) | 289° | 331–379 u | lo mata |
+| derecha, abajo (0,72 · 0,72) | 71° | 331–379 u | lo mata |
+
+Simétrico a izquierda y derecha. La primera versión, con la cámara ladeada 22°, no lo era (709°
+contra 71°) y cerraba en espiral hasta 33 u del bicho. Click bajo la nave → vuela hacia atrás; click
+al cielo → vuela de frente hasta topar con el macizo. Junto al borde del macizo el terreno corta la
+órbita (pared): es terreno, no un fallo.
+
+### Combate con manos: esquiva, golpes anunciados y habilidades (`tests/relief_skills.gd`)
+
+La pregunta era cómo hacerlo «más moderno». Lo que hoy se siente viejo no es la cámara ni el mundo,
+es lo que haces minuto a minuto: seleccionar un bicho y esperar a que el láser lo mate. Esta capa se
+monta ENCIMA del combate de DarkOrbit (selección, láser automático, giro alrededor del bicho) sin
+sustituirlo:
+
+- **Los enemigos anuncian sus golpes fuertes**: una zona en el suelo que se llena durante el amago.
+  Te sales o lo recibes. Tres formas: GOLPE (círculo donde estabas), EMBISTE (un carril; después el
+  bicho lo recorre) y ESCUPE (un charco que se queda 6 s quemando).
+- **Esquiva** (`Mayús`): 420 u en 0,2 s, **invulnerable** mientras dura, 2,5 s de enfriamiento. Va
+  hacia el cursor (o hacia donde pilotas) y respeta el terreno: no atraviesa paredes.
+- **Cuatro habilidades** (`1`–`4`): Ráfaga (3 × 500, 5 s), **Impacto** (1 800 y **corta el amago**
+  del enemigo, que queda aturdido; 8 s), Pulso (900 en área alrededor, 10 s) y Reparar (1 400 en
+  4 s, 18 s). Los diales en vivo pasaron a `F1`–`F4`.
+- **Cada familia tiene su mecánica** (`KITS`): Vexor, Ferox, Vorax y Aci-03 embisten; Skarn y Aci-02
+  golpean; Mordax, Aci-01 y Aci-04 escupen; el Gravon se cubre (85 % menos daño 3 s) y golpea; los
+  élites encadenan tres. El Vex y el Gravit no tienen nada: son los mansos.
+- **Respuesta al golpe**: sacudida de cámara al recibir y al matar, el bicho da un respingo al
+  acusar el impacto, y «ESQUIVADO» cuando el golpe no entra.
+
+Medido contra el Coloso (20 000 de vida, con dos Skarn que se suman), 30 s con `--fight=13`:
+
+| | golpes de habilidad recibidos | esquivados | muertes |
+|---|---|---|---|
+| quieta, sin esquivar | 3 | 0 | **1** |
+| saliendo de las zonas (`--dodge`) | **0** | 5 | 0 (termina con 2 030 de casco) |
+
+Es la cifra que importa: **la misma nave con los mismos números muere o vive según se mueva**. Antes
+el resultado de una pelea era solo aritmética.
+
+Sin calibrar, y se nota: con las habilidades la nave pega ~2,5 veces más que antes, así que los
+bichos comunes caen en segundos (la vida por defecto subió de 4 200 a 6 500 como parche, no como
+ajuste) y el Impacto corta TODO amago en cuanto está listo. Lo que solo se sabe jugando: si un
+segundo de aviso es mucho o poco, si la esquiva hacia el cursor es la natural, y si con tres bichos
+encima las zonas se leen o se empastan. Una lección de montaje: las zonas van CON prueba de
+profundidad — pintadas siempre encima tapaban la nave justo cuando hay que verla.
+
+### El mini universo: Marte, la Tierra y Venus (`data/relief/demo.json`)
+
+El mundo de una sola tierra (la sección siguiente, que ahora es **Marte**) creció a un universo: tres
+planetas en fila hacia el sol, separados por espacio abierto, **cada uno con su temática, su relieve
+y sus bichos**. 35 500 × 14 000 u, 43 bichos, 20 zonas, dos estaciones.
+
+| Planeta | Temática | Lo que lo distingue | Bichos |
+|---|---|---|---|
+| **Marte** | roca roja y seca | desfiladero que parte una meseta, cráter, cordillera con paso, la Aguja | Vex (mansos), Vexor, Skarn, Mordax; élite **Coloso** |
+| **Tierra** | verde y agua | praderas onduladas, un **mar interior que se sobrevuela**, cordillera **nevada** con un solo paso, tundra detrás, ruinas en un altiplano | Gravit (mansos), Gravon, manadas de Ferox; élite **Guardián** |
+| **Venus** | azufre y fuego | lagos y un río de **lava que quema** al sobrevolarla, un **volcán que se sube andando** hasta la caldera | la familia Aci (01, 02, 03); élite **Matriarca** |
+| espacio | entre planetas | Campo de Escombros (Marte–Tierra) y Cementerio de Naves (Tierra–Venus) | Vorax, Aci-04 |
+
+Lo que hizo falta en el generador (`game/relief3d.gd`):
+
+- **Varios mundos** (`worlds`): cada planeta es una superficie con su función de altura, su rejilla,
+  su rectángulo y su material. Una sola malla para todo el universo serían ~330 000 triángulos y más
+  de 10 s de arranque en GDScript; por planeta son ~75 000 en total y carga en unos 4 s.
+  `height_at()` pregunta solo al planeta cuyo rectángulo contiene el punto (`world_at`).
+- **Mar y lava son lo mismo** (`sea`): lo que queda bajo su cota se llena y queda **plano** — la malla
+  se aplana en `_world_height` y el shader solo la viste (color, lisa, encendida si `emission`). Por
+  eso un lago se sobrevuela en vez de bajar a su fondo. Con `damage_per_sec` quema: `hazard_at()` →
+  el banco resta casco mientras estás encima. Cruzar el Lago de Fuego cuesta ~800 de 4 000.
+  El shader exige que sea plano además de estar a la cota, porque el acantilado de la costa también
+  pasa por ella; el minimapa no lo exigía y pintaba un anillo de agua alrededor del planeta.
+- **Nieve** (`snow`): por encima de una cota, donde no es pared.
+- **Un volcán es una colina con un cráter en la cima**: `hills` de 760 u con dispersión 780 da
+  pendiente 0,6 —se sube— y un `crater` en el mismo centro hace la caldera. Sin tipos nuevos.
+- **Los pasos de montaña tienen que ser anchos**: con radio 430–460 solo la franja central (±200 u)
+  quedaba llana y un cruce en diagonal topaba con la ladera. Están en 620 y 720.
+
+En el banco: los límites salen del trazado (`bounds`), el minimapa es de todo el universo (abajo a la
+derecha, cada planeta con su paleta), y **se quitaron los fondos y objetos del mapa 2D original**
+—telón, mosaicos de nebulosa, el planeta con su techo, lunas y estaciones mineras—: con planetas
+propios, un planeta pintado al fondo confundía. Quedan el cielo de estrellas, el polvo y el sol. Solo
+en el banco: el 1-1 del juego no se tocó. Los bichos lejanos y sin pelea no se procesan (`THINK_DIST`).
+
+Verificado con `--dest`/`--fight` (10-nov): en la Tierra, de la estación a la pradera, sobrevuelo del
+mar, el Paso Blanco hasta la tundra, la cordillera fuera del paso detiene, rampa al altiplano; en
+Venus, entrada por el oeste, cruce del lago (quema), subida del volcán hasta la caldera, Los Dientes
+detienen; en Marte, lo de antes. 68–79 fps con la cámara de persecución.
+
+Los viajes son largos a propósito de escala, no de diseño: de Marte a la Tierra son ~35 s en vacío.
+Si esto sigue, pide portales, rutas o algo que hacer en el camino.
+
+### El mini mundo abierto, hoy Marte
+
+Un cañón suelto ya no alcanzaba para seguir afinando: cámara, movimiento y combate se juzgan
+recorriendo algo que se parezca a un mapa. El banco abre ahora, por defecto, un mundo pequeño
+(`--map=1-1` vuelve al cañón de las primeras pruebas):
+
+| Zona | Qué es | Bichos |
+|---|---|---|
+| Puesto Umbral | la estación, en espacio abierto frente a la costa; **zona segura** | — |
+| Llanura de Ceniza | suelo ondulado con lomas; el arranque | 5 Vex, **no atacan** si no los tocas |
+| Yermo de la Aguja | el hito: una aguja de 1 400 u que se ve desde todo el mapa | 2 Ferox |
+| Desfiladero Roto | un cañón que parte la meseta en dos, con el pecio atravesado | 3 Vexor |
+| Mirador de la Meseta | lo alto de la mitad sur; se sube por la rampa | 1 Gravon pasivo |
+| Cuenca del Coloso | un cráter de 1 150 u de radio; el élite se ve desde el borde | Coloso (élite) y 2 Skarn |
+| El Nido | la esquina que cierra La Espina; por tierra **solo se entra por el paso** (por el espacio, rodeando la costa) | 3 Mordax, peligro alto |
+| Campo de Escombros | rocas sueltas en el espacio, fuera de la tierra | 2 Vorax |
+
+**El terreno ya no es un trazado: es un vocabulario** (`Relief3D._build_world` / `_world_height`).
+La tierra es una PLACA —un cuerpo enorme sobre el que se vuela a ras, con borde de acantilado al
+espacio— y sobre ella se componen COLINAS y CRÁTERES (suelo, todo pisable), MESETAS (pared salvo en
+sus RAMPAS, de pendiente constante = altura / largo), CORDILLERAS (un muro a lo largo de un trazado,
+con PASOS) y CAÑONES, que cortan lo levantado **hasta el suelo**: por eso sus bocas quedan abiertas
+solas, sin el truco de prolongar el eje. Fuera de la placa `height_at()` devuelve NAN y se vuela en
+el plano de siempre: tierra y espacio abierto conviven en el mismo mapa.
+
+Lo que el mundo añade al banco:
+
+- **Zonas que se descubren** (`zones`): al entrar sale el nombre grande, con «zona descubierta» la
+  primera vez, y el contador arriba. La zona es la más chica que contiene a la nave.
+- **Minimapa con niebla** (`tests/relief_minimap.gd`): sale del MISMO dato que el terreno
+  (`minimap_image()`, un píxel por vértice; lo empinado más oscuro, así las paredes se leen como
+  líneas). Lo no recorrido se ve apagado y se va encendiendo. Marca la nave, la cuña de lo que mira
+  la cámara, los bichos ya vistos y los nombres de las zonas descubiertas.
+- **Bichos con ficha** (`npcs`): `aggressive` (false = solo responde), `hp`, `damage`, `elite`,
+  `name`. En zona segura sueltan la presa.
+- `scatter` (campos de rocas sorteadas) y `models` (GLB del juego: la estación del puesto).
+
+Verificado con `--dest` (10-nov): del puesto a la llanura; rampa sur hasta el mirador (altura 733);
+boca oeste hasta el centro del desfiladero; la pared de la meseta detiene; rampa norte; el paso de
+La Espina hasta el centro del Nido; La Espina sin paso detiene; bajada al cráter. 28 590 triángulos
+de terreno, 80 fps en el puesto con la cámara de persecución (misma máquina, sin vsync).
+
+Una corrección que salió aquí: **el recorte mordía el suelo**. Con la cámara baja, el cilindro
+alrededor de la visual abría un agujero al espacio delante de la nave; ahora solo descarta lo que
+queda por encima de la visual (`cut_below`).
+
+**La costa se aborda por cualquier punto** (`shore_y` / `shore_width`). La primera version no: el suelo
+llegaba alto al borde y el acantilado empezaba ahi, asi que la costa entera era una pared y desde el
+puesto no habia por donde subir (4 de 5 entradas bloqueadas, medido con `--dest`). Ahora en los
+ultimos 800 u el suelo baja hasta quedar justo bajo el plano de vuelo y solo entonces cae: la nave
+entra a su altura de siempre y sube tierra adentro. De paso, `MAX_SLOPE` quedo en 1,2: varias
+pendientes suaves sumadas rozaban 1,0 y frenaban en sitios que parecian llanos; las paredes pasan de 2,5.
+
+Lo que este mundo NO es: no tiene misiones, ni botín, ni puestos intermedios, ni colisión con las
+piezas sueltas; los nombres y los números son de relleno; y está pensado para la cámara de
+persecución — en cenital, dentro del desfiladero, el recorte tiene que abrir media pantalla.
+
+### El cañón se describe con una polilínea, no roca por roca
+
+`canyons[].path` es el eje del pasillo; `Relief3D` siembra dos paredes de rocas a los lados con un
+RNG de `seed` fija (mismo trazado = mismo cañón en cada cliente). Es compacto y, sobre todo, **es el
+mismo dato que necesitará el servidor** para la huella: pasillo libre de `half_width` a cada lado del
+eje. Las piezas sueltas (`pieces[]`) van con `x`/`z` de juego e `y` de altura, como los props.
+
+Cada pieza del catálogo se **normaliza** al montarla: se centra en su caja y se escala para que su
+lado mayor mida el `size` pedido. Así tres mallas dan un cañón entero —variando tamaño y giro— y
+cambiar de arte es cambiar una ruta en `relief.json`.
+
+Diales (`canyon_defaults`, pisables por cañón): `half_width` 300, `size` 520–900, `spacing` 0,5
+(menos de 1 = se solapan y la pared se lee continua), `edge_factor` 0,4, `y` −260…+40 (cota del
+centro: con la nave a +80, una roca de 800 centrada en −100 sube a +300 y baja a −500).
+
+### El recorte: un cilindro tramado, no transparencia
+
+Una pared del lado del espectador tapa la nave. Transparentar la roca entera cambia el orden de
+pintado y se ve fantasma; aquí el shader **descarta los píxeles dentro de un cilindro alrededor de
+la visual cámara → héroe, y solo por delante del héroe**. El borde va tramado (Bayer 4×4), así que el
+material sigue siendo opaco. La cara interior que queda a la vista se oscurece (`interior` 0,25)
+para que se lea como corte y no como cáscara hueca.
+
+El mismo cilindro resuelve gratis el zoom máximo: con la cámara a ~325 de altura queda **dentro** de
+una roca alta, pero todo lo que está pegado a la cámara cae, por construcción, cerca de la visual y
+se descarta. Diales (`cutaway`): `radius` 170, `feather` 70, `margin` 40 (termina antes del héroe: lo
+que está a su altura o detrás no se toca).
+
+### Medido
+
+Radeon integrada (Ryzen 7 5700G), ventana maximizada, calidad alta (render 1×, MSAA 4×), sin vsync,
+parado bajo el pecio en (5350, 2720), 6 s tras 2 de calentamiento:
+
+| | fps |
+|---|---|
+| 1-1 sin relieve (línea base del banco) | 41,8 |
+| con relieve, sin recorte | 37,7 |
+| con relieve y recorte | 35,2 |
+
+53 piezas, 76 914 triángulos. **El relieve cuesta un 16 % y el recorte un 6 % de eso**; el techo lo
+pone el fondo del 1-1, no el terreno. Es una medida de una sola posición, no un perfil.
+
+Segunda pasada, en (4700, 2560), comparando las dos lecturas (una corrida cada una; entre corridas
+la línea base se movió de 41,8 a 38,5, así que el ruido es de ±3 fps):
+
+| | fps |
+|---|---|
+| sin relieve | 38,5 |
+| `rocks` | 38,8 |
+| `trench` (17 892 triángulos) | 30,5 |
+
+**La trinchera cuesta ~20 % y no es por geometría**: llena la pantalla entera con un shader triplanar
+(seis muestras de textura por píxel) bajo MSAA 4×. Las rocas, en ese punto, apenas tapan pantalla. Si
+esto sigue, el sitio donde ahorrar es el shader (una sola proyección en lo plano), no la malla.
+
+### Lo que la prueba NO hace
+
+- **No bloquea nada.** La nave atraviesa las rocas y el disparo también. La colisión y la línea de
+  visión son del servidor; el dato de partida ya está (la polilínea y `half_width`).
+- **No sale en el minimapa.**
+- **Solo recorta para el héroe.** Un NPC u otro jugador detrás de una pared queda tapado.
+- **No tiene arte propio.** Las tres mallas son las de `assets/do-ref/` (Phobos, el cúmulo de
+  asteroides y una estación minera haciendo de pecio): temporales, como todo lo de esa carpeta. La
+  trinchera es ruido: sirve para juzgar la LECTURA (¿es un cañón?), no el acabado.
+- **No hay horizonte.** La cámara sigue enseñando un radio de pantalla; el hito del final no se ve
+  desde lejos. El relieve no resuelve eso — es trabajo de cámara o de fondo.
+- **No hay sombras** (G§7): pasar bajo el pecio no oscurece la nave.
+- **No está en ningún nivel de calidad**: no baja ni se apaga con `baja`/`media`.
