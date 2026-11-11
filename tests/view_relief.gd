@@ -29,9 +29,11 @@ extends Node
 ## --dodge: en --fight, la nave sale sola de las zonas anunciadas
 ## --hold=fx,fy simula el cursor mantenido en esa fraccion de la pantalla
 ## C = recorte si/no · R = relieve si/no
-## Mapa: por defecto el mini mundo abierto (data/relief/demo.json), con zonas que
-## se descubren, minimapa con niebla y bichos por zona; --map=1-1 vuelve al canion
-## suelto de las primeras pruebas.
+## Mapas: UN MAPA POR PLANETA (data/relief/marte.json, tierra.json, venus.json),
+## cada uno continuo —su tierra y el espacio que la rodea— y unidos por PORTALES:
+## se vuela al aro y se salta con J. Arranca en Marte. --map=demo es el universo
+## continuo anterior (los tres planetas en un solo mapa, sin portales) y --map=1-1
+## el canion suelto de las primeras pruebas. --jump: salta sola al entrar en un aro.
 ## Argumentos: --at=x,y · --zoom= · --heading=grados · --cam=chase · --pitch=grados ·
 ## --variant=rocks|trench · --shot=ruta (captura y sale) · --seconds= · --cut=0 ·
 ## --relief=0 (la linea base) · --follow=0 (altura fija) · --dest=x,y (vuela ahi solo) ·
@@ -127,7 +129,31 @@ var _orbit_last := Vector2.INF
 var _orbit_deg := 0.0
 var _orbit_min := INF
 var _orbit_max := 0.0
-var _map := "demo"                 # --map=: que trazado de data/relief/ se monta
+var _map := "marte"                # --map=: que trazado de data/relief/ se monta
+var _area := Rect2(Vector2.ZERO, Vector2(20800, 12800))   # limites del mapa: la nave no sale de aqui
+var _portals: Array = []           # los del trazado, con su nodo en `node`
+var _near_portal := {}             # el portal en cuyo aro esta la nave
+var _jumping := false
+var _fade: ColorRect
+var _prompt: Label
+var _auto_jump := false            # --jump: salta sola al entrar en un aro (verificacion)
+
+## Lo que sobrevive a un SALTO. Saltar recarga la escena entera —es la forma mas
+## barata de soltar el planeta anterior con todo lo que cuelga de el— y estas
+## variables de clase son lo unico que cruza: a donde se llega, con cuanto casco,
+## que se lleva descubierto y como estaba puesta la camara.
+static var s_map := ""
+static var s_arrive := ""
+static var s_from := ""
+static var s_hp := -1.0
+static var s_discovered := {}
+static var s_camera := {}
+static var s_jumps := 0
+const PORTAL_RADIUS := 300.0       # dentro de esto se puede saltar
+const PORTAL_RING := 270.0
+const ARRIVE_OFFSET := 1000.0      # se aparece esta distancia por delante del portal de llegada: con menos, la camara (700 detras de la nave) queda al otro lado del aro y mira a traves del velo
+const FADE_OUT := 0.45
+const FADE_IN := 0.7
 var _has_profiles := false
 var _zones: Array = []
 var _safe_zones: Array = []
@@ -159,19 +185,34 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--map="):
 			_map = arg.trim_prefix("--map=")
+		elif arg == "--jump":
+			_auto_jump = true
+	var arrived := s_map != ""     # se llega de un salto, no del arranque
+	if arrived:
+		_map = s_map
 	var layout := Relief3D.layout(_map)
+	_portals = (layout.get("portals", []) as Array).duplicate(true)
+	_discovered = s_discovered
 	_zones = layout.get("zones", [])
 	_safe_zones = layout.get("safe_zones", [])
 	_has_profiles = layout.has("terrain_profiles")
 	var declared: Array = layout.get("bounds", [])
 	if declared.size() == 2:
 		BOUNDS = Vector2(float(declared[0]), float(declared[1]))
+		_area = Rect2(Vector2.ZERO, BOUNDS)
+	var area: Array = layout.get("area", [])
+	if area.size() == 4:
+		_area = Rect2(float(area[0]), float(area[1]),
+			float(area[2]) - float(area[0]), float(area[3]) - float(area[1]))
+		BOUNDS = _area.end
 	var start: Array = layout.get("start", [])
 	if start.size() == 2:
 		_pos = Vector2(float(start[0]), float(start[1]))
 	_heading = Vector2.RIGHT.rotated(deg_to_rad(float(layout.get("start_heading", 0.0))))
 	var zoom := 1.0
 	for arg in OS.get_cmdline_user_args():
+		if arrived and (arg.begins_with("--at=") or arg.begins_with("--dest=") or arg.begins_with("--heading=")):
+			continue               # tras un salto manda el portal de llegada, no el arranque
 		if arg.begins_with("--at="):
 			var parts := arg.trim_prefix("--at=").split(",")
 			if parts.size() == 2:
@@ -216,6 +257,20 @@ func _ready() -> void:
 		elif arg == "--novsync":
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 			Engine.max_fps = 0
+	if arrived:
+		for portal: Dictionary in _portals:
+			if str(portal.id) == s_arrive:
+				# se sale del aro hacia el interior del mapa: de espaldas a donde mira
+				var inward := -Vector2.from_angle(deg_to_rad(float(portal.get("face_deg", 0.0))))
+				_pos = Vector2(float(portal.x), float(portal.y)) + inward * ARRIVE_OFFSET
+				_heading = inward
+		if s_camera.has("chase"):
+			_chase = bool(s_camera.chase)
+			_chase_dist = float(s_camera.dist)
+			_pitch = float(s_camera.pitch)
+			_fov = float(s_camera.fov)
+			_speed = float(s_camera.speed)
+			_track = bool(s_camera.track)
 	_dest = _arg_dest if _arg_dest != Vector2.INF else _pos
 	_face = _heading.angle()
 	_move_dir = _heading
@@ -258,6 +313,12 @@ func _ready() -> void:
 	_combat.auto = _fight
 	_combat.auto_index = _fight_index
 	_combat.skills.auto_dodge = _auto_dodge
+	if arrived and s_hp > 0.0:
+		_combat.hero_hp = s_hp
+	if arrived:
+		_start = _pos              # si caes aqui, reapareces junto al portal por el que llegaste
+	for portal: Dictionary in _portals:
+		_build_portal(portal)
 
 	var layer := CanvasLayer.new()
 	add_child(layer)
@@ -275,6 +336,24 @@ func _ready() -> void:
 	_minimap.combat = _combat
 	layer.add_child(_minimap)
 	_minimap.setup(_relief, _zones)
+	_prompt = Label.new()
+	_prompt.add_theme_font_size_override("font_size", 26)
+	_prompt.add_theme_color_override("font_color", Color(0.6, 0.95, 1.0))
+	layer.add_child(_prompt)
+	# el fundido del salto, por encima de todo
+	var top := CanvasLayer.new()
+	top.layer = 50
+	add_child(top)
+	_fade = ColorRect.new()
+	_fade.color = Color(0, 0, 0, 1.0 if arrived else 0.0)
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	top.add_child(_fade)
+	if arrived:
+		create_tween().tween_property(_fade, "color:a", 0.0, FADE_IN)
+		_banner.text = "%s\nllegas desde %s" % [str(layout.get("planet", _map)), s_from]
+		_banner_left = 4.0
+		print("SALTO: llegada a %s por el portal '%s' en (%d, %d)" % [_map, s_arrive, _pos.x, _pos.y])
 
 
 ## (Re)monta el relieve. La vista de persecucion pide OTRO terreno que la cenital:
@@ -358,6 +437,8 @@ func _unhandled_input(event: InputEvent) -> void:
 				dash(_dash_wish())
 			KEY_G:
 				_track = not _track
+			KEY_J:
+				_jump()
 			KEY_TAB:
 				_combat.cycle()
 			KEY_SPACE:
@@ -377,7 +458,7 @@ func _order_to(px: Vector2) -> void:
 	var hit := _stage.to_world(px, _alt)
 	if not _chase:
 		if hit != Vector2.INF:
-			_dest = hit.clamp(Vector2.ZERO, BOUNDS)
+			_dest = hit.clamp(_area.position, _area.end)
 		return
 	var away := Vector2.ZERO
 	if hit != Vector2.INF:
@@ -387,11 +468,14 @@ func _order_to(px: Vector2) -> void:
 		away = Vector2(ray.x, ray.z).normalized() * ORDER_MAX * 2.0
 	if away.length() > ORDER_MAX:
 		away = away.normalized() * ORDER_MAX
-	_dest = (_pos + away).clamp(Vector2.ZERO, BOUNDS)
+	_dest = (_pos + away).clamp(_area.position, _area.end)
 
 
 func _process(delta: float) -> void:
+	if _jumping:
+		return                     # en pleno salto la nave ya no obedece
 	_fly(delta)
+	_track_portal()
 	_alt = lerpf(_alt, _target_alt(_pos), 1.0 - exp(-ALT_RATE * delta))
 	_orient(delta)
 	_ship.position = Vector3(_pos.x, _alt, _pos.y)
@@ -423,7 +507,7 @@ func _process(delta: float) -> void:
 		+ "V = camara [%s]  ·  F = altura [%s]  ·  T = terreno [%s]  ·  C = recorte %s  ·  R = relieve %s\n%s\n%s") % [
 		Engine.get_frames_per_second(), _pos.x, _pos.y, _alt,
 		"  ·  PARED: demasiado empinado" if _blocked else "",
-		_zone_label(), _discovered.size(), _zones.size(), _minimap.explored() * 100.0,
+		_zone_label(), _zones_found(), _zones.size(), _minimap.explored() * 100.0,
 		"PERSECUCION" if _chase else "CENITAL",
 		"SIGUE EL TERRENO" if _follow else "FIJA", _relief.variant,
 		"SI" if _cut else "NO", "SI" if _relief.visible else "NO",
@@ -446,7 +530,8 @@ func _process(delta: float) -> void:
 		if _orbit_deg > 0.0:
 			print("ORBITA: %d grados alrededor del objetivo, entre %d y %d u de el" % [
 				_orbit_deg, _orbit_min, _orbit_max])
-		print("ZONA: %s · descubiertas %d/%d" % [_zone_label(), _discovered.size(), _zones.size()])
+		print("ZONA: %s · mapa %s · descubiertas %d/%d · saltos %d" % [_zone_label(), _map, _zones_found(),
+			_zones.size(), s_jumps])
 		print("FINAL: pos (%d, %d) altura %d %s" % [_pos.x, _pos.y, _alt,
 			"BLOQUEADA" if _blocked else "libre"])
 		get_viewport().get_texture().get_image().save_png(_shot)
@@ -527,6 +612,92 @@ func _orient(delta: float) -> void:
 	_nose = lerpf(_nose, atan(clampf(slope, -MAX_SLOPE, MAX_SLOPE)), 1.0 - exp(-3.0 * delta))
 	_ship.basis = Basis(Vector3.UP, atan2(-facing.x, -facing.y)) \
 		* Basis(Vector3.RIGHT, _nose) * Basis(Vector3.BACK, deg_to_rad(_roll))
+
+
+# ---------------- portales ----------------
+
+## El aro de un portal: un toro de pie, encendido, mirando hacia su destino, con
+## un velo dentro. Grande a proposito — tiene que verse de lejos y ser un sitio al
+## que se llega, no un icono.
+func _build_portal(portal: Dictionary) -> void:
+	var facing := Vector2.from_angle(deg_to_rad(float(portal.get("face_deg", 0.0))))
+	var node := Node3D.new()
+	node.position = Vector3(float(portal.x), ALT + 70.0, float(portal.y))
+	node.basis = Basis(Vector3.UP, atan2(facing.x, facing.y)) * Basis(Vector3.RIGHT, PI * 0.5)
+	var ring := TorusMesh.new()
+	ring.inner_radius = PORTAL_RING - 34.0
+	ring.outer_radius = PORTAL_RING
+	ring.rings = 64
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = Color(0.35, 0.95, 1.0)
+	ring.material = glow
+	var ring_node := MeshInstance3D.new()
+	ring_node.mesh = ring
+	node.add_child(ring_node)
+	var veil := CylinderMesh.new()
+	veil.top_radius = PORTAL_RING - 34.0
+	veil.bottom_radius = PORTAL_RING - 34.0
+	veil.height = 2.0
+	veil.radial_segments = 48
+	var veil_mat := StandardMaterial3D.new()
+	veil_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	veil_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	veil_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	veil_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	veil_mat.albedo_color = Color(0.25, 0.7, 1.0, 0.14)
+	veil.material = veil_mat
+	var veil_node := MeshInstance3D.new()
+	veil_node.mesh = veil
+	node.add_child(veil_node)
+	_stage.add_child(node)
+	portal["node"] = node
+	portal["veil"] = veil_mat
+
+
+## ¿Esta la nave dentro de algun aro? Pone el aviso, y el velo late.
+func _track_portal() -> void:
+	_near_portal = {}
+	var pulse := 0.12 + 0.06 * sin(Time.get_ticks_msec() * 0.004)
+	for portal: Dictionary in _portals:
+		(portal.veil as StandardMaterial3D).albedo_color.a = pulse
+		if _pos.distance_to(Vector2(float(portal.x), float(portal.y))) <= PORTAL_RADIUS:
+			_near_portal = portal
+	var view := get_viewport().get_visible_rect().size
+	_prompt.visible = not _near_portal.is_empty()
+	if _prompt.visible:
+		_prompt.text = "J  —  %s" % str(_near_portal.name).replace("Portal a", "saltar a")
+		_prompt.position = Vector2((view.x - _prompt.size.x) * 0.5, view.y * 0.62)
+		if _auto_jump:
+			_jump()
+
+
+## El salto: fundido a negro y se recarga la escena en el mapa de destino. Lo que
+## cruza va en las variables de clase `s_*`.
+func _jump() -> void:
+	if _jumping or _near_portal.is_empty():
+		return
+	_jumping = true
+	s_from = str(Relief3D.layout(_map).get("planet", _map))
+	s_map = str(_near_portal.to_map)
+	s_arrive = str(_near_portal.to_portal)
+	s_hp = _combat.hero_hp
+	s_discovered = _discovered
+	s_camera = {"chase": _chase, "dist": _chase_dist, "pitch": _pitch, "fov": _fov, "speed": _speed, "track": _track}
+	s_jumps += 1
+	print("SALTO: de %s a %s" % [_map, s_map])
+	var tw := create_tween()
+	tw.tween_property(_fade, "color:a", 1.0, FADE_OUT)
+	tw.tween_callback(get_tree().reload_current_scene)
+
+
+## Cuantas zonas de ESTE mapa llevas descubiertas (lo descubierto cruza los saltos).
+func _zones_found() -> int:
+	var found := 0
+	for z: Dictionary in _zones:
+		if _discovered.has(str(z.name)):
+			found += 1
+	return found
 
 
 ## ¿Esta la nave en zona segura? (los bichos sueltan la presa)
@@ -617,7 +788,7 @@ func _target_alt(p: Vector2) -> float:
 ## MAX_SLOPE es una pared. Bajar siempre se puede (la nave se deja caer).
 func _try_move(step: Vector2, slide := false) -> void:
 	if _climb_ok(step):
-		_pos = (_pos + step).clamp(Vector2.ZERO, BOUNDS)
+		_pos = (_pos + step).clamp(_area.position, _area.end)
 		_blocked = false
 		return
 	if slide:
@@ -629,7 +800,7 @@ func _try_move(step: Vector2, slide := false) -> void:
 			var tangent := grad.normalized().orthogonal()
 			var along := tangent * step.dot(tangent)
 			if along.length() > 0.001 and _climb_ok(along):
-				_pos = (_pos + along).clamp(Vector2.ZERO, BOUNDS)
+				_pos = (_pos + along).clamp(_area.position, _area.end)
 	_blocked = true
 	_dest = _pos
 

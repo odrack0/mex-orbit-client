@@ -95,8 +95,14 @@ func build(map_code: String, terrain_profile := "") -> bool:
 	var bounds: Array = d.get("bounds", [])
 	if bounds.size() == 2:
 		_universe = Rect2(Vector2.ZERO, Vector2(float(bounds[0]), float(bounds[1])))
+	var area: Array = d.get("area", [])
+	if area.size() == 4:
+		_universe = Rect2(float(area[0]), float(area[1]),
+			float(area[2]) - float(area[0]), float(area[3]) - float(area[1]))
 	for wd: Dictionary in d.get("worlds", []):
 		_build_world(wd)
+	for body: Dictionary in d.get("sky", []):
+		_sky_body(body)
 	if d.has("world"):
 		_build_world(d.world)
 	elif d.has("terrain") and not canyons.is_empty():
@@ -748,6 +754,36 @@ func _model(d: Dictionary) -> void:
 	node.position = Vector3(at.x, float(d.get("y", 0.0)) + (0.0 if is_nan(ground) else ground), at.y)
 	node.rotation_degrees.y = float(d.get("rot_y", 0.0))
 	add_child(node)
+
+
+## Un planeta vecino pintado en el cielo: una esfera enorme y lejana en su
+## direccion, con la paleta de ese planeta. No se llega a ella — se va por
+## portal —, pero se VE a donde lleva. Con algo de emision para que la cara en
+## sombra no sea un disco negro contra el espacio.
+func _sky_body(d: Dictionary) -> void:
+	var center := _universe.get_center()
+	var toward := Vector2.from_angle(deg_to_rad(float(d.get("toward_deg", 0.0))))
+	var radius := float(d.get("radius", 6000.0))
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 48
+	mesh.rings = 24
+	var tex := _rock_texture({"colors": d.get("colors", ["5a2a1c", "b5553a", "e0a078"])})
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = tex
+	mat.uv1_scale = Vector3(3.0, 1.5, 1.0)
+	mat.roughness = 1.0
+	mat.emission_enabled = true
+	mat.emission_texture = tex
+	mat.emission_energy_multiplier = float(d.get("glow", 0.45))
+	mesh.material = mat
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	var at := center + toward * float(d.get("distance", 46000.0))
+	mi.position = Vector3(at.x, float(d.get("height", 9000.0)), at.y)
+	mi.rotation_degrees = Vector3(18.0, 40.0, 0.0)
+	add_child(mi)
 
 
 # ---- el minimapa sale del mismo dato ----

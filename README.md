@@ -1759,6 +1759,41 @@ contra 71°) y cerraba en espiral hasta 33 u del bicho. Click bajo la nave → v
 al cielo → vuela de frente hasta topar con el macizo. Junto al borde del macizo el terreno corta la
 órbita (pared): es terreno, no un fallo.
 
+### Un mapa por planeta, y portales entre ellos (`data/relief/marte.json`, `tierra.json`, `venus.json`)
+
+El universo continuo (más abajo) enseñó lo que tenía que enseñar y también su coste: de Marte a la
+Tierra eran ~35 s de vacío, y un solo mapa para todo obligaría al servidor a dejar de pensar en
+mapas, que es justo lo que ya tiene hecho y probado. El dictamen de la prueba: **portales ENTRE
+planetas, todo continuo DENTRO de cada uno** — el esquema de WoW (continentes sin cortes, salto
+entre continentes) y, de paso, el de DarkOrbit.
+
+- **Cada planeta es un mapa** que incluye su tierra y el espacio que la rodea (`area`): la placa, la
+  estación en órbita, el campo de rocas. El banco arranca en Marte.
+- **Los portales son sitios, no iconos**: un aro de 540 u de diámetro, encendido, que se ve de lejos
+  y al que hay que llegar volando. Dentro del aro, `J` salta. Marte ↔ Tierra ↔ Venus; para ir de
+  Marte a Venus se cruza la Tierra, y el portal a Venus está al otro lado del Cementerio de Naves.
+- **Los planetas vecinos se ven en el cielo** (`sky`): una esfera enorme y lejana en la dirección de
+  su portal. No se llega volando, pero se ve a dónde se va — lo mejor del universo continuo era ver
+  Venus en el horizonte desde la Tierra, y eso no se perdió.
+- **El salto recarga la escena.** Es la forma más barata de soltar el planeta anterior con todo lo
+  que cuelga de él; lo que cruza va en variables de clase (`s_*` en `tests/view_relief.gd`): a qué
+  portal se llega, el casco, las zonas descubiertas y cómo estaba la cámara. Fundido a negro de
+  0,45 s, carga de ~1,5 s, fundido de entrada.
+- En el minimapa los portales salen desde el principio, aunque haya niebla: son la salida.
+
+Los tres JSON salieron de partir `demo.json` por los tramos vacíos (cada cosa va al primer mapa cuya
+`area` la contiene); las coordenadas siguen siendo las absolutas del universo. `demo.json` se queda
+como estaba — `--map=demo` es el universo continuo, para comparar las dos formas de viajar.
+
+Verificado con `--jump` (salta sola al entrar en un aro): los cuatro saltos, Marte → Tierra,
+Tierra → Venus, Venus → Tierra y Tierra → Marte, llegan al portal correcto del mapa correcto.
+
+Una lección de montaje: **al llegar hay que aparecer lejos del aro** (1 000 u). Con 480 la cámara,
+que va 700 detrás de la nave, quedaba al otro lado y se miraba todo a través del velo del portal.
+
+Lo que NO hace: no hay transición con peso (es un fundido), los bichos no cruzan portales, y nadie
+te espera al otro lado — el portal como embudo de PvP, que es media gracia, aquí no existe.
+
 ### Combate con manos: esquiva, golpes anunciados y habilidades (`tests/relief_skills.gd`)
 
 La pregunta era cómo hacerlo «más moderno». Lo que hoy se siente viejo no es la cámara ni el mundo,

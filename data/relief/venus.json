@@ -1,0 +1,362 @@
+{
+  "_comment": "Mapa de Venus de la prueba de concepto: su tierra y el espacio que la rodea, todo continuo. A los otros planetas se va por PORTAL (tecla J dentro de su aro), no volando: salieron de partir data/relief/demo.json, que sigue siendo el universo continuo (--map=demo) para comparar. Coordenadas absolutas, las mismas del universo.",
+  "planet": "Venus",
+  "area": [
+    24900,
+    1200,
+    35400,
+    10000
+  ],
+  "_area": "Los limites del mapa [x0, y0, x1, y1]. La nave no sale de aqui.",
+  "start": [
+    25950,
+    5600
+  ],
+  "start_heading": 0,
+  "variant": "trench",
+  "worlds": [
+    {
+      "name": "Venus",
+      "_tema": "Azufre y fuego. Suelo amarillo, lagos y un rio de lava que QUEMAN al sobrevolarlos, y un volcan que se sube andando hasta la caldera donde vive la Matriarca. El planeta mas duro.",
+      "seed": 41,
+      "rect": [
+        26100,
+        2100,
+        34300,
+        9100
+      ],
+      "cell": 60.0,
+      "base_y": 20.0,
+      "deep_y": -1500.0,
+      "fine_amp": 12.0,
+      "wave_amp": 45.0,
+      "shore_y": -12.0,
+      "shore_width": 700.0,
+      "colors": [
+        "3b2508",
+        "a9761d",
+        "ead062"
+      ],
+      "tex_scale": 380.0,
+      "top_fill": 0.46,
+      "dark_y": -650.0,
+      "light_y": 40.0,
+      "dark": 0.04,
+      "strata": 0.5,
+      "strata_period": 70.0,
+      "wall_tint": "A07A40",
+      "sea": {
+        "name": "lava",
+        "y": -70.0,
+        "color": "ff5a10",
+        "emission": 2.4,
+        "damage_per_sec": 170.0
+      },
+      "_sea": "Lava: misma mecanica que el mar de la Tierra, pero encendida y con danio por segundo mientras la sobrevuelas. Cruzar el rio cuesta casco.",
+      "plates": [
+        {
+          "at": [
+            30200,
+            5600
+          ],
+          "radii": [
+            3600,
+            3000
+          ],
+          "edge": 300.0,
+          "edge_noise": 220.0
+        }
+      ],
+      "hills": [
+        {
+          "_name": "Monte Azufre: un volcan que se sube (pendiente 0,6)",
+          "at": [
+            30800,
+            5000
+          ],
+          "height": 760.0,
+          "spread": 780.0
+        },
+        {
+          "at": [
+            28000,
+            4200
+          ],
+          "height": 240.0,
+          "spread": 520.0
+        },
+        {
+          "at": [
+            32400,
+            6000
+          ],
+          "height": 200.0,
+          "spread": 480.0
+        }
+      ],
+      "craters": [
+        {
+          "_name": "La Caldera, en la cima del volcan",
+          "at": [
+            30800,
+            5000
+          ],
+          "radius": 380.0,
+          "depth": 230.0,
+          "rim": 60.0,
+          "rim_width": 110.0
+        },
+        {
+          "_name": "Lago de Fuego",
+          "at": [
+            28600,
+            6600
+          ],
+          "radius": 700.0,
+          "depth": 260.0,
+          "rim": 30.0,
+          "rim_width": 150.0
+        },
+        {
+          "_name": "lago del este",
+          "at": [
+            31900,
+            7300
+          ],
+          "radius": 600.0,
+          "depth": 240.0,
+          "rim": 30.0,
+          "rim_width": 140.0
+        },
+        {
+          "_name": "lago del norte",
+          "at": [
+            29300,
+            3900
+          ],
+          "radius": 550.0,
+          "depth": 230.0,
+          "rim": 30.0,
+          "rim_width": 140.0
+        }
+      ],
+      "mesas": [],
+      "ridges": [
+        {
+          "_name": "Los Dientes: una cresta corta; se rodea",
+          "path": [
+            [
+              31800,
+              3300
+            ],
+            [
+              32700,
+              4300
+            ],
+            [
+              33000,
+              5600
+            ]
+          ],
+          "height": 420.0,
+          "core": 50.0,
+          "width": 240.0,
+          "passes": []
+        }
+      ],
+      "canyons": [
+        {
+          "_name": "Rio de Lava: un cauce hundido que la lava llena",
+          "path": [
+            [
+              27300,
+              5200
+            ],
+            [
+              28500,
+              5000
+            ],
+            [
+              29400,
+              5600
+            ],
+            [
+              29700,
+              6900
+            ],
+            [
+              30600,
+              8000
+            ]
+          ],
+          "half_width": 200.0,
+          "wall_width": 260.0,
+          "depth": 160.0,
+          "edge_noise": 25.0
+        }
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "tierra",
+      "name": "Portal a la Tierra",
+      "x": 25500,
+      "y": 5600,
+      "face_deg": 180,
+      "to_map": "tierra",
+      "to_portal": "venus"
+    }
+  ],
+  "_portals": "Cada portal lleva a `to_portal` del mapa `to_map`. `face_deg` es hacia donde mira el aro (hacia el planeta de destino, que se ve en el cielo en esa direccion).",
+  "sky": [
+    {
+      "name": "Tierra",
+      "toward_deg": 180,
+      "distance": 46000,
+      "height": 3600,
+      "radius": 7500,
+      "colors": [
+        "1d4f9a",
+        "3f8a4a",
+        "e6eef2"
+      ]
+    },
+    {
+      "name": "Marte",
+      "toward_deg": 171,
+      "distance": 56000,
+      "height": 7200,
+      "radius": 2800,
+      "colors": [
+        "5a2a1c",
+        "b5553a",
+        "e0a078"
+      ]
+    }
+  ],
+  "_sky": "Los planetas vecinos, pintados lejos en su direccion: se ve a donde lleva cada portal aunque no se pueda llegar volando. toward_deg 0 = +x.",
+  "zones": [
+    {
+      "name": "Llanos de Azufre",
+      "note": "Venus · la lava quema al sobrevolarla",
+      "x": 28200,
+      "y": 5400,
+      "r": 1300
+    },
+    {
+      "name": "Lago de Fuego",
+      "note": "Venus · lava",
+      "x": 28600,
+      "y": 6600,
+      "r": 720
+    },
+    {
+      "name": "Monte Azufre",
+      "note": "Venus · el volcan se sube andando",
+      "x": 30800,
+      "y": 5000,
+      "r": 1100
+    },
+    {
+      "name": "La Caldera",
+      "note": "Venus · elite: la Matriarca",
+      "x": 30800,
+      "y": 5000,
+      "r": 400
+    },
+    {
+      "name": "Costa Ardiente",
+      "note": "Venus",
+      "x": 32000,
+      "y": 7200,
+      "r": 900
+    },
+    {
+      "name": "Portal a la Tierra",
+      "note": "J = saltar",
+      "x": 25500,
+      "y": 5600,
+      "r": 520
+    }
+  ],
+  "safe_zones": [],
+  "npcs": [
+    {
+      "_planeta": "VENUS",
+      "code": "aci-01",
+      "x": 27800,
+      "y": 5900,
+      "hp": 6000,
+      "damage": 190
+    },
+    {
+      "code": "aci-01",
+      "x": 28300,
+      "y": 4500,
+      "hp": 6000,
+      "damage": 190
+    },
+    {
+      "code": "aci-01",
+      "x": 29900,
+      "y": 4500,
+      "hp": 6000,
+      "damage": 190
+    },
+    {
+      "code": "aci-01",
+      "x": 29000,
+      "y": 7700,
+      "hp": 6000,
+      "damage": 190
+    },
+    {
+      "code": "aci-02",
+      "x": 31300,
+      "y": 6500,
+      "hp": 8000,
+      "damage": 240
+    },
+    {
+      "code": "aci-02",
+      "x": 32700,
+      "y": 6700,
+      "hp": 8000,
+      "damage": 240
+    },
+    {
+      "code": "aci-02",
+      "x": 31000,
+      "y": 8000,
+      "hp": 8000,
+      "damage": 240
+    },
+    {
+      "code": "aci-03",
+      "x": 30150,
+      "y": 5650,
+      "hp": 10000,
+      "damage": 280
+    },
+    {
+      "code": "aci-03",
+      "x": 31550,
+      "y": 4550,
+      "hp": 10000,
+      "damage": 280
+    },
+    {
+      "code": "aci-05",
+      "x": 30800,
+      "y": 5000,
+      "name": "Matriarca",
+      "elite": true,
+      "hp": 26000,
+      "damage": 380
+    }
+  ],
+  "models": [],
+  "scatter": [],
+  "pieces": []
+}

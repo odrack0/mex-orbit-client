@@ -123,12 +123,19 @@ func _seen(p: Vector2) -> bool:
 func _draw_over() -> void:
 	var font := ThemeDB.fallback_font
 	for z: Dictionary in _zones:
-		if bench._discovered.has(str(z.name)):
+		if bench._discovered.has(str(z.name)) and not str(z.name).begins_with("Portal"):
 			var at := _to_map(Vector2(float(z.x), float(z.y)))
 			var text := str(z.name)
 			var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10).x
 			_over.draw_string(font, at + Vector2(-w * 0.5, 4.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
 				Color(1, 1, 1, 0.8))
+	# los portales se conocen desde el principio: son como se sale del planeta
+	for portal: Dictionary in bench._portals:
+		var gate := _to_map(Vector2(float(portal.x), float(portal.y)))
+		_over.draw_colored_polygon(PackedVector2Array([gate + Vector2(0, -7), gate + Vector2(6, 0),
+			gate + Vector2(0, 7), gate + Vector2(-6, 0)]), Color(0.3, 0.95, 1.0))
+		_over.draw_string(font, gate + Vector2(9.0, 4.0), str(portal.name), HORIZONTAL_ALIGNMENT_LEFT, -1, 10,
+			Color(0.6, 0.95, 1.0))
 	if combat != null:
 		for i in combat.npcs.size():
 			var n = combat.npcs[i]
